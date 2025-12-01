@@ -5,6 +5,7 @@
 
 #include <vk_types.h>
 
+// This will contain helpers to create vulkan structures
 
 namespace vkInit
 {

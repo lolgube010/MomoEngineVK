@@ -1,6 +1,6 @@
 ﻿// vulkan_guide.h : Include file for standard system include files,
 // or project specific include files.
-
+// This will be the main class for the engine, and where most of the code of the tutorial will go
 #pragma once
 
 #include <vk_types.h>
@@ -11,10 +11,8 @@ class VulkanEngine
 {
 public:
 	bool _is_initialized{false};
-	bool _stop_rendering{false};
-	bool __PADDING1 = false;
-	bool __PADDING2 = false;
 	int _frame_number{0};
+	bool _stop_rendering{false};
 	VkExtent2D _window_extent{1500, 700}; // og was 1700, 900
 
 	struct SDL_Window* _window{nullptr};
@@ -22,38 +20,38 @@ public:
 	static VulkanEngine& Get();
 
 	// initializes everything in the engine
-	void init();
+	void Init();
 
 	// shuts down the engine
-	void cleanup();
+	void Cleanup();
 
 	// draw loop
-	void draw();
+	void Draw();
 
 	// run main loop
-	void run();
+	void Run();
 
-	VkInstance _instance; // vulkan library handle
+	VkInstance _instance; // vulkan library handle - "The Vulkan context, used to access drivers."
 	VkDebugUtilsMessengerEXT _debug_messenger; // vulkan debug output handle
-	VkPhysicalDevice _chosen_GPU; // GPU chosen as the default device
-	VkDevice _device; // Vulkan Device for commands
+	VkPhysicalDevice _chosen_GPU; // GPU chosen as the default device. - "A GPU. Used to query physical GPU details, like features, capabilities, memory size, etc."
+	VkDevice _device; // Vulkan Device for commands - "The “logical” GPU context that you actually execute things on."
 	VkSurfaceKHR _surface; // vulkan window surface
 
-	VkSwapchainKHR _swapchain;
+	VkSwapchainKHR _swapchain; // Holds the images for the screen. It allows you to render things into a visible window. The KHR suffix shows that it comes from an extension, which in this case is VK_KHR_swapchain
 	VkFormat _swapchain_image_format;
-	int __PADDING3 = 0;
 
-	std::vector<VkImageView> _swapchain_image_views;
-	std::vector<VkImage> _swapchain_images;
+	std::vector<VkImage> _swapchain_images; // A VkImage is a handle to the actual image object to use as texture or to render into. -  "A texture you can write to and read from."
+	std::vector<VkImageView> _swapchain_image_views; // A VkImageView is a wrapper for that image. It allows to do things like swap the colors. We will go into detail about it later.
 	VkExtent2D _swapchain_extent;
 
 private:
-	void process_input(SDL_Event& anE);
-	void init_vulkan();
-	void init_swapchain();
-	void init_commands();
-	void init_sync_structures();
+	void ProcessInput(SDL_Event& anE);
 
-	void create_swapchain(uint32_t aWidth, uint32_t aHeight);
-	void destroy_swapchain() const;
+	void InitVulkan();
+	void InitSwapchain();
+	void InitCommands();
+	void InitSyncStructures();
+
+	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
+	void DestroySwapchain() const;
 };

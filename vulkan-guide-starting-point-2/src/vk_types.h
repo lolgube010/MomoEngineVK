@@ -2,6 +2,8 @@
 // or project specific include files.
 #pragma once
 
+// The entire codebase will include this header. it will provide widely used default structures and includes.
+
 #include <memory>
 #include <optional>
 #include <string>

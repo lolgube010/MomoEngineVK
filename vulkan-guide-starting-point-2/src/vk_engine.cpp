@@ -1,5 +1,4 @@
-﻿//> includes
-#include "vk_engine.h"
+﻿#include "vk_engine.h"
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
@@ -12,18 +11,18 @@
 #include <chrono>
 #include <thread>
 
-
-VulkanEngine* gl_LoadedEngine = nullptr;
+// globals
+namespace
+{
+	VulkanEngine* gl_LoadedEngine = nullptr;
+}
 
 constexpr bool bUseValidationLayers = true;
 constexpr auto AppName = "momoEngine VK";
 
-VulkanEngine& VulkanEngine::Get()
-{
-	return *gl_LoadedEngine;
-}
+VulkanEngine& VulkanEngine::Get() { return *gl_LoadedEngine; }
 
-void VulkanEngine::init()
+void VulkanEngine::Init()
 {
 	// only one engine initialization is allowed with the application.
 	assert(gl_LoadedEngine == nullptr);
@@ -43,20 +42,19 @@ void VulkanEngine::init()
 		window_flags
 	);
 
-	init_vulkan();
-	init_swapchain();
-	init_commands();
-	init_sync_structures();
+	InitVulkan();
+	InitSwapchain();
+	InitCommands();
+	InitSyncStructures();
 
-	// everything went fine
 	_is_initialized = true;
 }
 
-void VulkanEngine::cleanup()
+void VulkanEngine::Cleanup()
 {
 	if (_is_initialized)
 	{
-		destroy_swapchain();
+		DestroySwapchain();
 
 		vkDestroySurfaceKHR(_instance, _surface, nullptr);
 		vkDestroyDevice(_device, nullptr);
@@ -65,16 +63,15 @@ void VulkanEngine::cleanup()
 		vkDestroyInstance(_instance, nullptr);
 		SDL_DestroyWindow(_window);
 	}
-	// clear engine pointer
 	gl_LoadedEngine = nullptr;
 }
 
-void VulkanEngine::draw()
+void VulkanEngine::Draw()
 {
 	// nothing yet
 }
 
-void VulkanEngine::run()
+void VulkanEngine::Run()
 {
 	SDL_Event e;
 	bool bQuit = false;
@@ -103,7 +100,7 @@ void VulkanEngine::run()
 				}
 			}
 
-			process_input(e);
+			//process_input(e);
 		}
 
 		// do not draw if we are minimized
@@ -114,130 +111,130 @@ void VulkanEngine::run()
 			continue;
 		}
 
-		draw();
+		Draw();
 	}
 }
 
-void VulkanEngine::process_input(SDL_Event& anE)
+void VulkanEngine::ProcessInput(SDL_Event& anE)
 {
 	auto& e = anE;
 	switch (e.type)
 	{
-		// ------------------- KEYBOARD -------------------
-		case SDL_KEYDOWN:
-			if (!e.key.repeat)
-			{
-				switch (e.key.keysym.sym)
-				{
-					case SDLK_w: fmt::print("W pressed\n");
-						break;
-					case SDLK_s: fmt::print("S pressed\n");
-						break;
-					case SDLK_a: fmt::print("A pressed\n");
-						break;
-					case SDLK_d: fmt::print("D pressed\n");
-						break;
-					case SDLK_LEFT: fmt::print("Left arrow\n");
-						break;
-					case SDLK_RIGHT: fmt::print("Right arrow\n");
-						break;
-					case SDLK_UP: fmt::print("Up arrow\n");
-						break;
-					case SDLK_DOWN: fmt::print("Down arrow\n");
-						break;
-					case SDLK_SPACE: fmt::print("Space pressed\n");
-						break;
-						// Add more keys as needed
-				}
-			}
-			break;
-
-		case SDL_KEYUP:
+	// ------------------- KEYBOARD -------------------
+	case SDL_KEYDOWN:
+		if (!e.key.repeat)
+		{
 			switch (e.key.keysym.sym)
 			{
-				case SDLK_w: fmt::print("W released\n");
-					break;
-				case SDLK_s: fmt::print("S released\n");
-					break;
-				case SDLK_a: fmt::print("A released\n");
-					break;
-				case SDLK_d: fmt::print("D released\n");
-					break;
-				case SDLK_LEFT: fmt::print("Left arrow up\n");
-					break;
-				case SDLK_RIGHT: fmt::print("Right arrow up\n");
-					break;
-				case SDLK_UP: fmt::print("Up arrow up\n");
-					break;
-				case SDLK_DOWN: fmt::print("Down arrow up\n");
-					break;
-				case SDLK_SPACE: fmt::print("Space released\n");
-					break;
+			case SDLK_w: fmt::print("W pressed\n");
+				break;
+			case SDLK_s: fmt::print("S pressed\n");
+				break;
+			case SDLK_a: fmt::print("A pressed\n");
+				break;
+			case SDLK_d: fmt::print("D pressed\n");
+				break;
+			case SDLK_LEFT: fmt::print("Left arrow\n");
+				break;
+			case SDLK_RIGHT: fmt::print("Right arrow\n");
+				break;
+			case SDLK_UP: fmt::print("Up arrow\n");
+				break;
+			case SDLK_DOWN: fmt::print("Down arrow\n");
+				break;
+			case SDLK_SPACE: fmt::print("Space pressed\n");
+				break;
+				// Add more keys as needed
 			}
-			break;
+		}
+		break;
 
-		// ------------------- MOUSE MOTION -------------------
-		case SDL_MOUSEMOTION:
-			fmt::print("Mouse at: ({}, {})\n",
-					   e.motion.x,
-					   e.motion.y);
-			// e.motion.xrel, e.motion.yrel for relative movement
+	case SDL_KEYUP:
+		switch (e.key.keysym.sym)
+		{
+		case SDLK_w: fmt::print("W released\n");
 			break;
+		case SDLK_s: fmt::print("S released\n");
+			break;
+		case SDLK_a: fmt::print("A released\n");
+			break;
+		case SDLK_d: fmt::print("D released\n");
+			break;
+		case SDLK_LEFT: fmt::print("Left arrow up\n");
+			break;
+		case SDLK_RIGHT: fmt::print("Right arrow up\n");
+			break;
+		case SDLK_UP: fmt::print("Up arrow up\n");
+			break;
+		case SDLK_DOWN: fmt::print("Down arrow up\n");
+			break;
+		case SDLK_SPACE: fmt::print("Space released\n");
+			break;
+		}
+		break;
 
-		// ------------------- MOUSE BUTTONS -------------------
-		case SDL_MOUSEBUTTONDOWN:
-			if (e.button.button == SDL_BUTTON_LEFT)
-			{
-				fmt::print("Left click DOWN at ({}, {})\n",
-						   e.button.x,
-						   e.button.y);
-			}
-			else if (e.button.button == SDL_BUTTON_RIGHT)
-			{
-				fmt::print("Right click DOWN at ({}, {})\n",
-						   e.button.x,
-						   e.button.y);
-			}
-			else if (e.button.button == SDL_BUTTON_MIDDLE)
-			{
-				fmt::print("Middle click DOWN\n");
-			}
-			break;
+	// ------------------- MOUSE MOTION -------------------
+	case SDL_MOUSEMOTION:
+		fmt::print("Mouse at: ({}, {})\n",
+		           e.motion.x,
+		           e.motion.y);
+		// e.motion.xrel, e.motion.yrel for relative movement
+		break;
 
-		case SDL_MOUSEBUTTONUP:
-			if (e.button.button == SDL_BUTTON_LEFT)
-			{
-				fmt::print("Left click UP\n");
-			}
-			else if (e.button.button == SDL_BUTTON_RIGHT)
-			{
-				fmt::print("Right click UP\n");
-			}
-			else if (e.button.button == SDL_BUTTON_MIDDLE)
-			{
-				fmt::print("Middle click UP\n");
-			}
-			break;
+	// ------------------- MOUSE BUTTONS -------------------
+	case SDL_MOUSEBUTTONDOWN:
+		if (e.button.button == SDL_BUTTON_LEFT)
+		{
+			fmt::print("Left click DOWN at ({}, {})\n",
+			           e.button.x,
+			           e.button.y);
+		}
+		else if (e.button.button == SDL_BUTTON_RIGHT)
+		{
+			fmt::print("Right click DOWN at ({}, {})\n",
+			           e.button.x,
+			           e.button.y);
+		}
+		else if (e.button.button == SDL_BUTTON_MIDDLE)
+		{
+			fmt::print("Middle click DOWN\n");
+		}
+		break;
 
-		// ------------------- MOUSE WHEEL -------------------
-		case SDL_MOUSEWHEEL:
-			fmt::print("Mouse wheel: x={} y={}\n",
-					   e.wheel.x,
-					   e.wheel.y);
-			break;
+	case SDL_MOUSEBUTTONUP:
+		if (e.button.button == SDL_BUTTON_LEFT)
+		{
+			fmt::print("Left click UP\n");
+		}
+		else if (e.button.button == SDL_BUTTON_RIGHT)
+		{
+			fmt::print("Right click UP\n");
+		}
+		else if (e.button.button == SDL_BUTTON_MIDDLE)
+		{
+			fmt::print("Middle click UP\n");
+		}
+		break;
+
+	// ------------------- MOUSE WHEEL -------------------
+	case SDL_MOUSEWHEEL:
+		fmt::print("Mouse wheel: x={} y={}\n",
+		           e.wheel.x,
+		           e.wheel.y);
+		break;
 	}
 }
 
-void VulkanEngine::init_vulkan()
+void VulkanEngine::InitVulkan()
 {
 	vkb::InstanceBuilder builder;
 
 	//make the vulkan instance, with basic debug features
 	auto inst_ret = builder.set_app_name(AppName)
-		.request_validation_layers(bUseValidationLayers)
-		.use_default_debug_messenger()
-		.require_api_version(1, 3, 0)
-		.build();
+	                       .request_validation_layers(bUseValidationLayers)
+	                       .use_default_debug_messenger()
+	                       .require_api_version(1, 3, 0)
+	                       .build();
 
 	vkb::Instance vkb_inst = inst_ret.value();
 
@@ -261,12 +258,12 @@ void VulkanEngine::init_vulkan()
 	// We want a gpu that can write to the SDL surface and supports vulkan 1.3 with the correct features
 	vkb::PhysicalDeviceSelector selector{vkb_inst};
 	vkb::PhysicalDevice physicalDevice = selector
-		.set_minimum_version(1, 3)
-		.set_required_features_13(features)
-		.set_required_features_12(features12)
-		.set_surface(_surface)
-		.select()
-		.value();
+	                                     .set_minimum_version(1, 3)
+	                                     .set_required_features_13(features)
+	                                     .set_required_features_12(features12)
+	                                     .set_surface(_surface)
+	                                     .select()
+	                                     .value();
 
 	//create the final vulkan device (driver) from the physical device (gpu)
 	vkb::DeviceBuilder deviceBuilder{physicalDevice};
@@ -278,29 +275,36 @@ void VulkanEngine::init_vulkan()
 	_chosen_GPU = physicalDevice.physical_device;
 }
 
-void VulkanEngine::init_swapchain()
+void VulkanEngine::InitSwapchain()
 {
-	create_swapchain(_window_extent.width, _window_extent.height);
+	CreateSwapchain(_window_extent.width, _window_extent.height);
 }
 
-void VulkanEngine::init_commands() {}
-void VulkanEngine::init_sync_structures() {}
+void VulkanEngine::InitCommands()
+{
+}
 
-void VulkanEngine::create_swapchain(const uint32_t aWidth, const uint32_t aHeight)
+void VulkanEngine::InitSyncStructures()
+{
+}
+
+void VulkanEngine::CreateSwapchain(const uint32_t aWidth, const uint32_t aHeight)
 {
 	vkb::SwapchainBuilder swapchainBuilder{_chosen_GPU, _device, _surface};
 
 	_swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
 
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
-		//.use_default_format_selection()
-		.set_desired_format(VkSurfaceFormatKHR{.format = _swapchain_image_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
-		//use vsync present mode
-		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-		.set_desired_extent(aWidth, aHeight)
-		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-		.build()
-		.value();
+	                              //.use_default_format_selection()
+	                              .set_desired_format(VkSurfaceFormatKHR{
+		                              .format = _swapchain_image_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+	                              })
+	                              //use vsync present mode
+	                              .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+	                              .set_desired_extent(aWidth, aHeight)
+	                              .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+	                              .build()
+	                              .value();
 
 	_swapchain_extent = vkbSwapchain.extent;
 	//store swapchain and its related images
@@ -309,7 +313,7 @@ void VulkanEngine::create_swapchain(const uint32_t aWidth, const uint32_t aHeigh
 	_swapchain_image_views = vkbSwapchain.get_image_views().value();
 }
 
-void VulkanEngine::destroy_swapchain() const
+void VulkanEngine::DestroySwapchain() const
 {
 	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 
