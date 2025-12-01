@@ -7,6 +7,14 @@
 
 union SDL_Event;
 
+struct FrameData
+{
+	VkCommandPool _commandPool; // a command pool creates buffers, one pool / thread, even though pools can create multiple buffers
+	VkCommandBuffer _mainCommandBuffer; // holds commands
+};
+
+constexpr unsigned int FRAME_OVERLAP = 2;
+
 class VulkanEngine
 {
 public:
@@ -43,6 +51,12 @@ public:
 	std::vector<VkImage> _swapchain_images; // A VkImage is a handle to the actual image object to use as texture or to render into. -  "A texture you can write to and read from."
 	std::vector<VkImageView> _swapchain_image_views; // A VkImageView is a wrapper for that image. It allows to do things like swap the colors. We will go into detail about it later.
 	VkExtent2D _swapchain_extent;
+
+	FrameData _frames[FRAME_OVERLAP];
+	FrameData& Get_Current_Frame() { return _frames[_frame_number % FRAME_OVERLAP]; }
+
+	VkQueue _graphicsQueue; // what the command buffers submit into
+	uint32_t _graphicsQueueFamily; // what type of graphics queue we want
 
 private:
 	void ProcessInput(SDL_Event& anE);

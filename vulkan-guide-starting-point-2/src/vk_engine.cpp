@@ -254,7 +254,7 @@ void VulkanEngine::InitVulkan()
 	features12.bufferDeviceAddress = true;
 	features12.descriptorIndexing = true;
 
-	// Use vkbootstrap to select a gpu. 
+	// Use vk-bootstrap to select a gpu. 
 	// We want a gpu that can write to the SDL surface and supports vulkan 1.3 with the correct features
 	vkb::PhysicalDeviceSelector selector{vkb_inst};
 	vkb::PhysicalDevice physicalDevice = selector
@@ -273,6 +273,9 @@ void VulkanEngine::InitVulkan()
 	// Get the VkDevice handle used in the rest of a vulkan application
 	_device = vkbDevice.device;
 	_chosen_GPU = physicalDevice.physical_device;
+
+	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
+	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 }
 
 void VulkanEngine::InitSwapchain()
@@ -282,6 +285,28 @@ void VulkanEngine::InitSwapchain()
 
 void VulkanEngine::InitCommands()
 {
+	// create a command pool for commands submitted to the graphics queue. 
+	// we also want the pool to allow for resetting of individual command buffers
+	VkCommandPoolCreateInfo commandPoolInfo = {};
+	commandPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
+	commandPoolInfo.pNext = nullptr;
+	commandPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+	commandPoolInfo.queueFamilyIndex = _graphicsQueueFamily;
+
+	for (auto& [_commandPool, _mainCommandBuffer] : _frames)
+	{
+		VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_commandPool));
+
+		// allocate the default command buffer that we will use for rendering
+		VkCommandBufferAllocateInfo cmdAllocInfo = {};
+		cmdAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		cmdAllocInfo.pNext = nullptr;
+		cmdAllocInfo.commandPool = _commandPool;
+		cmdAllocInfo.commandBufferCount = 1;
+		cmdAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_mainCommandBuffer));
+	}
 }
 
 void VulkanEngine::InitSyncStructures()
