@@ -16,11 +16,12 @@ struct FrameData
 	//The _renderSemaphore will be used to control presenting the image to the OS once the drawing finishes 
 	//The _renderFence will lets us wait for the draw commands of a given frame to be finished.
 
-	VkSemaphore _swapchainSemaphore, _renderSemaphore; // gpu to gpu sync
+	// NOTE: render semaphore replaced with vector since it's supposed to be tied to image count and not FIF. 
+	VkSemaphore _swapchainSemaphore/*, _renderSemaphore*/; // gpu to gpu sync. 
 	VkFence _renderFence; // gpu to cpu sync
 };
 
-constexpr unsigned int FRAME_OVERLAP = 2;
+constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
 
 class VulkanEngine
 {
@@ -52,13 +53,18 @@ public:
 	VkDevice _device; // Vulkan Device for commands - "The “logical” GPU context that you actually execute things on."
 	VkSurfaceKHR _surface; // vulkan window surface
 
+	// <swapchain
 	VkSwapchainKHR _swapchain; // Holds the images for the screen. It allows you to render things into a visible window. The KHR suffix shows that it comes from an extension, which in this case is VK_KHR_swapchain
 	VkFormat _swapchain_image_format;
-
 	std::vector<VkImage> _swapchain_images; // A VkImage is a handle to the actual image object to use as texture or to render into. -  "A texture you can write to and read from."
 	std::vector<VkImageView> _swapchain_image_views; // A VkImageView is a wrapper for that image. It allows to do things like swap the colors. We will go into detail about it later.
 	VkExtent2D _swapchain_extent;
+	// swapchain>
 
+	// momo fix, previously called render_semaphore, also called submit semaphores
+	std::vector<VkSemaphore> ready_for_present_semaphores; // submit semaphores, bug from vulkan from before.
+
+	// <queues
 	FrameData _frames[FRAME_OVERLAP];
 
 	FrameData& Get_Current_Frame()
@@ -68,6 +74,7 @@ public:
 
 	VkQueue _graphicsQueue; // what the command buffers submit into
 	uint32_t _graphicsQueueFamily; // what type of graphics queue we want
+	// queues>
 
 private:
 	void ProcessInput(SDL_Event& anE);

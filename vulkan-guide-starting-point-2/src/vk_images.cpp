@@ -12,13 +12,20 @@ void vkUtil::Transition_Image(VkCommandBuffer aCmd, VkImage aImg, VkImageLayout 
 	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 	imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
 
-	// fix for non best practices
-	//if (aCurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR ||
-	//aNewLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-	//{
-	//imageBarrier.srcAccessMask = 0;
-	//imageBarrier.dstAccessMask = 0;
-	//}
+	// SPECIFIC FIX: Handle Presentation Layouts
+	// When transitioning TO present, the destination access must be 0.
+	// (Visibility is handled by the semaphore passed to vkQueuePresentKHR)
+	if (aNewLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+	{
+		imageBarrier.dstAccessMask = 0;
+	}
+
+	// When transitioning FROM present (e.g. after AcquireNextImage), source access must be 0.
+	// (Availability is handled by the semaphore passed to vkAcquireNextImageKHR)
+	if (aCurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
+	{
+		imageBarrier.srcAccessMask = 0;
+	}
 
 	imageBarrier.oldLayout = aCurrentLayout;
 	imageBarrier.newLayout = aNewLayout;

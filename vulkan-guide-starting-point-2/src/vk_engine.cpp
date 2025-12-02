@@ -60,23 +60,28 @@ void VulkanEngine::Cleanup()
 	{
 		vkDeviceWaitIdle(_device);
 
-		for (const auto& frame : _frames)
+		for (const auto& _frame : _frames)
 		{
-			vkDestroyCommandPool(_device, frame._commandPool, nullptr);
+			vkDestroyCommandPool(_device, _frame._commandPool, nullptr);
 
 			//destroy sync objects
-			vkDestroyFence(_device, frame._renderFence, nullptr);
-			vkDestroySemaphore(_device, frame._renderSemaphore, nullptr);
-			vkDestroySemaphore(_device, frame._swapchainSemaphore, nullptr);
+			vkDestroyFence(_device, _frame._renderFence, nullptr);
+			vkDestroySemaphore(_device, _frame._swapchainSemaphore, nullptr);
+			//vkDestroySemaphore(_device, _frame._renderSemaphore, nullptr);
+		}
+		for (const auto& ready_for_present_semaphore : ready_for_present_semaphores)
+		{
+			vkDestroySemaphore(_device, ready_for_present_semaphore, nullptr);
 		}
 
 		DestroySwapchain();
 
 		vkDestroySurfaceKHR(_instance, _surface, nullptr);
-		vkDestroyDevice(_device, nullptr);
 
+		vkDestroyDevice(_device, nullptr);
 		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
 		vkDestroyInstance(_instance, nullptr);
+
 		SDL_DestroyWindow(_window);
 	}
 	gl_LoadedEngine = nullptr;
@@ -84,14 +89,19 @@ void VulkanEngine::Cleanup()
 
 void VulkanEngine::Draw()
 {
+	//> draw_1
 	// wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(_device, 1, &Get_Current_Frame()._renderFence, true, 1000000000));
 	VK_CHECK(vkResetFences(_device, 1, &Get_Current_Frame()._renderFence));
+	//< draw_1
 
+	//> draw_2
 	// request image from the swapchain
 	uint32_t swapchainImageIndex;
 	VK_CHECK(vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &swapchainImageIndex));
+	//< draw_2
 
+	//> draw_3
 	// naming it cmd for shorter writing
 	VkCommandBuffer cmd = Get_Current_Frame()._mainCommandBuffer;
 
@@ -103,16 +113,19 @@ void VulkanEngine::Draw()
 
 	// start the command buffer recording
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+	//< draw_3
 
-	// make the swapchain image into writeable mode before rendering
+	//> draw_4
+
 	// VK_IMAGE_LAYOUT_UNDEFINED Is the “don't care” layout. 
 	// We use it when we don't care about the data that is already in the image, and we are fine with the GPU destroying it.
 	// VK_IMAGE_LAYOUT_GENERAL is a general purpose layout, which allows reading and writing from the image
+	// make the swapchain image into writeable mode before rendering
 	vkUtil::Transition_Image(cmd, _swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
 	// make a clear-color from frame number. This will flash with a 120 frame period.
-	float flash = std::abs(std::sin(_frame_number / 120.f));
-	VkClearColorValue clearValue = {{0.0f, 0.0f, flash, 1.0f}};
+	const float flash = std::abs(std::sin(_frame_number / 120.f));
+	const VkClearColorValue clearValue = {{0.0f, 0.0f, flash, 1.0f}};
 
 	// subresource ranges are used to target specific mip levels or depth/color only. 
 	VkImageSubresourceRange clearRange = vkInit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
@@ -125,7 +138,9 @@ void VulkanEngine::Draw()
 
 	// finalize the command buffer (we can no longer add commands, but it can now be executed)
 	VK_CHECK(vkEndCommandBuffer(cmd));
+	//< draw_4
 
+	//> draw_5
 	// prepare the submission to the queue. 
 	// we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
 	// we will signal the _renderSemaphore, to signal that rendering has finished
@@ -133,14 +148,17 @@ void VulkanEngine::Draw()
 	const VkCommandBufferSubmitInfo cmdInfo = vkInit::command_buffer_submit_info(cmd);
 
 	VkSemaphoreSubmitInfo waitInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, Get_Current_Frame()._swapchainSemaphore);
-	VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, Get_Current_Frame()._renderSemaphore);
+	//VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, Get_Current_Frame()._renderSemaphore);
+	VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, ready_for_present_semaphores[swapchainImageIndex]);
 
 	VkSubmitInfo2 submit = vkInit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
 
 	// submit command buffer to the queue and execute it.
 	// _renderFence will now block until the graphic commands finish execution
 	VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, Get_Current_Frame()._renderFence));
+	//< draw_5
 
+	//> draw_6
 	// prepare present
 	// this will put the image we just rendered to into the visible window.
 	// we want to wait on the _renderSemaphore for that, 
@@ -151,7 +169,8 @@ void VulkanEngine::Draw()
 	presentInfo.pSwapchains = &_swapchain;
 	presentInfo.swapchainCount = 1;
 
-	presentInfo.pWaitSemaphores = &Get_Current_Frame()._renderSemaphore;
+	//presentInfo.pWaitSemaphores = &Get_Current_Frame()._renderSemaphore;
+	presentInfo.pWaitSemaphores = &ready_for_present_semaphores[swapchainImageIndex];
 	presentInfo.waitSemaphoreCount = 1;
 
 	presentInfo.pImageIndices = &swapchainImageIndex;
@@ -160,6 +179,7 @@ void VulkanEngine::Draw()
 
 	//increase the number of frames drawn
 	_frame_number++;
+	//< draw_6
 }
 
 void VulkanEngine::Run()
@@ -211,128 +231,131 @@ void VulkanEngine::ProcessInput(SDL_Event& anE)
 	auto& e = anE;
 	switch (e.type)
 	{
-		// ------------------- KEYBOARD -------------------
-		case SDL_KEYDOWN:
-			if (!e.key.repeat)
-			{
-				switch (e.key.keysym.sym)
-				{
-					case SDLK_w: fmt::print("W pressed\n");
-						break;
-					case SDLK_s: fmt::print("S pressed\n");
-						break;
-					case SDLK_a: fmt::print("A pressed\n");
-						break;
-					case SDLK_d: fmt::print("D pressed\n");
-						break;
-					case SDLK_LEFT: fmt::print("Left arrow\n");
-						break;
-					case SDLK_RIGHT: fmt::print("Right arrow\n");
-						break;
-					case SDLK_UP: fmt::print("Up arrow\n");
-						break;
-					case SDLK_DOWN: fmt::print("Down arrow\n");
-						break;
-					case SDLK_SPACE: fmt::print("Space pressed\n");
-						break;
-						// Add more keys as needed
-				}
-			}
-			break;
-
-		case SDL_KEYUP:
+	// ------------------- KEYBOARD -------------------
+	case SDL_KEYDOWN:
+		if (!e.key.repeat)
+		{
 			switch (e.key.keysym.sym)
 			{
-				case SDLK_w: fmt::print("W released\n");
-					break;
-				case SDLK_s: fmt::print("S released\n");
-					break;
-				case SDLK_a: fmt::print("A released\n");
-					break;
-				case SDLK_d: fmt::print("D released\n");
-					break;
-				case SDLK_LEFT: fmt::print("Left arrow up\n");
-					break;
-				case SDLK_RIGHT: fmt::print("Right arrow up\n");
-					break;
-				case SDLK_UP: fmt::print("Up arrow up\n");
-					break;
-				case SDLK_DOWN: fmt::print("Down arrow up\n");
-					break;
-				case SDLK_SPACE: fmt::print("Space released\n");
-					break;
+			case SDLK_w: fmt::print("W pressed\n");
+				break;
+			case SDLK_s: fmt::print("S pressed\n");
+				break;
+			case SDLK_a: fmt::print("A pressed\n");
+				break;
+			case SDLK_d: fmt::print("D pressed\n");
+				break;
+			case SDLK_LEFT: fmt::print("Left arrow\n");
+				break;
+			case SDLK_RIGHT: fmt::print("Right arrow\n");
+				break;
+			case SDLK_UP: fmt::print("Up arrow\n");
+				break;
+			case SDLK_DOWN: fmt::print("Down arrow\n");
+				break;
+			case SDLK_SPACE: fmt::print("Space pressed\n");
+				break;
+				// Add more keys as needed
 			}
-			break;
+		}
+		break;
 
-		// ------------------- MOUSE MOTION -------------------
-		case SDL_MOUSEMOTION:
-			fmt::print("Mouse at: ({}, {})\n",
-					   e.motion.x,
-					   e.motion.y);
-			// e.motion.xrel, e.motion.yrel for relative movement
+	case SDL_KEYUP:
+		switch (e.key.keysym.sym)
+		{
+		case SDLK_w: fmt::print("W released\n");
 			break;
+		case SDLK_s: fmt::print("S released\n");
+			break;
+		case SDLK_a: fmt::print("A released\n");
+			break;
+		case SDLK_d: fmt::print("D released\n");
+			break;
+		case SDLK_LEFT: fmt::print("Left arrow up\n");
+			break;
+		case SDLK_RIGHT: fmt::print("Right arrow up\n");
+			break;
+		case SDLK_UP: fmt::print("Up arrow up\n");
+			break;
+		case SDLK_DOWN: fmt::print("Down arrow up\n");
+			break;
+		case SDLK_SPACE: fmt::print("Space released\n");
+			break;
+		}
+		break;
 
-		// ------------------- MOUSE BUTTONS -------------------
-		case SDL_MOUSEBUTTONDOWN:
-			if (e.button.button == SDL_BUTTON_LEFT)
-			{
-				fmt::print("Left click DOWN at ({}, {})\n",
-						   e.button.x,
-						   e.button.y);
-			}
-			else if (e.button.button == SDL_BUTTON_RIGHT)
-			{
-				fmt::print("Right click DOWN at ({}, {})\n",
-						   e.button.x,
-						   e.button.y);
-			}
-			else if (e.button.button == SDL_BUTTON_MIDDLE)
-			{
-				fmt::print("Middle click DOWN\n");
-			}
-			break;
+	// ------------------- MOUSE MOTION -------------------
+	case SDL_MOUSEMOTION:
+		fmt::print("Mouse at: ({}, {})\n",
+		           e.motion.x,
+		           e.motion.y);
+		// e.motion.xrel, e.motion.yrel for relative movement
+		break;
 
-		case SDL_MOUSEBUTTONUP:
-			if (e.button.button == SDL_BUTTON_LEFT)
-			{
-				fmt::print("Left click UP\n");
-			}
-			else if (e.button.button == SDL_BUTTON_RIGHT)
-			{
-				fmt::print("Right click UP\n");
-			}
-			else if (e.button.button == SDL_BUTTON_MIDDLE)
-			{
-				fmt::print("Middle click UP\n");
-			}
-			break;
+	// ------------------- MOUSE BUTTONS -------------------
+	case SDL_MOUSEBUTTONDOWN:
+		if (e.button.button == SDL_BUTTON_LEFT)
+		{
+			fmt::print("Left click DOWN at ({}, {})\n",
+			           e.button.x,
+			           e.button.y);
+		}
+		else if (e.button.button == SDL_BUTTON_RIGHT)
+		{
+			fmt::print("Right click DOWN at ({}, {})\n",
+			           e.button.x,
+			           e.button.y);
+		}
+		else if (e.button.button == SDL_BUTTON_MIDDLE)
+		{
+			fmt::print("Middle click DOWN\n");
+		}
+		break;
 
-		// ------------------- MOUSE WHEEL -------------------
-		case SDL_MOUSEWHEEL:
-			fmt::print("Mouse wheel: x={} y={}\n",
-					   e.wheel.x,
-					   e.wheel.y);
-			break;
+	case SDL_MOUSEBUTTONUP:
+		if (e.button.button == SDL_BUTTON_LEFT)
+		{
+			fmt::print("Left click UP\n");
+		}
+		else if (e.button.button == SDL_BUTTON_RIGHT)
+		{
+			fmt::print("Right click UP\n");
+		}
+		else if (e.button.button == SDL_BUTTON_MIDDLE)
+		{
+			fmt::print("Middle click UP\n");
+		}
+		break;
+
+	// ------------------- MOUSE WHEEL -------------------
+	case SDL_MOUSEWHEEL:
+		fmt::print("Mouse wheel: x={} y={}\n",
+		           e.wheel.x,
+		           e.wheel.y);
+		break;
 	}
 }
 
 void VulkanEngine::InitVulkan()
 {
+	//> init_instance
 	vkb::InstanceBuilder builder;
 
 	//make the vulkan instance, with basic debug features
 	auto inst_ret = builder.set_app_name(AppName)
-		.request_validation_layers(bUseValidationLayers)
-		.use_default_debug_messenger()
-		.require_api_version(1, 3, 0)
-		.build();
+	                       .request_validation_layers(bUseValidationLayers)
+	                       .use_default_debug_messenger()
+	                       .require_api_version(1, 3, 0)
+	                       .build();
 
 	vkb::Instance vkb_inst = inst_ret.value();
 
 	// grab the instance 
 	_instance = vkb_inst.instance;
 	_debug_messenger = vkb_inst.debug_messenger;
+	//< init_instance
 
+	//> init_device
 	SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
 
 	// vk 1.3 features
@@ -364,9 +387,12 @@ void VulkanEngine::InitVulkan()
 	// Get the VkDevice handle used in the rest of a vulkan application
 	_device = vkbDevice.device;
 	_chosen_GPU = physicalDevice.physical_device;
+	//< init device
 
+	//> init_queue
 	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
 	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+	//< init_queue
 }
 
 void VulkanEngine::InitSwapchain()
@@ -385,7 +411,7 @@ void VulkanEngine::InitCommands()
 		VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &frame._commandPool));
 
 		// allocate the default command buffer that we will use for rendering
-		VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(frame._commandPool);
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(frame._commandPool, 1);
 
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &frame._mainCommandBuffer));
 	}
@@ -393,9 +419,8 @@ void VulkanEngine::InitCommands()
 
 void VulkanEngine::InitSyncStructures()
 {
-	// create syncronization structures
-	// one fence to control when the gpu has finished rendering the frame,
-	// and 2 semaphores to syncronize rendering with swapchain
+	// create synchronization structures
+	// one fence to control when the gpu has finished rendering the frame, and 2 semaphores to synchronize rendering with swapchain
 	// we want the fence to start signalled so we can wait on it on the first frame
 
 	const VkFenceCreateInfo fenceCreateInfo = vkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
@@ -405,7 +430,12 @@ void VulkanEngine::InitSyncStructures()
 	{
 		VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &frame._renderFence));
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
-		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore));
+		//VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore));
+	}
+	ready_for_present_semaphores.resize(_swapchain_images.size());
+	for (int i = 0; i < _swapchain_images.size(); ++i)
+	{
+		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &ready_for_present_semaphores[i]));
 	}
 }
 
@@ -416,16 +446,17 @@ void VulkanEngine::CreateSwapchain(const uint32_t aWidth, const uint32_t aHeight
 	_swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
 
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
-		//.use_default_format_selection()
-		.set_desired_format(VkSurfaceFormatKHR{
-			.format = _swapchain_image_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
-		})
-		//use vsync present mode
-		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-		.set_desired_extent(aWidth, aHeight)
-		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-		.build()
-		.value();
+	                              //.use_default_format_selection()
+	                              .set_desired_format(VkSurfaceFormatKHR{
+		                              .format = _swapchain_image_format,
+		                              .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+	                              })
+	                              //use vsync present mode
+	                              .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+	                              .set_desired_extent(aWidth, aHeight)
+	                              .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+	                              .build()
+	                              .value();
 
 	_swapchain_extent = vkbSwapchain.extent;
 	//store swapchain and its related images
