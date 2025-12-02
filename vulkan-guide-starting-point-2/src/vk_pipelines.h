@@ -3,7 +3,8 @@
 
 // Will contain abstractions for pipelines.
 
-namespace vkutil {
+namespace vkUtil
+{
 
 
 };

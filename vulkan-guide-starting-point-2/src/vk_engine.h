@@ -5,7 +5,41 @@
 
 #include <vk_types.h>
 
+#include <ranges>
+
 union SDL_Event;
+
+struct AllocatedImage
+{
+	VkImage image;
+	VkImageView imageView;
+	VmaAllocation allocation;
+	VkExtent3D imageExtent;
+	VkFormat imageFormat;
+};
+
+struct DeletionQueue
+{
+	//Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.For the amount of objects we will use in this tutorial, it's going to be fine.but if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of various types such as VkImage, VkBuffer, and so on.And then delete those from a loop.
+
+	std::deque<std::function<void()>> _deletors;
+
+	void Push_Function(std::function<void()>&& aFunction)
+	{
+		_deletors.push_back(aFunction);
+	}
+
+	void Flush()
+	{
+		// reverse iterate the deletion queue to execute all the functions
+		for (auto& deletor : std::ranges::reverse_view(_deletors))
+		{
+			deletor(); //call functors
+		}
+
+		_deletors.clear();
+	}
+};
 
 struct FrameData
 {
@@ -19,6 +53,7 @@ struct FrameData
 	// NOTE: render semaphore replaced with vector since it's supposed to be tied to image count and not FIF. 
 	VkSemaphore _swapchainSemaphore/*, _renderSemaphore*/; // gpu to gpu sync. 
 	VkFence _renderFence; // gpu to cpu sync
+	DeletionQueue _deletionQueue;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
@@ -76,6 +111,14 @@ public:
 	uint32_t _graphicsQueueFamily; // what type of graphics queue we want
 	// queues>
 
+	DeletionQueue _mainDeletionQueue;
+	
+	VmaAllocator _allocator;
+
+	//draw resources
+	AllocatedImage _drawImage;
+	VkExtent2D _drawExtent;
+
 private:
 	void ProcessInput(SDL_Event& anE);
 
@@ -86,4 +129,6 @@ private:
 
 	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
 	void DestroySwapchain() const;
+
+	void DrawBackground(VkCommandBuffer aCmd) const;
 };
