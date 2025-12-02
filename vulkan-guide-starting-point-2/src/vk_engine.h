@@ -10,7 +10,14 @@ union SDL_Event;
 struct FrameData
 {
 	VkCommandPool _commandPool; // a command pool creates buffers, one pool / thread, even though pools can create multiple buffers
-	VkCommandBuffer _mainCommandBuffer; // holds commands
+	VkCommandBuffer _mainCommandBuffer; // holds commands, this is mainly just a handle, actual data is being handled by vulkan
+
+	//The _swapchainSemaphore is going to be used so that our render commands wait on the swapchain image request. 
+	//The _renderSemaphore will be used to control presenting the image to the OS once the drawing finishes 
+	//The _renderFence will lets us wait for the draw commands of a given frame to be finished.
+
+	VkSemaphore _swapchainSemaphore, _renderSemaphore; // gpu to gpu sync
+	VkFence _renderFence; // gpu to cpu sync
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2;
@@ -53,7 +60,11 @@ public:
 	VkExtent2D _swapchain_extent;
 
 	FrameData _frames[FRAME_OVERLAP];
-	FrameData& Get_Current_Frame() { return _frames[_frame_number % FRAME_OVERLAP]; }
+
+	FrameData& Get_Current_Frame()
+	{
+		return _frames[_frame_number % FRAME_OVERLAP];
+	}
 
 	VkQueue _graphicsQueue; // what the command buffers submit into
 	uint32_t _graphicsQueueFamily; // what type of graphics queue we want
