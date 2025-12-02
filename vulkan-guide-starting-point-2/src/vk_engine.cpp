@@ -125,7 +125,7 @@ void VulkanEngine::Draw()
 
 	// make a clear-color from frame number. This will flash with a 120 frame period.
 	const float flash = std::abs(std::sin(_frame_number / 120.f));
-	const VkClearColorValue clearValue = {{0.0f, 0.0f, flash, 1.0f}};
+	const VkClearColorValue clearValue = {{flash, 0.0f, flash, 1.0f}};
 
 	// subresource ranges are used to target specific mip levels or depth/color only. 
 	VkImageSubresourceRange clearRange = vkInit::image_subresource_range(VK_IMAGE_ASPECT_COLOR_BIT);
