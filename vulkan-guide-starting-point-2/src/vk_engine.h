@@ -7,6 +7,9 @@
 
 #include <ranges>
 
+#include <vk_descriptors.h>
+
+
 union SDL_Event;
 
 struct AllocatedImage
@@ -20,7 +23,7 @@ struct AllocatedImage
 
 struct DeletionQueue
 {
-	//Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.For the amount of objects we will use in this tutorial, it's going to be fine.but if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of various types such as VkImage, VkBuffer, and so on.And then delete those from a loop.
+	// Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.For the amount of objects we will use in this tutorial, it's going to be fine.but if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of various types such as VkImage, VkBuffer, and so on.And then delete those from a loop.
 
 	std::deque<std::function<void()>> _deletors;
 
@@ -89,7 +92,8 @@ public:
 	VkSurfaceKHR _surface; // vulkan window surface
 
 	// <swapchain
-	VkSwapchainKHR _swapchain; // Holds the images for the screen. It allows you to render things into a visible window. The KHR suffix shows that it comes from an extension, which in this case is VK_KHR_swapchain
+	VkSwapchainKHR _swapchain;
+	// Holds the images for the screen. It allows you to render things into a visible window. The KHR suffix shows that it comes from an extension, which in this case is VK_KHR_swapchain
 	VkFormat _swapchain_image_format;
 	std::vector<VkImage> _swapchain_images; // A VkImage is a handle to the actual image object to use as texture or to render into. -  "A texture you can write to and read from."
 	std::vector<VkImageView> _swapchain_image_views; // A VkImageView is a wrapper for that image. It allows to do things like swap the colors. We will go into detail about it later.
@@ -112,20 +116,32 @@ public:
 	// queues>
 
 	DeletionQueue _mainDeletionQueue;
-	
+
 	VmaAllocator _allocator;
 
 	//draw resources
 	AllocatedImage _drawImage;
 	VkExtent2D _drawExtent;
 
+	DescriptorAllocator globalDescriptorAllocator;
+
+	VkDescriptorSet _drawImageDescriptors;
+	VkDescriptorSetLayout _drawImageDescriptorLayout;
+
+	VkPipeline _gradientPipeline;
+	VkPipelineLayout _gradientPipelineLayout;
+
 private:
 	void ProcessInput(SDL_Event& anE);
 
-	void InitVulkan();
-	void InitSwapchain();
-	void InitCommands();
-	void InitSyncStructures();
+	void Init_Vulkan();
+	void Init_Swapchain();
+	void Init_Commands();
+	void Init_Sync_Structures();
+	void Init_Descriptors();
+	void Init_Pipelines();
+	void Init_Background_Pipelines();
+
 
 	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
 	void DestroySwapchain() const;

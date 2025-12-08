@@ -5,6 +5,7 @@
 
 namespace vkUtil
 {
+	bool LoadShaderModule(const char* aFilePath, VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
 
 
 };
