@@ -1,7 +1,7 @@
 ﻿# CMakeList.txt : CMake project for vulkan_guide, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.12)
 
 project ("vulkan_guide")
 
@@ -22,7 +22,7 @@ find_program(DXC_COMPILER dxc HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin
 set(SPIRV_BINARY_FILES)
 
 # --- GLSL COMPILATION ---
-file(GLOB_RECURSE GLSL_SOURCE_FILES
+file(GLOB_RECURSE GLSL_SOURCE_FILES CONFIGURE_DEPENDS
     "${PROJECT_SOURCE_DIR}/shaders/*.frag"
     "${PROJECT_SOURCE_DIR}/shaders/*.vert"
     "${PROJECT_SOURCE_DIR}/shaders/*.comp"
@@ -67,15 +67,15 @@ macro(compile_hlsl FILE_LIST PROFILE ENTRY_POINT)
 endmacro()
 
 # 1. Vertex Shaders (*.vert.hlsl) -> vs_6_0
-file(GLOB_RECURSE HLSL_VERT_FILES "${PROJECT_SOURCE_DIR}/shaders/*.vert.hlsl")
+file(GLOB_RECURSE HLSL_VERT_FILES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/shaders/*.vert.hlsl")
 compile_hlsl(HLSL_VERT_FILES "vs_6_0" "main")
 
 # 2. Fragment/Pixel Shaders (*.frag.hlsl) -> ps_6_0
-file(GLOB_RECURSE HLSL_FRAG_FILES "${PROJECT_SOURCE_DIR}/shaders/*.frag.hlsl")
+file(GLOB_RECURSE HLSL_FRAG_FILES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/shaders/*.frag.hlsl")
 compile_hlsl(HLSL_FRAG_FILES "ps_6_0" "main")
 
 # 3. Compute Shaders (*.comp.hlsl) -> cs_6_0
-file(GLOB_RECURSE HLSL_COMP_FILES "${PROJECT_SOURCE_DIR}/shaders/*.comp.hlsl")
+file(GLOB_RECURSE HLSL_COMP_FILES CONFIGURE_DEPENDS "${PROJECT_SOURCE_DIR}/shaders/*.comp.hlsl")
 compile_hlsl(HLSL_COMP_FILES "cs_6_0" "main")
 
 # --- FINAL TARGET ---
