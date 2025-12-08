@@ -50,3 +50,46 @@ target_sources(imgui PRIVATE
 target_link_libraries(imgui PUBLIC Vulkan::Vulkan SDL2::SDL2)
 
 target_include_directories(stb_image INTERFACE stb_image)
+
+# --- DXC Runtime Support ---
+
+# 1. Find the header (dxc/dxcapi.h)
+find_path(DXC_INCLUDE_DIR 
+    NAMES dxc/dxcapi.h 
+    HINTS "$ENV{VULKAN_SDK}/Include"
+)
+
+# 2. Find the library (.lib on Windows, .so on Linux)
+find_library(DXC_LIB
+    NAMES dxcompiler
+    HINTS "$ENV{VULKAN_SDK}/Lib" "$ENV{VULKAN_SDK}/lib"
+)
+
+# 3. Create the imported target
+add_library(dxcompiler SHARED IMPORTED GLOBAL)
+
+# Set the include headers (so you can do #include <dxc/dxcapi.h>)
+target_include_directories(dxcompiler INTERFACE "${DXC_INCLUDE_DIR}")
+
+if(WIN32)
+    # On Windows, we link against the .lib but need the .dll at runtime
+    set_target_properties(dxcompiler PROPERTIES
+        IMPORTED_IMPLIB "${DXC_LIB}"
+    )
+
+    # Find the DLL specifically for copying later
+    find_file(DXC_DLL
+        NAMES dxcompiler.dll
+        HINTS "$ENV{VULKAN_SDK}/Bin"
+    )
+    
+    # Associate the DLL with the target
+    set_target_properties(dxcompiler PROPERTIES
+        IMPORTED_LOCATION "${DXC_DLL}"
+    )
+else()
+    # On Linux, the .so file is used for both linking and runtime
+    set_target_properties(dxcompiler PROPERTIES
+        IMPORTED_LOCATION "${DXC_LIB}"
+    )
+endif()
