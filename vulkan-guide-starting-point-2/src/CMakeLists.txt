@@ -1,23 +1,13 @@
 
-# Add source to this project's executable.
-add_executable (MomoVK 
-  main.cpp
-  vk_types.h
-  vk_initializers.cpp
-  vk_initializers.h
-  vk_images.h
-  vk_images.cpp 
-  vk_descriptors.h
-  vk_descriptors.cpp
-  vk_pipelines.h
-  vk_pipelines.cpp
-  vk_engine.h
-  vk_engine.cpp
-  vk_loader.h
-  vk_loader.cpp
-  camera.cpp
-  camera.h
+# 1. Create a variable called SOURCE_FILES containing all .cpp and .h files
+# CONFIGURE_DEPENDS ensures the build system re-checks the folder for new files
+file(GLOB SOURCE_FILES CONFIGURE_DEPENDS 
+    "*.cpp" 
+    "*.h"
 )
+
+# Add source to this project's executable.
+add_executable (MomoVK ${SOURCE_FILES})
 
 set_property(TARGET MomoVK PROPERTY CXX_STANDARD 20)
 target_compile_definitions(MomoVK PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
