@@ -565,7 +565,7 @@ void VulkanEngine::Init_Background_Pipelines()
 
 	VkShaderModule computeDrawShader;
 	VkResult loadShaderResult = {};
-	if (!vkUtil::LoadShaderModule("../../shaders/gradient.comp.spv", _device, &computeDrawShader, loadShaderResult))
+	if (!vkUtil::LoadShaderModule("../../shaders/gradient.comp.hlsl.spv", _device, &computeDrawShader, loadShaderResult))
 	{
 		fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
 	}

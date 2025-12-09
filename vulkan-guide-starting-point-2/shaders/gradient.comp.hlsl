@@ -2,7 +2,9 @@
 
 // Map to set 0, binding 0. 
 // Note: rgba16f handles float4 data, so RWTexture2D<float4> is appropriate.
-[[vk::binding(0, 0)]] RWTexture2D<float4> image;
+[[vk::binding(0, 0)]] 
+[[vk::image_format("rgba16f")]]
+RWTexture2D<float4> image;
 
 [numthreads(16, 16, 1)]
 void main(uint3 globalID : SV_DispatchThreadID, uint3 localID : SV_GroupThreadID)
