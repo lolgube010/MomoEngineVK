@@ -82,8 +82,17 @@ public:
 	// draw loop
 	void Draw();
 
+	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
+
 	// run main loop
 	void Run();
+
+	FrameData& Get_Current_Frame()
+	{
+		return _frames[_frame_number % FRAME_OVERLAP];
+	}
+
+	void Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& aFunction);
 
 	VkInstance _instance; // vulkan library handle - "The Vulkan context, used to access drivers."
 	VkDebugUtilsMessengerEXT _debug_messenger; // vulkan debug output handle
@@ -106,11 +115,6 @@ public:
 	// <queues
 	FrameData _frames[FRAME_OVERLAP];
 
-	FrameData& Get_Current_Frame()
-	{
-		return _frames[_frame_number % FRAME_OVERLAP];
-	}
-
 	VkQueue _graphicsQueue; // what the command buffers submit into
 	uint32_t _graphicsQueueFamily; // what type of graphics queue we want
 	// queues>
@@ -123,13 +127,18 @@ public:
 	AllocatedImage _drawImage;
 	VkExtent2D _drawExtent;
 
-	DescriptorAllocator globalDescriptorAllocator;
+	DescriptorAllocator _globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
 
 	VkPipeline _gradientPipeline;
 	VkPipelineLayout _gradientPipelineLayout;
+
+	// immediate submit structures
+	VkFence _immFence;
+	VkCommandBuffer _immCommandBuffer;
+	VkCommandPool _immCommandPool;
 
 private:
 	void ProcessInput(SDL_Event& anE);
@@ -141,7 +150,7 @@ private:
 	void Init_Descriptors();
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
-
+	void Init_Imgui();
 
 	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
 	void DestroySwapchain() const;
