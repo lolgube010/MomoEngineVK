@@ -13,7 +13,9 @@ struct Constants
 [[vk::push_constant]] Constants PushConstants;
 
 // 3. Bind the image (Set 0, Binding 0)
-[[vk::binding(0, 0)]] RWTexture2D<float4> image;
+[[vk::binding(0, 0)]] 
+[[vk::image_format("rgba16f")]]
+RWTexture2D<float4> image;
 
 [numthreads(16, 16, 1)]
 void main(uint3 globalID : SV_DispatchThreadID)

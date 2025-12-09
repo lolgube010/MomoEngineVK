@@ -175,4 +175,6 @@ private:
 	void DestroySwapchain() const;
 
 	void DrawBackground(VkCommandBuffer aCmd) const;
+
+	void Imgui_Run();
 };

@@ -264,21 +264,7 @@ void VulkanEngine::Run()
 		////some imgui UI to test
 		//ImGui::ShowDemoWindow();
 
-		if (ImGui::Begin("background"))
-		{
-			ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
-
-			ImGui::Text("Selected effect: ", selected.name);
-
-			ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
-
-			ImGui::InputFloat4("data1", reinterpret_cast<float*>(&selected.data.data1));
-			ImGui::InputFloat4("data2", reinterpret_cast<float*>(&selected.data.data2));
-			ImGui::InputFloat4("data3", reinterpret_cast<float*>(&selected.data.data3));
-			ImGui::InputFloat4("data4", reinterpret_cast<float*>(&selected.data.data4));
-		}
-		ImGui::End();
-
+		Imgui_Run();
 
 		//make imgui calculate internal draw structures
 		ImGui::Render();
@@ -673,7 +659,7 @@ void VulkanEngine::Init_Background_Pipelines()
 
 	VkShaderModule gradientShader;
 	{
-		const std::string gradientShaderPath = momo_util::BuildShaderPath("gradient_color", momo_util::ShaderType::Compute, false);
+		const std::string gradientShaderPath = momo_util::BuildShaderPath("gradient_color", momo_util::ShaderType::Compute, true);
 		if (!vkUtil::LoadShaderModule(gradientShaderPath.c_str(), _device, &gradientShader, loadShaderResult))
 		{
 			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
@@ -893,4 +879,22 @@ void VulkanEngine::DrawBackground(const VkCommandBuffer aCmd) const
 	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
 	vkCmdDispatch(aCmd, static_cast<uint32_t>(std::ceil(_drawExtent.width / 16.0)), static_cast<uint32_t>(std::ceil(_drawExtent.height / 16.0)), 1);
 
+}
+
+void VulkanEngine::Imgui_Run()
+{
+	if (ImGui::Begin("background"))
+	{
+		ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
+
+		ImGui::Text("Selected effect: ", selected.name);
+
+		ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
+
+		ImGui::ColorEdit4("data1", reinterpret_cast<float*>(&selected.data.data1));
+		ImGui::ColorEdit4("data2", reinterpret_cast<float*>(&selected.data.data2));
+		ImGui::ColorEdit4("data3", reinterpret_cast<float*>(&selected.data.data3));
+		ImGui::ColorEdit4("data4", reinterpret_cast<float*>(&selected.data.data4));
+	}
+	ImGui::End();
 }
