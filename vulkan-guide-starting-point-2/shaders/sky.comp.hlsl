@@ -1,7 +1,9 @@
 // HLSL version for Vulkan (compile with -spirv)
 
 // Map the texture to set 0, binding 0
-[[vk::binding(0, 0)]] RWTexture2D<float4> image;
+[[vk::binding(0, 0)]] 
+[[vk::image_format("rgba16f")]]
+RWTexture2D<float4> image;
 
 // License Creative Commons Attribution-NonCommercial-ShareAlike 3.0 Unported License.
 

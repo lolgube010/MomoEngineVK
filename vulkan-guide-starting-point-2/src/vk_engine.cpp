@@ -261,8 +261,24 @@ void VulkanEngine::Run()
 		ImGui_ImplSDL2_NewFrame();
 		ImGui::NewFrame();
 
-		//some imgui UI to test
-		ImGui::ShowDemoWindow();
+		////some imgui UI to test
+		//ImGui::ShowDemoWindow();
+
+		if (ImGui::Begin("background"))
+		{
+			ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
+
+			ImGui::Text("Selected effect: ", selected.name);
+
+			ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
+
+			ImGui::InputFloat4("data1", reinterpret_cast<float*>(&selected.data.data1));
+			ImGui::InputFloat4("data2", reinterpret_cast<float*>(&selected.data.data2));
+			ImGui::InputFloat4("data3", reinterpret_cast<float*>(&selected.data.data3));
+			ImGui::InputFloat4("data4", reinterpret_cast<float*>(&selected.data.data4));
+		}
+		ImGui::End();
+
 
 		//make imgui calculate internal draw structures
 		ImGui::Render();
@@ -493,7 +509,8 @@ void VulkanEngine::Init_Swapchain()
 		1
 	};
 
-	//hardcoding the draw format to 32 bit float
+	// hardcoding the draw format to 32 bit float 
+	// this is set as 16 in the guide and gives validation errors unless it is // momo comment
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
 
@@ -642,20 +659,41 @@ void VulkanEngine::Init_Background_Pipelines()
 	computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
 	computeLayout.setLayoutCount = 1;
 
+	VkPushConstantRange pushConstant;
+	pushConstant.offset = 0;
+	pushConstant.size = sizeof(ComputePushConstants);
+	pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+	computeLayout.pPushConstantRanges = &pushConstant;
+	computeLayout.pushConstantRangeCount = 1;
+
 	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
 
-	VkShaderModule computeDrawShader;
 	VkResult loadShaderResult = {};
-	if (!vkUtil::LoadShaderModule("../../shaders/gradient.comp.hlsl.spv", _device, &computeDrawShader, loadShaderResult))
+
+	VkShaderModule gradientShader;
 	{
-		fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
+		const std::string gradientShaderPath = momo_util::BuildShaderPath("gradient_color", momo_util::ShaderType::Compute, false);
+		if (!vkUtil::LoadShaderModule(gradientShaderPath.c_str(), _device, &gradientShader, loadShaderResult))
+		{
+			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
+		}
+	}
+
+	VkShaderModule skyShader;
+	{
+		const std::string skyShaderPath = momo_util::BuildShaderPath("sky", momo_util::ShaderType::Compute, false);
+		if (!vkUtil::LoadShaderModule(skyShaderPath.c_str(), _device, &skyShader, loadShaderResult))
+		{
+			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
+		}
 	}
 
 	VkPipelineShaderStageCreateInfo stageInfo{};
 	stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stageInfo.pNext = nullptr;
 	stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stageInfo.module = computeDrawShader;
+	stageInfo.module = gradientShader;
 	stageInfo.pName = "main"; // this option gives you the ability to have multiple shaders in the same file, having different entry points.
 
 	VkComputePipelineCreateInfo computePipelineCreateInfo{};
@@ -664,14 +702,41 @@ void VulkanEngine::Init_Background_Pipelines()
 	computePipelineCreateInfo.layout = _gradientPipelineLayout;
 	computePipelineCreateInfo.stage = stageInfo;
 
-	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &_gradientPipeline));
+	ComputeEffect gradient;
+	gradient.layout = _gradientPipelineLayout;
+	gradient.name = "gradient";
+	gradient.data = {};
 
-	vkDestroyShaderModule(_device, computeDrawShader, nullptr);
+	//default colors
+	gradient.data.data1 = glm::vec4(1, 0, 0, 1);
+	gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
-	_mainDeletionQueue.Push_Function([&]()
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+
+	//change the shader module only to create the sky shader
+	computePipelineCreateInfo.stage.module = skyShader;
+
+	ComputeEffect sky;
+	sky.layout = _gradientPipelineLayout;
+	sky.name = "sky";
+	sky.data = {};
+	//default sky parameters
+	sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
+
+	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
+
+	//add the 2 background effects into the array
+	backgroundEffects.push_back(gradient);
+	backgroundEffects.push_back(sky);
+
+	//destroy structures properly
+	vkDestroyShaderModule(_device, gradientShader, nullptr);
+	vkDestroyShaderModule(_device, skyShader, nullptr);
+	_mainDeletionQueue.Push_Function([=]()
 	{
 		vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
-		vkDestroyPipeline(_device, _gradientPipeline, nullptr);
+		vkDestroyPipeline(_device, sky.pipeline, nullptr);
+		vkDestroyPipeline(_device, gradient.pipeline, nullptr);
 	});
 }
 
@@ -741,7 +806,21 @@ void VulkanEngine::Init_Imgui()
 
 	ImGui_ImplVulkan_Init(&init_info);
 
-	//ImGui_ImplVulkan_CreateFontsTexture();
+	// Load Fonts
+	// - If no fonts are loaded, dear imgui will use the default font. You can also load multiple fonts and use ImGui::PushFont()/PopFont() to select them.
+	// - AddFontFromFileTTF() will return the ImFont* so you can store it if you need to select the font among multiple.
+	// - If the file cannot be loaded, the function will return a nullptr. Please handle those errors in your application (e.g. use an assertion, or display an error and quit).
+	// - Use '#define IMGUI_ENABLE_FREETYPE' in your imconfig file to use Freetype for higher quality font rendering.
+	// - Read 'docs/FONTS.md' for more instructions and details. If you like the default font but want it to scale better, consider using the 'ProggyVector' from the same author!
+	// - Remember that in C/C++ if you want to include a backslash \ in a string literal you need to write a double backslash \\ !
+	//style.FontSizeBase = 20.0f;
+	//io.Fonts->AddFontDefault();
+	//io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\segoeui.ttf");
+	//io.Fonts->AddFontFromFileTTF("../../misc/fonts/DroidSans.ttf");
+	//io.Fonts->AddFontFromFileTTF("../../misc/fonts/Roboto-Medium.ttf");
+	//io.Fonts->AddFontFromFileTTF("../../misc/fonts/Cousine-Regular.ttf");
+	//ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf");
+	//IM_ASSERT(font != nullptr);
 
 	// queue the destruction of imgui created structures
 	_mainDeletionQueue.Push_Function([=]()
@@ -801,11 +880,15 @@ void VulkanEngine::DrawBackground(const VkCommandBuffer aCmd) const
 	//clear image
 	//vkCmdClearColorImage(aCmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
 
+	const ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
+
 	// bind the gradient drawing compute pipeline
-	vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipeline);
+	vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
 	vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_COMPUTE, _gradientPipelineLayout, 0, 1, &_drawImageDescriptors, 0, nullptr);
+
+	vkCmdPushConstants(aCmd, _gradientPipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 
 	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
 	vkCmdDispatch(aCmd, static_cast<uint32_t>(std::ceil(_drawExtent.width / 16.0)), static_cast<uint32_t>(std::ceil(_drawExtent.height / 16.0)), 1);
