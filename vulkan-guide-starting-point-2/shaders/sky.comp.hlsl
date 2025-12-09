@@ -1,5 +1,16 @@
 // HLSL version for Vulkan (compile with -spirv)
 
+struct Constants
+{
+    float4 data1;
+    float4 data2;
+    float4 data3;
+    float4 data4;
+};
+
+// 2. Declare the global variable with the specific attribute
+[[vk::push_constant]] Constants PushConstants;
+
 // Map the texture to set 0, binding 0
 [[vk::binding(0, 0)]] 
 [[vk::image_format("rgba16f")]]
@@ -51,11 +62,12 @@ float StableStarField(float2 vSamplePos, float fThreshhold)
 void mainImage(out float4 fragColor, float2 fragCoord, float2 iResolution)
 {
     // Sky Background Color
-    float3 vColor = float3(0.1, 0.2, 0.4) * fragCoord.y / iResolution.y;
-
+    //float3 vColor = float3(0.1, 0.2, 0.4) * fragCoord.y / iResolution.y;
+    float3 vColor = PushConstants.data1.xyz * fragCoord.y / iResolution.y;
+    
     // Note: Choose fThreshhold in the range [0.99, 0.9999].
     // Higher values (i.e., closer to one) yield a sparser starfield.
-    float StarFieldThreshhold = 0.97;
+    float StarFieldThreshhold = PushConstants.data1.w;  // 0.97;
 
     // Stars with a slow crawl.
     float xRate = 0.2;

@@ -27,7 +27,7 @@ namespace
 }
 
 constexpr bool bUseValidationLayers = true;
-constexpr auto AppName = "momoEngine VK";
+constexpr auto AppName = "MomoVK";
 
 VulkanEngine& VulkanEngine::Get()
 {
@@ -668,7 +668,7 @@ void VulkanEngine::Init_Background_Pipelines()
 
 	VkShaderModule skyShader;
 	{
-		const std::string skyShaderPath = momo_util::BuildShaderPath("sky", momo_util::ShaderType::Compute, false);
+		const std::string skyShaderPath = momo_util::BuildShaderPath("sky", momo_util::ShaderType::Compute, true);
 		if (!vkUtil::LoadShaderModule(skyShaderPath.c_str(), _device, &skyShader, loadShaderResult))
 		{
 			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
