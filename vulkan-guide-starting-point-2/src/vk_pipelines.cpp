@@ -45,3 +45,37 @@ bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkS
 	*aOutShaderModule = shaderModule;
 	return true;
 }
+
+std::string momo_util::GetShaderExtension(const ShaderType aType)
+{
+	switch (aType)
+	{
+	case ShaderType::Vertex: return ".vert";
+	case ShaderType::Fragment: return ".frag";
+	case ShaderType::Compute: return ".comp";
+	default: return ".unknown";
+	}
+}
+
+std::string momo_util::BuildShaderPath(const std::string& aFileName, const ShaderType aType, const bool aIsHlsl)
+{
+	// Base directory (adjust this to match your project structure)
+	const std::string basePath = "../../shaders/";
+
+	// Get standard extension (e.g., ".comp")
+	const std::string stageExt = GetShaderExtension(aType);
+
+	// Build the final string
+	// Format: ../../shaders/name.stage[.hlsl].spv
+	std::string fullPath = basePath + aFileName + stageExt;
+
+	if (aIsHlsl)
+	{
+		fullPath += ".hlsl";
+	}
+
+	// Assuming you load compiled SPIR-V files
+	fullPath += ".spv";
+
+	return fullPath;
+}

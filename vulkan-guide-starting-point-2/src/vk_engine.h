@@ -159,6 +159,10 @@ public:
 
 	std::vector<ComputeEffect> backgroundEffects;
 	int currentBackgroundEffect{0};
+
+	// momo debug adventure
+	PFN_vkSetDebugUtilsObjectNameEXT _vkSetDebugUtilsObjectNameEXT;
+	void SetDebugInfo(uint64_t aObjectHandle, VkObjectType aObjectType, const char* a_pObjectName) const;
 private:
 	void ProcessInput(SDL_Event& anE);
 

@@ -132,8 +132,8 @@ void VulkanEngine::Draw()
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-	// transition our main draw image into general layout so we can write into it
-	// we will overwrite it all so we dont care about what was the older layout
+	// transition our main draw image into general layout so we can write into it.
+	// we will overwrite it all so we don't care about what was the older layout
 	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
 	DrawBackground(cmd);
@@ -297,6 +297,20 @@ void VulkanEngine::Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& a
 
 	VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
 
+}
+
+void VulkanEngine::SetDebugInfo(const uint64_t aObjectHandle, const VkObjectType aObjectType, const char* a_pObjectName) const
+{
+	if (_vkSetDebugUtilsObjectNameEXT)
+	{
+		VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+		nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+		nameInfo.objectType = aObjectType;
+		nameInfo.objectHandle = aObjectHandle;
+		nameInfo.pObjectName = a_pObjectName;
+		
+		_vkSetDebugUtilsObjectNameEXT(_device, &nameInfo);
+	}
 }
 
 void VulkanEngine::ProcessInput(SDL_Event& anE)
@@ -476,6 +490,9 @@ void VulkanEngine::Init_Vulkan()
 	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
 	vmaCreateAllocator(&allocatorInfo, &_allocator);
 
+	// momo debug adventure
+	_vkSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(_instance, "vkSetDebugUtilsObjectNameEXT");
+
 	_mainDeletionQueue.Push_Function([&]()
 	{
 		vmaDestroyAllocator(_allocator);
@@ -495,7 +512,7 @@ void VulkanEngine::Init_Swapchain()
 		1
 	};
 
-	// hardcoding the draw format to 32 bit float 
+	// hardcoding the draw format to 32-bit float 
 	// this is set as 16 in the guide and gives validation errors unless it is // momo comment
 	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
 	_drawImage.imageExtent = drawImageExtent;
@@ -520,6 +537,8 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo rview_info = vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
+
+	SetDebugInfo((uint64_t)_drawImage.image, VK_OBJECT_TYPE_IMAGE, "OOGILI BOOGILI ZOOGILI SHMALOOGILI");
 
 	//add to deletion queues
 	_mainDeletionQueue.Push_Function([=]()
@@ -698,6 +717,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+	backgroundEffects.push_back(gradient);
 
 	//change the shader module only to create the sky shader
 	computePipelineCreateInfo.stage.module = skyShader;
@@ -712,7 +732,6 @@ void VulkanEngine::Init_Background_Pipelines()
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
 
 	//add the 2 background effects into the array
-	backgroundEffects.push_back(gradient);
 	backgroundEffects.push_back(sky);
 
 	//destroy structures properly
