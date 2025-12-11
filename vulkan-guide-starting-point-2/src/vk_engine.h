@@ -109,7 +109,7 @@ public:
 		return _frames[_frame_number % FRAME_OVERLAP];
 	}
 
-	void Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& aFunction);
+	void Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& aFunction) const;
 
 	VkInstance _instance; // vulkan library handle - "The Vulkan context, used to access drivers."
 	VkDebugUtilsMessengerEXT _debug_messenger; // vulkan debug output handle
@@ -162,6 +162,11 @@ public:
 
 	// momo debug adventure
 	PFN_vkSetDebugUtilsObjectNameEXT _vkSetDebugUtilsObjectNameEXT;
+
+	VkPipelineLayout _trianglePipelineLayout;
+	VkPipeline _trianglePipeline;
+
+
 	void SetDebugInfo(uint64_t aObjectHandle, VkObjectType aObjectType, const char* a_pObjectName) const;
 private:
 	void ProcessInput(SDL_Event& anE);
@@ -174,6 +179,8 @@ private:
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
 	void Init_Imgui();
+	void Init_Triangle_Pipeline();
+
 
 	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
 	void DestroySwapchain() const;
@@ -181,4 +188,6 @@ private:
 	void DrawBackground(VkCommandBuffer aCmd) const;
 
 	void Imgui_Run();
+
+	void Draw_Geometry(VkCommandBuffer aCmd) const;
 };
