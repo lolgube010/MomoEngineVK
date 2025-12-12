@@ -154,7 +154,7 @@ void VulkanEngine::Draw()
 
 	// draw imgui into the swapchain image
 	Draw_Imgui(cmd, _swapchain_image_views[swapchainImageIndex]);
-	
+
 	// set swapchain image layout to Present so we can show it on the screen
 	vkUtil::Transition_Image(cmd, _swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
@@ -300,7 +300,6 @@ void VulkanEngine::Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& a
 	VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
 
 	VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
-
 }
 
 void VulkanEngine::SetDebugInfo(const uint64_t aObjectHandle, const VkObjectType aObjectType, const char* a_pObjectName) const
@@ -312,7 +311,7 @@ void VulkanEngine::SetDebugInfo(const uint64_t aObjectHandle, const VkObjectType
 		nameInfo.objectType = aObjectType;
 		nameInfo.objectHandle = aObjectHandle;
 		nameInfo.pObjectName = a_pObjectName;
-		
+
 		_vkSetDebugUtilsObjectNameEXT(_device, &nameInfo);
 	}
 }
@@ -463,12 +462,12 @@ void VulkanEngine::Init_Vulkan()
 	// We want a gpu that can write to the SDL surface and supports vulkan 1.3 with the correct features
 	vkb::PhysicalDeviceSelector selector{vkb_inst};
 	vkb::PhysicalDevice physicalDevice = selector
-		.set_minimum_version(1, 3)
-		.set_required_features_13(features)
-		.set_required_features_12(features12)
-		.set_surface(_surface)
-		.select()
-		.value();
+	                                     .set_minimum_version(1, 3)
+	                                     .set_required_features_13(features)
+	                                     .set_required_features_12(features12)
+	                                     .set_surface(_surface)
+	                                     .select()
+	                                     .value();
 
 	//create the final vulkan device (driver) from the physical device (gpu)
 	vkb::DeviceBuilder deviceBuilder{physicalDevice};
@@ -607,7 +606,6 @@ void VulkanEngine::Init_Sync_Structures()
 	// for imgui
 	VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
 	_mainDeletionQueue.Push_Function([=]() { vkDestroyFence(_device, _immFence, nullptr); });
-
 }
 
 void VulkanEngine::Init_Descriptors()
@@ -806,7 +804,7 @@ void VulkanEngine::Init_Imgui()
 	init_info.MinImageCount = 3;
 	init_info.ImageCount = 3;
 	init_info.UseDynamicRendering = true;
-	
+
 	//dynamic rendering parameters for imgui to use
 	init_info.PipelineInfoMain.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
 	init_info.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
@@ -838,15 +836,13 @@ void VulkanEngine::Init_Imgui()
 		ImGui_ImplVulkan_Shutdown();
 		vkDestroyDescriptorPool(_device, imguiPool, nullptr);
 	});
-
 }
 
 void VulkanEngine::Init_Triangle_Pipeline()
 {
 	VkResult res = {};
-	const auto fragPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Fragment, false);
-	const auto vertPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Vertex, false);
-	
+
+	const auto fragPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Fragment, true);
 	VkShaderModule triangleFragShader;
 	if (!vkUtil::LoadShaderModule(fragPath.c_str(), _device, &triangleFragShader, res))
 	{
@@ -854,9 +850,10 @@ void VulkanEngine::Init_Triangle_Pipeline()
 	}
 	else
 	{
-		fmt::print("Triangle fragment shader successfully loaded\n");
+		fmt::print("Triangle fragment shader successfully loaded PATH: {}\n", fragPath);
 	}
 
+	const auto vertPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Vertex, true);
 	VkShaderModule triangleVertexShader;
 	if (!vkUtil::LoadShaderModule(vertPath.c_str(), _device, &triangleVertexShader, res))
 	{
@@ -864,7 +861,7 @@ void VulkanEngine::Init_Triangle_Pipeline()
 	}
 	else
 	{
-		fmt::print("Triangle vertex shader successfully loaded\n");
+		fmt::print("Triangle vertex shader successfully loaded PATH: {}\n", vertPath);
 	}
 
 	//build the pipeline layout that controls the inputs/outputs of the shader
@@ -970,7 +967,6 @@ void VulkanEngine::DrawBackground(const VkCommandBuffer aCmd) const
 
 	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
 	vkCmdDispatch(aCmd, static_cast<uint32_t>(std::ceil(_drawExtent.width / 16.0)), static_cast<uint32_t>(std::ceil(_drawExtent.height / 16.0)), 1);
-
 }
 
 void VulkanEngine::Imgui_Run()
@@ -981,7 +977,7 @@ void VulkanEngine::Imgui_Run()
 
 		ImGui::Text("Selected effect: ", selected.name);
 
-		ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, backgroundEffects.size() - 1);
+		ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, static_cast<int>(backgroundEffects.size() - 1));
 
 		ImGui::ColorEdit4("data1", reinterpret_cast<float*>(&selected.data.data1));
 		ImGui::ColorEdit4("data2", reinterpret_cast<float*>(&selected.data.data2));
@@ -1002,17 +998,17 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd) const
 	vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
 
 	//set dynamic viewport and scissor
-	VkViewport viewport;
+	VkViewport viewport{};
 	viewport.x = 0;
 	viewport.y = 0;
-	viewport.width = _drawExtent.width;
-	viewport.height = _drawExtent.height;
+	viewport.width = static_cast<float>(_drawExtent.width);
+	viewport.height = static_cast<float>(_drawExtent.height);
 	viewport.minDepth = 0.f;
 	viewport.maxDepth = 1.f;
 
 	vkCmdSetViewport(aCmd, 0, 1, &viewport);
 
-	VkRect2D scissor;
+	VkRect2D scissor{};
 	scissor.offset.x = 0;
 	scissor.offset.y = 0;
 	scissor.extent.width = _drawExtent.width;
