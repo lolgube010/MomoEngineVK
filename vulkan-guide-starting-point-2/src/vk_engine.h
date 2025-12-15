@@ -111,6 +111,9 @@ public:
 
 	void Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& aFunction) const;
 
+	// added by momo
+	void SetDebugInfo(uint64_t aObjectHandle, VkObjectType aObjectType, const char* a_pObjectName) const;
+	
 	VkInstance _instance; // vulkan library handle - "The Vulkan context, used to access drivers."
 	VkDebugUtilsMessengerEXT _debug_messenger; // vulkan debug output handle
 	VkPhysicalDevice _chosen_GPU; // GPU chosen as the default device. - "A GPU. Used to query physical GPU details, like features, capabilities, memory size, etc."
@@ -166,8 +169,9 @@ public:
 	VkPipelineLayout _trianglePipelineLayout;
 	VkPipeline _trianglePipeline;
 
-
-	void SetDebugInfo(uint64_t aObjectHandle, VkObjectType aObjectType, const char* a_pObjectName) const;
+	VkPipelineLayout _meshPipelineLayout;
+	VkPipeline _meshPipeline;
+	GPUMeshBuffers rectangle;
 private:
 	void ProcessInput(SDL_Event& anE);
 
@@ -176,10 +180,14 @@ private:
 	void Init_Commands();
 	void Init_Sync_Structures();
 	void Init_Descriptors();
+	void Init_Imgui();
+	void Init_Default_Data();
+
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
-	void Init_Imgui();
 	void Init_Triangle_Pipeline();
+	void Init_Mesh_Pipeline();
+
 
 
 	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
@@ -190,4 +198,11 @@ private:
 	void Imgui_Run();
 
 	void Draw_Geometry(VkCommandBuffer aCmd) const;
+
+	[[nodiscard]] AllocatedBuffer Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage) const;
+	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;
+
+	// TODO:
+	// Note that this pattern is not very efficient, as we are waiting for the GPU command to fully execute before continuing with our CPU side logic. This is something people generally put on a background thread, whose sole job is to execute uploads like this one, and deleting/reusing the staging buffers.
+	GPUMeshBuffers UploadMesh(std::span<uint32_t> aIndices, std::span<Vertex> aVertices) const;
 };

@@ -31,3 +31,34 @@
             abort();                                                    \
         }                                                               \
     } while (0)
+
+struct AllocatedBuffer
+{
+	VkBuffer buffer;
+	VmaAllocation allocation;
+	VmaAllocationInfo info;
+};
+
+struct Vertex
+{
+	glm::vec3 pos;
+	float uv_x;
+	glm::vec3 normal;
+	float uv_y;
+	glm::vec4 color;
+};
+
+// holds buffers for mesh
+struct GPUMeshBuffers
+{
+	AllocatedBuffer _indexBuffer;
+	AllocatedBuffer _vertexBuffer;
+	VkDeviceAddress _vertexBufferAddress;
+};
+
+// push constants for our mesh object draws
+struct GPUDrawPushConstants
+{
+	glm::mat4 _worldMatrix;
+	VkDeviceAddress _vertexBuffer;
+};
