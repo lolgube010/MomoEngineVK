@@ -7,4 +7,4 @@
 <img width="946" height="170" alt="image" src="https://github.com/user-attachments/assets/5de9a994-abd2-40f4-ada4-40d3c68e479d" />
 
 * open the .slnx in /build
-* set 'engine' as startup project, and build
+* set 'MomoVK' as startup project, and build
