@@ -29,35 +29,36 @@ struct ComputeEffect
 	ComputePushConstants data;
 };
 
+//
 struct AllocatedImage
 {
-	VkImage image;
-	VkImageView imageView;
-	VmaAllocation allocation;
-	VkExtent3D imageExtent;
-	VkFormat imageFormat;
+	VkImage image; // equivalent to ID3D11Resource/ID3D11Texture2D
+	VkImageView imageView; // in vulkan, RTV/SRV/DSV/UAV don't exist, instead this generic one for all of them
+	VmaAllocation allocation; // tracks memory
+	VkExtent3D imageExtent; // stores width height depth
+	VkFormat imageFormat; // stores format of img, like DXGI_FORMAT_R8G8B8_UNORM
 };
 
 struct DeletionQueue
 {
 	// Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.For the amount of objects we will use in this tutorial, it's going to be fine.but if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of various types such as VkImage, VkBuffer, and so on.And then delete those from a loop.
 
-	std::deque<std::function<void()>> _deletors;
+	std::deque<std::function<void()>> _deleters;
 
 	void Push_Function(std::function<void()>&& aFunction)
 	{
-		_deletors.push_back(aFunction);
+		_deleters.push_back(std::move(aFunction));
 	}
 
 	void Flush()
 	{
 		// reverse iterate the deletion queue to execute all the functions
-		for (auto& deletor : std::ranges::reverse_view(_deletors))
+		for (auto& deleter : std::ranges::reverse_view(_deleters))
 		{
-			deletor(); //call functors
+			deleter(); //call functors
 		}
 
-		_deletors.clear();
+		_deleters.clear();
 	}
 };
 
@@ -68,7 +69,7 @@ struct FrameData
 
 	//The _swapchainSemaphore is going to be used so that our render commands wait on the swapchain image request. 
 	//The _renderSemaphore will be used to control presenting the image to the OS once the drawing finishes 
-	//The _renderFence will lets us wait for the draw commands of a given frame to be finished.
+	//The _renderFence will let us wait for the draw commands of a given frame to be finished.
 
 	// NOTE: render semaphore replaced with vector since it's supposed to be tied to image count and not FIF. 
 	VkSemaphore _swapchainSemaphore/*, _renderSemaphore*/; // gpu to gpu sync. 
@@ -109,7 +110,7 @@ public:
 		return _frames[_frame_number % FRAME_OVERLAP];
 	}
 
-	void Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& aFunction) const;
+	void Immediate_Submit(std::function<void(VkCommandBuffer aCmd)>&& aFunction) const;
 
 	// added by momo
 	void SetDebugInfo(uint64_t aObjectHandle, VkObjectType aObjectType, const char* a_pObjectName) const;
