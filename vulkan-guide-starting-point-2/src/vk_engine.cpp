@@ -66,43 +66,6 @@ void VulkanEngine::Init()
 	_is_initialized = true;
 }
 
-void VulkanEngine::Cleanup()
-{
-	if (_is_initialized)
-	{
-		vkDeviceWaitIdle(_device);
-
-		for (auto& frame : _frames)
-		{
-			vkDestroyCommandPool(_device, frame._commandPool, nullptr);
-
-			//destroy sync objects
-			vkDestroyFence(_device, frame._renderFence, nullptr);
-			vkDestroySemaphore(_device, frame._swapchainSemaphore, nullptr);
-			//vkDestroySemaphore(_device, _frame._renderSemaphore, nullptr);
-
-			frame._deletionQueue.Flush();
-		}
-		for (const auto& ready_for_present_semaphore : ready_for_present_semaphores)
-		{
-			vkDestroySemaphore(_device, ready_for_present_semaphore, nullptr);
-		}
-
-		_mainDeletionQueue.Flush();
-
-		DestroySwapchain();
-
-		vkDestroySurfaceKHR(_instance, _surface, nullptr);
-
-		vkDestroyDevice(_device, nullptr);
-		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
-		vkDestroyInstance(_instance, nullptr);
-
-		SDL_DestroyWindow(_window);
-	}
-	gl_LoadedEngine = nullptr;
-}
-
 void VulkanEngine::Draw()
 {
 	//> draw_1
@@ -207,17 +170,7 @@ void VulkanEngine::Draw()
 	//< draw_6
 }
 
-void VulkanEngine::Draw_Imgui(const VkCommandBuffer aCmd, const VkImageView aTargetImageView) const
-{
-	const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(aTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	const VkRenderingInfo renderInfo = vkInit::rendering_info(_swapchain_extent, &colorAttachment, nullptr);
 
-	vkCmdBeginRendering(aCmd, &renderInfo);
-
-	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), aCmd);
-
-	vkCmdEndRendering(aCmd);
-}
 
 void VulkanEngine::Run()
 {
@@ -276,6 +229,57 @@ void VulkanEngine::Run()
 
 		Draw();
 	}
+}
+
+
+void VulkanEngine::Cleanup()
+{
+	if (_is_initialized)
+	{
+		vkDeviceWaitIdle(_device);
+
+		for (auto& frame : _frames)
+		{
+			vkDestroyCommandPool(_device, frame._commandPool, nullptr);
+
+			//destroy sync objects
+			vkDestroyFence(_device, frame._renderFence, nullptr);
+			vkDestroySemaphore(_device, frame._swapchainSemaphore, nullptr);
+			//vkDestroySemaphore(_device, _frame._renderSemaphore, nullptr);
+
+			frame._deletionQueue.Flush();
+		}
+		for (const auto& ready_for_present_semaphore : ready_for_present_semaphores)
+		{
+			vkDestroySemaphore(_device, ready_for_present_semaphore, nullptr);
+		}
+
+		_mainDeletionQueue.Flush();
+
+		DestroySwapchain();
+
+		vkDestroySurfaceKHR(_instance, _surface, nullptr);
+
+		vkDestroyDevice(_device, nullptr);
+		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
+		vkDestroyInstance(_instance, nullptr);
+
+		SDL_DestroyWindow(_window);
+	}
+	gl_LoadedEngine = nullptr;
+}
+
+
+void VulkanEngine::Draw_Imgui(const VkCommandBuffer aCmd, const VkImageView aTargetImageView) const
+{
+	const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(aTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	const VkRenderingInfo renderInfo = vkInit::rendering_info(_swapchain_extent, &colorAttachment, nullptr);
+
+	vkCmdBeginRendering(aCmd, &renderInfo);
+
+	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), aCmd);
+
+	vkCmdEndRendering(aCmd);
 }
 
 void VulkanEngine::Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& aFunction) const
@@ -1140,11 +1144,11 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd) const
 
 	vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
 
-	GPUDrawPushConstants push_constants;
-	push_constants._worldMatrix = glm::mat4{1.f};
-	push_constants._vertexBuffer = rectangle._vertexBufferAddress;
+	GPUDrawPushConstants push_Constants;
+	push_Constants._worldMatrix = glm::mat4{1.f};
+	push_Constants._vertexBuffer = rectangle._vertexBufferAddress;
 
-	vkCmdPushConstants(aCmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_constants);
+	vkCmdPushConstants(aCmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_Constants);
 	vkCmdBindIndexBuffer(aCmd, rectangle._indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 	vkCmdDrawIndexed(aCmd, 6, 1, 0, 0, 0);
@@ -1185,21 +1189,22 @@ GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, cons
 
 	GPUMeshBuffers newSurface;
 
-	//create vertex buffer
+	// create vertex buffer
 	// It's not necessary for meshes to use GPU_ONLY vertex buffers, but it's highly recommended unless it's something like a CPU side particle system or other dynamic effects.
 
 	newSurface._vertexBuffer = Create_Buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
 	//find the address of the vertex buffer
-	const VkBufferDeviceAddressInfo deviceAddressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .buffer = newSurface._vertexBuffer.buffer};
+	const VkBufferDeviceAddressInfo deviceAddressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .pNext = nullptr, .buffer = newSurface._vertexBuffer.buffer};
 	newSurface._vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAddressInfo);
 
 	//create index buffer
 	newSurface._indexBuffer = Create_Buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
 
+	// staging buffer is 1 buffer for both copies to index and vertex buffers.
 	const AllocatedBuffer staging = Create_Buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
 
-	void* data = staging.allocation->GetMappedData();
+	void* data = staging.allocation->GetMappedData(); // doing this gives us the address so we can write to it. not a copy but just pointing to the staging buffer.
 
 	// copy vertex buffer
 	memcpy(data, aVertices.data(), vertexBufferSize);

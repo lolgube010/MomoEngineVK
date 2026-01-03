@@ -94,16 +94,16 @@ public:
 	// initializes everything in the engine
 	void Init();
 
-	// shuts down the engine
-	void Cleanup();
-
 	// draw loop
 	void Draw();
 
-	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
-
 	// run main loop
 	void Run();
+	
+	// shuts down the engine
+	void Cleanup();
+
+	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
 
 	FrameData& Get_Current_Frame()
 	{
@@ -186,10 +186,8 @@ private:
 
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
-	void Init_Triangle_Pipeline();
-	void Init_Mesh_Pipeline();
-
-
+	void Init_Triangle_Pipeline(); // hardcoded triangle (in vert shader)
+	void Init_Mesh_Pipeline(); // we load the mesh data from the cpu during runtime
 
 	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
 	void DestroySwapchain() const;

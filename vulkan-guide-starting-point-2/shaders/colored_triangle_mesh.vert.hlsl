@@ -1,6 +1,3 @@
-// Target: Model 6.6 or higher recommended for 64-bit integers and explicit resource binding
-// Compile with: -T vs_6_6 -E main -fspv-target-env=vulkan1.2
-
 struct Vertex
 {
     float3 position;
