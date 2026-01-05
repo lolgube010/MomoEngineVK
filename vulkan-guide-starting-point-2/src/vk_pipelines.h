@@ -40,6 +40,17 @@ public:
 	void Set_Depth_Format(VkFormat aFormat);
 	void Disable_DepthTest();
 	void Enable_DepthTest(bool aDepthWriteEnable, VkCompareOp aOp);
+	void Enable_Blending_Additive();
+	void Enable_Blending_AlphaBlend();
+
+	// slop
+	void Enable_Blending_Multiply();
+	void Enable_Blending_Screen();
+	void Enable_Blending_PremultipliedAlpha();
+	void Enable_Blending_Subtractive();
+	void Enable_Blending_Invert();
+	void Enable_Blending_Min();
+	void Enable_Blending_Max();
 };
 
 namespace momo_util

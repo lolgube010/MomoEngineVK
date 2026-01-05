@@ -87,7 +87,8 @@ public:
 	bool _is_initialized{false};
 	int _frame_number{0};
 	bool _stop_rendering{false};
-	VkExtent2D _window_extent{1500, 700}; // og was 1700, 900
+	VkExtent2D _windowExtent{ 1700, 900 }; // og was 1700, 900
+	bool _resize_requested;
 
 	struct SDL_Window* _window{nullptr};
 
@@ -154,6 +155,7 @@ public:
 	AllocatedImage _depthImage; // main depth
 
 	VkExtent2D _drawExtent;
+	float _renderScale = 1.f;
 
 	DescriptorAllocator _globalDescriptorAllocator;
 
@@ -197,10 +199,10 @@ private:
 	void Init_Background_Pipelines();
 	void Init_Mesh_Pipeline();
 
-	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
-	void DestroySwapchain() const;
+	void Create_Swapchain(uint32_t aWidth, uint32_t aHeight);
+	void Destroy_Swapchain() const;
 
-	void DrawBackground(VkCommandBuffer aCmd) const;
+	void Draw_Background(VkCommandBuffer aCmd) const;
 
 	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
 
@@ -211,7 +213,10 @@ private:
 	[[nodiscard]] AllocatedBuffer Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage) const;
 	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;
 
+	void Resize_Swapchain();
+
 	// temp camera settings
 	float tempCameraFOV = 70.f;
 	glm::vec3 tempView = {0.f, 0.f, -3.f};
+	// int tempBlendModeIndex = 0;
 };

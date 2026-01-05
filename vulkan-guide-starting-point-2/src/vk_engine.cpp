@@ -48,14 +48,14 @@ void VulkanEngine::Init()
 	// We initialize SDL and create a window with it.
 	SDL_Init(SDL_INIT_VIDEO);
 
-	constexpr auto window_flags = SDL_WINDOW_VULKAN;
+	constexpr auto window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
 
 	_window = SDL_CreateWindow(
 		AppName,
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
-		_window_extent.width,
-		_window_extent.height,
+		_windowExtent.width,
+		_windowExtent.height,
 		window_flags
 	);
 
@@ -83,7 +83,12 @@ void VulkanEngine::Draw()
 	//> draw_2
 	// request image from the swapchain
 	uint32_t swapchainImageIndex;
-	VK_CHECK(vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &swapchainImageIndex));
+	if (const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &swapchainImageIndex); 
+		res == VK_ERROR_OUT_OF_DATE_KHR) 
+	{
+		_resize_requested = true;
+		return;
+	}
 	//< draw_2
 
 	//> draw_3
@@ -96,8 +101,10 @@ void VulkanEngine::Draw()
 	//begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
 	const VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-	_drawExtent.width = _drawImage.imageExtent.width;
-	_drawExtent.height = _drawImage.imageExtent.height;
+	_drawExtent.height = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.height, _drawImage.imageExtent.height)) *
+		_renderScale);
+	_drawExtent.width = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.width, _drawImage.imageExtent.width)) *
+		_renderScale);
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
@@ -105,7 +112,7 @@ void VulkanEngine::Draw()
 	// we will overwrite it all so we don't care about what was the older layout
 	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 
-	DrawBackground(cmd);
+	Draw_Background(cmd);
 
 	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -169,7 +176,11 @@ void VulkanEngine::Draw()
 
 	presentInfo.pImageIndices = &swapchainImageIndex;
 
-	VK_CHECK(vkQueuePresentKHR(_graphicsQueue, &presentInfo));
+	if (const VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo); 
+		presentResult == VK_ERROR_OUT_OF_DATE_KHR) 
+	{
+		_resize_requested = true;
+	}
 
 	//increase the number of frames drawn
 	_frame_number++;
@@ -220,6 +231,11 @@ void VulkanEngine::Run()
 			continue;
 		}
 
+		if (_resize_requested)
+		{
+			Resize_Swapchain();
+		}
+
 		// imgui new frame
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplSDL2_NewFrame();
@@ -268,7 +284,7 @@ void VulkanEngine::Cleanup()
 
 		_mainDeletionQueue.Flush();
 
-		DestroySwapchain();
+		Destroy_Swapchain();
 
 		vkDestroySurfaceKHR(_instance, _surface, nullptr);
 
@@ -527,13 +543,13 @@ void VulkanEngine::Init_Vulkan()
 
 void VulkanEngine::Init_Swapchain()
 {
-	CreateSwapchain(_window_extent.width, _window_extent.height);
+	Create_Swapchain(_windowExtent.width, _windowExtent.height);
 
 	//> create image (fullscreen render target/render image)
 	//draw image size will match the window
 	const VkExtent3D drawImageExtent = {
-		_window_extent.width,
-		_window_extent.height,
+		_windowExtent.width,
+		_windowExtent.height,
 		1
 	};
 
@@ -929,7 +945,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 {
 	VkResult res = {};
 
-	const auto fragPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Fragment, true);
+	const auto fragPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Fragment, false);
 	VkShaderModule triangleFragShader;
 	if (!vkUtil::LoadShaderModule(fragPath.c_str(), _device, &triangleFragShader, res))
 	{
@@ -940,7 +956,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 		fmt::print("Triangle fragment shader successfully loaded PATH: {}\n", fragPath);
 	}
 
-	const auto vertPath = momo_util::BuildShaderPath("colored_triangle_mesh", momo_util::ShaderType::Vertex, true);
+	const auto vertPath = momo_util::BuildShaderPath("colored_triangle_mesh", momo_util::ShaderType::Vertex, false);
 	VkShaderModule triangleVertexShader;
 	if (!vkUtil::LoadShaderModule(vertPath.c_str(), _device, &triangleVertexShader, res))
 	{
@@ -976,8 +992,32 @@ void VulkanEngine::Init_Mesh_Pipeline()
 	pipelineBuilder.Set_Cull_Mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
 	//no multisampling
 	pipelineBuilder.Set_Multisampling_None();
-	//no blending
-	pipelineBuilder.Disable_Blending();
+	
+	pipelineBuilder.Disable_Blending();			
+	// pipelineBuilder.Enable_Blending_Additive();
+	// pipelineBuilder.Enable_Blending_AlphaBlend();
+	// pipelineBuilder.Enable_Blending_Multiply();
+	// pipelineBuilder.Enable_Blending_Screen();
+	// pipelineBuilder.Enable_Blending_PremultipliedAlpha();
+	// pipelineBuilder.Enable_Blending_Subtractive();
+	// pipelineBuilder.Enable_Blending_Invert();
+	// pipelineBuilder.Enable_Blending_Min();
+	// pipelineBuilder.Enable_Blending_Max();
+	// pipelineBuilder.Enable_Blending_ColorDodge();
+
+	// switch (tempBlendModeIndex) {
+	// case 0:  pipelineBuilder.Disable_Blending();					  break;
+	// case 1:  pipelineBuilder.Enable_Blending_Additive();           break;
+	// case 2:  pipelineBuilder.Enable_Blending_AlphaBlend();         break;
+	// case 3:  pipelineBuilder.Enable_Blending_Multiply();           break;
+	// case 4:  pipelineBuilder.Enable_Blending_Screen();             break;
+	// case 5:  pipelineBuilder.Enable_Blending_PremultipliedAlpha(); break;
+	// case 6:  pipelineBuilder.Enable_Blending_Subtractive();        break;
+	// case 7:  pipelineBuilder.Enable_Blending_Invert();             break;
+	// case 8:  pipelineBuilder.Enable_Blending_Min();                break;
+	// case 9:  pipelineBuilder.Enable_Blending_Max();                break;
+	// case 10: pipelineBuilder.Enable_Blending_ColorDodge();         break;
+	// }
 
 	// pipelineBuilder.Disable_DepthTest();
 	pipelineBuilder.Enable_DepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
@@ -1001,7 +1041,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 
 }
 
-void VulkanEngine::CreateSwapchain(const uint32_t aWidth, const uint32_t aHeight)
+void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeight)
 {
 	vkb::SwapchainBuilder swapchainBuilder{_chosen_GPU, _device, _surface};
 
@@ -1027,7 +1067,7 @@ void VulkanEngine::CreateSwapchain(const uint32_t aWidth, const uint32_t aHeight
 	_swapchain_image_views = vkbSwapchain.get_image_views().value();
 }
 
-void VulkanEngine::DestroySwapchain() const
+void VulkanEngine::Destroy_Swapchain() const
 {
 	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 
@@ -1038,7 +1078,7 @@ void VulkanEngine::DestroySwapchain() const
 	}
 }
 
-void VulkanEngine::DrawBackground(const VkCommandBuffer aCmd) const
+void VulkanEngine::Draw_Background(const VkCommandBuffer aCmd) const
 {
 	//make a clear-color from frame number. This will flash with a 120 frame period.
 	//VkClearColorValue clearValue;
@@ -1083,6 +1123,30 @@ void VulkanEngine::Imgui_Run()
 
 		ImGui::SliderFloat("camera fov", &tempCameraFOV, 1, 180);
 		ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
+		ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 1.f);
+
+		//
+		// // The list of names matching your functions
+		// const char* blendNames[] = 
+		// {
+		// 	"Disabled",
+		// 	"Additive",
+		// 	"Alpha Blend",
+		// 	"Multiply",
+		// 	"Screen",
+		// 	"Premultiplied Alpha",
+		// 	"Subtractive",
+		// 	"Invert",
+		// 	"Min",
+		// 	"Max",
+		// 	"Color Dodge"
+		// };
+		// // Create the dropdown menu
+		// if (ImGui::Combo("Blend Function", &tempBlendModeIndex, blendNames, IM_ARRAYSIZE(blendNames))) 
+		// {
+		// 	// This block executes only when the value changes
+		// 	printf("Blend mode changed to: %s\n", blendNames[tempBlendModeIndex]);
+		// }
 	}
 	ImGui::End();
 }
@@ -1094,7 +1158,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd) const
 	const VkRenderingAttachmentInfo depthAttachment = vkInit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	// TODO- why window extent instead of draw_extent?
-	const VkRenderingInfo renderInfo = vkInit::rendering_info(_window_extent, &colorAttachment, &depthAttachment);
+	const VkRenderingInfo renderInfo = vkInit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
 
 	vkCmdBeginRendering(aCmd, &renderInfo);
 
@@ -1166,6 +1230,22 @@ AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBu
 void VulkanEngine::Destroy_Buffer(const AllocatedBuffer& aBuffer) const
 {
 	vmaDestroyBuffer(_allocator, aBuffer.buffer, aBuffer.allocation);
+}
+
+void VulkanEngine::Resize_Swapchain()
+{
+	vkDeviceWaitIdle(_device);
+
+	Destroy_Swapchain();
+
+	int w, h;
+	SDL_GetWindowSize(_window, &w, &h);
+	_windowExtent.width = w;
+	_windowExtent.height = h;
+
+	Create_Swapchain(_windowExtent.width, _windowExtent.height);
+
+	_resize_requested = false;
 }
 
 GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, const std::span<Vertex> aVertices) const
