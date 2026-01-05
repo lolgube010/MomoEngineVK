@@ -179,9 +179,9 @@ public:
 
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
-	GPUMeshBuffers _rectangle;
+	// GPUMeshBuffers _rectangle;
 	
-	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
+	std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
 private:
 	void ProcessInput(SDL_Event& anE);
 
@@ -191,12 +191,11 @@ private:
 	void Init_Sync_Structures();
 	void Init_Descriptors();
 	void Init_Imgui();
-	void Init_Default_Data();
+	void Init_Default_Data(); // where we load models.
 
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
-	// void Init_Triangle_Pipeline(); // hardcoded triangle (in vert shader)
-	void Init_Mesh_Pipeline(); // we load the mesh data from the cpu during runtime
+	void Init_Mesh_Pipeline();
 
 	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
 	void DestroySwapchain() const;
@@ -211,4 +210,8 @@ private:
 
 	[[nodiscard]] AllocatedBuffer Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage) const;
 	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;
+
+	// temp camera settings
+	float tempCameraFOV = 70.f;
+	glm::vec3 tempView = {0.f, 0.f, -3.f};
 };

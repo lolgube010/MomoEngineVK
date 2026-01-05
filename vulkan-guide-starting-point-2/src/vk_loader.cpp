@@ -139,6 +139,10 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(VulkanEngi
                 vtx.color = glm::vec4(vtx.normal, 1.f);
             }
         }
+
+        // if we ever want to do something with the model data while it still lives on the cpu, THIS is that moment. after this they're gpu only.
+
+        // where we create and fill our buffers.
         newMesh.meshBuffers = aEngine->UploadMesh(indices, vertices);
 
         meshes.emplace_back(std::make_shared<MeshAsset>(std::move(newMesh)));
