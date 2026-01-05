@@ -19,6 +19,10 @@
 
 #include <fmt/core.h>
 
+#ifndef GLM_ENABLE_EXPERIMENTAL
+#define GLM_ENABLE_EXPERIMENTAL
+#endif
+
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 

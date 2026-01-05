@@ -20,6 +20,11 @@
 #include "imgui_impl_sdl2.h"
 #include "imgui_impl_vulkan.h"
 
+#ifndef GLM_ENABLE_EXPERIMENTAL
+#define GLM_ENABLE_EXPERIMENTAL
+#endif
+#include <glm/gtx/transform.hpp>
+
 // globals
 namespace
 {
@@ -103,6 +108,7 @@ void VulkanEngine::Draw()
 	DrawBackground(cmd);
 
 	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	Draw_Geometry(cmd);
 
@@ -249,9 +255,15 @@ void VulkanEngine::Cleanup()
 
 			frame._deletionQueue.Flush();
 		}
-		for (const auto& ready_for_present_semaphore : ready_for_present_semaphores)
+		for (const auto& ready_For_Present_Semaphore : ready_for_present_semaphores)
 		{
-			vkDestroySemaphore(_device, ready_for_present_semaphore, nullptr);
+			vkDestroySemaphore(_device, ready_For_Present_Semaphore, nullptr);
+		}
+
+		for (const auto& mesh : testMeshes) 
+		{
+			Destroy_Buffer(mesh->meshBuffers._indexBuffer);
+			Destroy_Buffer(mesh->meshBuffers._vertexBuffer);
 		}
 
 		_mainDeletionQueue.Flush();
@@ -550,16 +562,39 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo rview_info = vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
-
 	SetDebugInfo((uint64_t)_drawImage.image, VK_OBJECT_TYPE_IMAGE, "OOGILI BOOGILI ZOOGILI SHMALOOGILI");
+	//< create image
+
+	//> create depth
+	_depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
+	_depthImage.imageExtent = drawImageExtent;
+	VkImageUsageFlags depthImageUsages{};
+	depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+	const VkImageCreateInfo dimg_info = vkInit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent);
+
+	//allocate and create the image
+	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
+
+	//build an image-view for the draw image to use for rendering
+	const VkImageViewCreateInfo dview_info = vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
+	SetDebugInfo((uint64_t)_depthImage.image, VK_OBJECT_TYPE_IMAGE, "(gabagool) main depth");
+	//< create depth
+
 
 	//add to deletion queues
 	_mainDeletionQueue.Push_Function([=]()
 	{
+		// main img
 		vkDestroyImageView(_device, _drawImage.imageView, nullptr);
 		vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
+		
+		// depth img
+		vkDestroyImageView(_device, _depthImage.imageView, nullptr);
+		vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
 	});
-	//< create image
 }
 
 void VulkanEngine::Init_Commands()
@@ -669,7 +704,7 @@ void VulkanEngine::Init_Pipelines()
 	Init_Background_Pipelines();
 
 	// graphics pipelines
-	Init_Triangle_Pipeline();
+	// Init_Triangle_Pipeline();
 	Init_Mesh_Pipeline();
 }
 
@@ -854,105 +889,110 @@ void VulkanEngine::Init_Imgui()
 
 void VulkanEngine::Init_Default_Data()
 {
-	std::array<Vertex, 4> rect_vertices;
+	// std::array<Vertex, 4> rect_vertices;
+	//
+	// rect_vertices[0].pos = {0.8, -0.5, 0};
+	// rect_vertices[1].pos = {0.5, 0.5, 0};
+	// rect_vertices[2].pos = {-0.5, -0.5, 0};
+	// rect_vertices[3].pos = {-0.5, 0.5, 0};
+	//
+	// rect_vertices[0].color = {0, 0, 0, 1};
+	// rect_vertices[1].color = {0.5, 0.5, 0.5, 1};
+	// rect_vertices[2].color = {1, 0, 0, 1};
+	// rect_vertices[3].color = {0, 1, 0, 1};
+	//
+	// std::array<uint32_t, 6> rect_indices;
+	//
+	// rect_indices[0] = 0;
+	// rect_indices[1] = 1;
+	// rect_indices[2] = 2;
+	//
+	// rect_indices[3] = 2;
+	// rect_indices[4] = 1;
+	// rect_indices[5] = 3;
 
-	rect_vertices[0].pos = {0.8, -0.5, 0};
-	rect_vertices[1].pos = {0.5, 0.5, 0};
-	rect_vertices[2].pos = {-0.5, -0.5, 0};
-	rect_vertices[3].pos = {-0.5, 0.5, 0};
+	// _rectangle = UploadMesh(rect_indices, rect_vertices);
 
-	rect_vertices[0].color = {0, 0, 0, 1};
-	rect_vertices[1].color = {0.5, 0.5, 0.5, 1};
-	rect_vertices[2].color = {1, 0, 0, 1};
-	rect_vertices[3].color = {0, 1, 0, 1};
-
-	std::array<uint32_t, 6> rect_indices;
-
-	rect_indices[0] = 0;
-	rect_indices[1] = 1;
-	rect_indices[2] = 2;
-
-	rect_indices[3] = 2;
-	rect_indices[4] = 1;
-	rect_indices[5] = 3;
-
-	rectangle = UploadMesh(rect_indices, rect_vertices);
+	// In the file provided, index 0 is a cube, index 1 is a sphere, and index 2 is a blender monkey head. we will be drawing that last one, draw it right after drawing the rectangle from before
+	testMeshes = LoadGltfMeshes(this, R"(..\..\assets\basicmesh.glb)").value(); 
+	//testMeshes = LoadGltfMeshes(this, R"(..\..\assets\structure.glb)").value();
+	//testMeshes = LoadGltfMeshes(this, R"(..\..\assets\thejunkshopsplashscreen.glb)").value();
 
 	//delete the rectangle data on engine shutdown
-	_mainDeletionQueue.Push_Function([&]
-	{
-		Destroy_Buffer(rectangle._indexBuffer);
-		Destroy_Buffer(rectangle._vertexBuffer);
-	});
+	// _mainDeletionQueue.Push_Function([&]
+	// {
+	// 	// Destroy_Buffer(_rectangle._indexBuffer);
+	// 	// Destroy_Buffer(_rectangle._vertexBuffer);
+	// });
 }
 
-void VulkanEngine::Init_Triangle_Pipeline()
-{
-	VkResult res = {};
-
-	const auto fragPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Fragment, true);
-	VkShaderModule triangleFragShader;
-	if (!vkUtil::LoadShaderModule(fragPath.c_str(), _device, &triangleFragShader, res))
-	{
-		fmt::print("Error when building the triangle fragment shader module: {}", static_cast<int>(res));
-	}
-	else
-	{
-		fmt::print("Triangle fragment shader successfully loaded PATH: {}\n", fragPath);
-	}
-
-	const auto vertPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Vertex, true);
-	VkShaderModule triangleVertexShader;
-	if (!vkUtil::LoadShaderModule(vertPath.c_str(), _device, &triangleVertexShader, res))
-	{
-		fmt::print("Error when building the triangle vertex shader module {}", static_cast<int>(res));
-	}
-	else
-	{
-		fmt::print("Triangle vertex shader successfully loaded PATH: {}\n", vertPath);
-	}
-
-	//build the pipeline layout that controls the inputs/outputs of the shader
-	//we are not using descriptor sets or other systems yet, so no need to use anything other than empty default
-	const VkPipelineLayoutCreateInfo pipeline_layout_info = vkInit::pipeline_layout_create_info();
-	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
-
-	PipelineBuilder pipelineBuilder;
-
-	//use the triangle layout we created
-	pipelineBuilder._pipelineLayout = _trianglePipelineLayout;
-	//connecting the vertex and pixel shaders to the pipeline
-	pipelineBuilder.Set_Shaders(triangleVertexShader, triangleFragShader);
-	//it will draw triangles
-	pipelineBuilder.Set_Input_Topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-	//filled triangles
-	pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_FILL);
-	//no backface culling
-	pipelineBuilder.Set_Cull_Mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-	//no multisampling
-	pipelineBuilder.Set_Multisampling_None();
-	//no blending
-	pipelineBuilder.Disable_Blending();
-	//no depth testing
-	pipelineBuilder.Disable_DepthTest();
-
-	//connect the image format we will draw into, from draw image
-	pipelineBuilder.Set_Color_Attachment_Format(_drawImage.imageFormat);
-	pipelineBuilder.Set_Depth_Format(VK_FORMAT_UNDEFINED);
-
-	//finally build the pipeline
-	_trianglePipeline = pipelineBuilder.Build_Pipeline(_device);
-
-	//clean structures
-	vkDestroyShaderModule(_device, triangleFragShader, nullptr);
-	vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
-
-	_mainDeletionQueue.Push_Function([&]()
-	{
-		vkDestroyPipelineLayout(_device, _trianglePipelineLayout, nullptr);
-		vkDestroyPipeline(_device, _trianglePipeline, nullptr);
-	});
-}
+// void VulkanEngine::Init_Triangle_Pipeline()
+// {
+// 	VkResult res = {};
+//
+// 	const auto fragPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Fragment, true);
+// 	VkShaderModule triangleFragShader;
+// 	if (!vkUtil::LoadShaderModule(fragPath.c_str(), _device, &triangleFragShader, res))
+// 	{
+// 		fmt::print("Error when building the triangle fragment shader module: {}", static_cast<int>(res));
+// 	}
+// 	else
+// 	{
+// 		fmt::print("Triangle fragment shader successfully loaded PATH: {}\n", fragPath);
+// 	}
+//
+// 	const auto vertPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Vertex, true);
+// 	VkShaderModule triangleVertexShader;
+// 	if (!vkUtil::LoadShaderModule(vertPath.c_str(), _device, &triangleVertexShader, res))
+// 	{
+// 		fmt::print("Error when building the triangle vertex shader module {}", static_cast<int>(res));
+// 	}
+// 	else
+// 	{
+// 		fmt::print("Triangle vertex shader successfully loaded PATH: {}\n", vertPath);
+// 	}
+//
+// 	//build the pipeline layout that controls the inputs/outputs of the shader
+// 	//we are not using descriptor sets or other systems yet, so no need to use anything other than empty default
+// 	const VkPipelineLayoutCreateInfo pipeline_layout_info = vkInit::pipeline_layout_create_info();
+// 	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_trianglePipelineLayout));
+//
+// 	PipelineBuilder pipelineBuilder;
+//
+// 	//use the triangle layout we created
+// 	pipelineBuilder._pipelineLayout = _trianglePipelineLayout;
+// 	//connecting the vertex and pixel shaders to the pipeline
+// 	pipelineBuilder.Set_Shaders(triangleVertexShader, triangleFragShader);
+// 	//it will draw triangles
+// 	pipelineBuilder.Set_Input_Topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+// 	//filled triangles
+// 	pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_FILL);
+// 	//no backface culling
+// 	pipelineBuilder.Set_Cull_Mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
+// 	//no multisampling
+// 	pipelineBuilder.Set_Multisampling_None();
+// 	//no blending
+// 	pipelineBuilder.Disable_Blending();
+// 	//no depth testing
+// 	pipelineBuilder.Disable_DepthTest();
+//
+// 	//connect the image format we will draw into, from draw image
+// 	pipelineBuilder.Set_Color_Attachment_Format(_drawImage.imageFormat);
+// 	pipelineBuilder.Set_Depth_Format(_depthImage.imageFormat); // Even if depth testing is disabled for a draw, we still need to set the format correctly for the render pass to work without validation layer issues.
+//
+// 	//finally build the pipeline
+// 	_trianglePipeline = pipelineBuilder.Build_Pipeline(_device); 
+//
+// 	//clean structures
+// 	vkDestroyShaderModule(_device, triangleFragShader, nullptr);
+// 	vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
+//
+// 	_mainDeletionQueue.Push_Function([&]()
+// 	{
+// 		vkDestroyPipelineLayout(_device, _trianglePipelineLayout, nullptr);
+// 		vkDestroyPipeline(_device, _trianglePipeline, nullptr);
+// 	});
+// }
 
 void VulkanEngine::Init_Mesh_Pipeline()
 {
@@ -1008,11 +1048,12 @@ void VulkanEngine::Init_Mesh_Pipeline()
 	//no blending
 	pipelineBuilder.Disable_Blending();
 
-	pipelineBuilder.Disable_DepthTest();
+	// pipelineBuilder.Disable_DepthTest();
+	pipelineBuilder.Enable_DepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	//connect the image format we will draw into, from draw image
 	pipelineBuilder.Set_Color_Attachment_Format(_drawImage.imageFormat);
-	pipelineBuilder.Set_Depth_Format(VK_FORMAT_UNDEFINED);
+	pipelineBuilder.Set_Depth_Format(_depthImage.imageFormat);
 
 	//finally build the pipeline
 	_meshPipeline = pipelineBuilder.Build_Pipeline(_device);
@@ -1114,11 +1155,19 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd) const
 {
 	//begin a render pass  connected to our draw image
 	const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	const VkRenderingAttachmentInfo depthAttachment = vkInit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-	const VkRenderingInfo renderInfo = vkInit::rendering_info(_drawExtent, &colorAttachment, nullptr);
+	// TODO- why window extent instead of draw_extent?
+	const VkRenderingInfo renderInfo = vkInit::rendering_info(_window_extent, &colorAttachment, &depthAttachment);
+
+	// OLD<
+	// const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+
+	// const VkRenderingInfo renderInfo = vkInit::rendering_info(_drawExtent, &colorAttachment, nullptr);
+	// >OLD
 	vkCmdBeginRendering(aCmd, &renderInfo);
 
-	vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
+	// vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _trianglePipeline);
 
 	//set dynamic viewport and scissor
 	VkViewport viewport{};
@@ -1140,18 +1189,37 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd) const
 	vkCmdSetScissor(aCmd, 0, 1, &scissor);
 
 	//launch a draw command to draw 3 vertices
-	vkCmdDraw(aCmd, 3, 1, 0, 0);
+	// vkCmdDraw(aCmd, 3, 1, 0, 0);
 
 	vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
 
 	GPUDrawPushConstants push_Constants;
-	push_Constants._worldMatrix = glm::mat4{1.f};
-	push_Constants._vertexBuffer = rectangle._vertexBufferAddress;
+	const glm::mat4 view = glm::translate(glm::vec3{ 0,0,-5 }); 
+
+	// For the projection matrix, we are doing a trick here. Note that we are sending 10000 to the “near” and 0.1 to the “far”. We will be reversing the depth, so that depth 1 is the near plane, and depth 0 the far plane. This is a technique that greatly increases the quality of depth testing.
+	glm::mat4 projection = glm::perspective(glm::radians(70.f), static_cast<float>(_drawExtent.width) / static_cast<float>(_drawExtent.height), 10000.f, 0.1f);
+
+	// invert the Y direction on projection matrix so that we are more similar
+	// to opengl and gltf axis
+	projection[1][1] *= -1;
+
+	push_Constants._worldMatrix = projection * view;
+	//push_Constants._worldMatrix = glm::mat4{ 1.f };
+	// push_Constants._vertexBuffer = _rectangle._vertexBufferAddress;
 
 	vkCmdPushConstants(aCmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_Constants);
-	vkCmdBindIndexBuffer(aCmd, rectangle._indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+	// vkCmdBindIndexBuffer(aCmd, _rectangle._indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
-	vkCmdDrawIndexed(aCmd, 6, 1, 0, 0, 0);
+	// vkCmdDrawIndexed(aCmd, 6, 1, 0, 0, 0);
+
+	// draw gltf file
+	push_Constants._vertexBuffer = testMeshes[2]->meshBuffers._vertexBufferAddress;
+
+	vkCmdPushConstants(aCmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_Constants);
+	vkCmdBindIndexBuffer(aCmd, testMeshes[2]->meshBuffers._indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+
+	vkCmdDrawIndexed(aCmd, testMeshes[2]->surfaces[0].count, 1, testMeshes[2]->surfaces[0].startIndex, 0, 0);
+	// --
 
 	vkCmdEndRendering(aCmd);
 }

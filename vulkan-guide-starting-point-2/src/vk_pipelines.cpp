@@ -208,6 +208,19 @@ void PipelineBuilder::Disable_DepthTest()
 	_depthStencil.maxDepthBounds = 1.f;
 }
 
+void PipelineBuilder::Enable_DepthTest(const bool aDepthWriteEnable, const VkCompareOp aOp)
+{
+	_depthStencil.depthTestEnable = VK_TRUE;
+	_depthStencil.depthWriteEnable = aDepthWriteEnable;
+	_depthStencil.depthCompareOp = aOp;
+	_depthStencil.depthBoundsTestEnable = VK_FALSE;
+	_depthStencil.stencilTestEnable = VK_FALSE;
+	_depthStencil.front = {};
+	_depthStencil.back = {};
+	_depthStencil.minDepthBounds = 0.f;
+	_depthStencil.maxDepthBounds = 1.f;
+}
+
 std::string momo_util::GetShaderExtension(const ShaderType aType)
 {
 	switch (aType)

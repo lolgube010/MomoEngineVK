@@ -9,6 +9,8 @@
 
 #include <vk_descriptors.h>
 
+#include "vk_loader.h"
+
 
 union SDL_Event;
 
@@ -103,7 +105,6 @@ public:
 	// shuts down the engine
 	void Cleanup();
 
-	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
 
 	FrameData& Get_Current_Frame()
 	{
@@ -115,6 +116,10 @@ public:
 	// added by momo
 	void SetDebugInfo(uint64_t aObjectHandle, VkObjectType aObjectType, const char* a_pObjectName) const;
 	
+	// TODO:
+	// Note that this pattern is not very efficient, as we are waiting for the GPU command to fully execute before continuing with our CPU side logic. This is something people generally put on a background thread, whose sole job is to execute uploads like this one, and deleting/reusing the staging buffers.
+	GPUMeshBuffers UploadMesh(std::span<uint32_t> aIndices, std::span<Vertex> aVertices) const;
+
 	VkInstance _instance; // vulkan library handle - "The Vulkan context, used to access drivers."
 	VkDebugUtilsMessengerEXT _debug_messenger; // vulkan debug output handle
 	VkPhysicalDevice _chosen_GPU; // GPU chosen as the default device. - "A GPU. Used to query physical GPU details, like features, capabilities, memory size, etc."
@@ -145,7 +150,9 @@ public:
 	VmaAllocator _allocator;
 
 	//draw resources
-	AllocatedImage _drawImage;
+	AllocatedImage _drawImage; // our main draw image
+	AllocatedImage _depthImage; // main depth
+
 	VkExtent2D _drawExtent;
 
 	DescriptorAllocator _globalDescriptorAllocator;
@@ -167,12 +174,14 @@ public:
 	// momo debug adventure
 	PFN_vkSetDebugUtilsObjectNameEXT _vkSetDebugUtilsObjectNameEXT;
 
-	VkPipelineLayout _trianglePipelineLayout;
-	VkPipeline _trianglePipeline;
+	// VkPipelineLayout _trianglePipelineLayout;
+	// VkPipeline _trianglePipeline;
 
 	VkPipelineLayout _meshPipelineLayout;
 	VkPipeline _meshPipeline;
-	GPUMeshBuffers rectangle;
+	GPUMeshBuffers _rectangle;
+	
+	std::vector<std::shared_ptr<MeshAsset>> testMeshes;
 private:
 	void ProcessInput(SDL_Event& anE);
 
@@ -186,7 +195,7 @@ private:
 
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
-	void Init_Triangle_Pipeline(); // hardcoded triangle (in vert shader)
+	// void Init_Triangle_Pipeline(); // hardcoded triangle (in vert shader)
 	void Init_Mesh_Pipeline(); // we load the mesh data from the cpu during runtime
 
 	void CreateSwapchain(uint32_t aWidth, uint32_t aHeight);
@@ -194,14 +203,12 @@ private:
 
 	void DrawBackground(VkCommandBuffer aCmd) const;
 
+	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
+
 	void Imgui_Run();
 
 	void Draw_Geometry(VkCommandBuffer aCmd) const;
 
 	[[nodiscard]] AllocatedBuffer Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage) const;
 	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;
-
-	// TODO:
-	// Note that this pattern is not very efficient, as we are waiting for the GPU command to fully execute before continuing with our CPU side logic. This is something people generally put on a background thread, whose sole job is to execute uploads like this one, and deleting/reusing the staging buffers.
-	GPUMeshBuffers UploadMesh(std::span<uint32_t> aIndices, std::span<Vertex> aVertices) const;
 };

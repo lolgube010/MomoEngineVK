@@ -39,6 +39,7 @@ public:
 	void Set_Color_Attachment_Format(VkFormat aFormat);
 	void Set_Depth_Format(VkFormat aFormat);
 	void Disable_DepthTest();
+	void Enable_DepthTest(bool aDepthWriteEnable, VkCompareOp aOp);
 };
 
 namespace momo_util
