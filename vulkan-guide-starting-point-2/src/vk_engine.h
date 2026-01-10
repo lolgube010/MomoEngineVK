@@ -66,9 +66,6 @@ struct DeletionQueue
 
 struct FrameData
 {
-	VkCommandPool _commandPool; // a command pool creates buffers, one pool / thread, even though pools can create multiple buffers
-	VkCommandBuffer _mainCommandBuffer; // holds commands, this is mainly just a handle, actual data is being handled by vulkan
-
 	//The _swapchainSemaphore is going to be used so that our render commands wait on the swapchain image request. 
 	//The _renderSemaphore will be used to control presenting the image to the OS once the drawing finishes 
 	//The _renderFence will let us wait for the draw commands of a given frame to be finished.
@@ -76,7 +73,22 @@ struct FrameData
 	// NOTE: render semaphore replaced with vector since it's supposed to be tied to image count and not FIF. 
 	VkSemaphore _swapchainSemaphore/*, _renderSemaphore*/; // gpu to gpu sync. 
 	VkFence _renderFence; // gpu to cpu sync
+	
+	VkCommandPool _commandPool; // a command pool creates buffers, one pool / thread, even though pools can create multiple buffers
+	VkCommandBuffer _mainCommandBuffer; // holds commands, this is mainly just a handle, actual data is being handled by vulkan
+	
 	DeletionQueue _deletionQueue;
+	DescriptorAllocatorGrowable _frameDescriptors;
+};
+
+struct GPUSceneData 
+{
+	glm::mat4 view;
+	glm::mat4 proj;
+	glm::mat4 viewproj;
+	glm::vec4 ambientColor;
+	glm::vec4 sunlightDirection; // w for sun power
+	glm::vec4 sunlightColor;
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
@@ -157,7 +169,7 @@ public:
 	VkExtent2D _drawExtent;
 	float _renderScale = 1.f;
 
-	DescriptorAllocator _globalDescriptorAllocator;
+	DescriptorAllocatorGrowable _globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSetLayout _drawImageDescriptorLayout;
@@ -184,6 +196,9 @@ public:
 	// GPUMeshBuffers _rectangle;
 	
 	std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
+
+	GPUSceneData _sceneData = {};
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 private:
 	void ProcessInput(SDL_Event& anE);
 
@@ -208,7 +223,7 @@ private:
 
 	void Imgui_Run();
 
-	void Draw_Geometry(VkCommandBuffer aCmd) const;
+	void Draw_Geometry(VkCommandBuffer aCmd);
 
 	[[nodiscard]] AllocatedBuffer Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage) const;
 	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;

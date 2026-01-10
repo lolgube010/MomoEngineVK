@@ -37,13 +37,14 @@ private:
 
 struct DescriptorWriter 
 {
-	std::deque<VkDescriptorImageInfo> imageInfos;
-	std::deque<VkDescriptorBufferInfo> bufferInfos;
-	std::vector<VkWriteDescriptorSet> writes;
+	std::deque<VkDescriptorImageInfo> _image_infos;
+	std::deque<VkDescriptorBufferInfo> _buffer_infos;
+	std::vector<VkWriteDescriptorSet> _writes;
 
-	void write_image(int binding, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type);
+	// TODO: In both the write_image and write_buffer functions, we are being overly generic. This is done for simplicity, but if you want, you can add new ones like write_sampler() where it has VK_DESCRIPTOR_TYPE_SAMPLER and sets imageview and layout to null, and other similar abstractions.
+	void Write_Image(int aBinding, VkImageView aImage, VkSampler aSampler, VkImageLayout aLayout, VkDescriptorType aType);
 	void Write_Buffer(int aBinding, VkBuffer aBuffer, size_t aSize, size_t aOffset, VkDescriptorType aType);
 
-	void clear();
-	void update_set(VkDevice device, VkDescriptorSet set);
+	void Clear();
+	void Update_Set(VkDevice aDevice, VkDescriptorSet aSet);
 };

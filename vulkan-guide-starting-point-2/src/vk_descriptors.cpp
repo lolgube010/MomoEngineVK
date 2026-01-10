@@ -49,7 +49,7 @@ void DescriptorAllocatorGrowable::Init(const VkDevice aDevice, const uint32_t aM
 
 	const VkDescriptorPool newPool = Create_Pool(aDevice, aMaxSets, aPoolRatios);
 
-	_sets_per_pool = aMaxSets * 1.5; //grow it next allocation
+	_sets_per_pool = static_cast<uint32_t>(static_cast<double>(aMaxSets) * 1.5); //grow it next allocation
 
 	_ready_pools.push_back(newPool);
 }
@@ -158,9 +158,37 @@ VkDescriptorPool DescriptorAllocatorGrowable::Create_Pool(const VkDevice aDevice
 	return newPool;
 }
 
-void DescriptorWriter::write_image(int binding, VkImageView image, VkSampler sampler, VkImageLayout layout, VkDescriptorType type)
-{
 
+
+/// <summary>
+/// </summary>
+/// <param name="aBinding"></param>
+/// <param name="aImage"></param>
+/// <param name="aSampler"></param>
+/// <param name="aLayout">For Shader read: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL. For Compute R/W: VK_IMAGE_LAYOUT_GENERAL</param>
+/// <param name="aType">The 3 parameters in the ImageInfo can be optional, depending on the specific VkDescriptorType.
+// VK_DESCRIPTOR_TYPE_SAMPLER is JUST the sampler, so it does not need ImageView or layout to be set.
+// VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE doesn't need the sampler set because it's going to be accessed with different samplers within the shader, this descriptor type is just a pointer to the image.
+// VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER needs everything set, as it holds the information for both the sampler, and the image it samples.This is a useful type because it means we only need 1 descriptor binding to access the texture.
+// VK_DESCRIPTOR_TYPE_STORAGE_IMAGE was used back in chapter 2, it does not need sampler, and it's used to allow compute shaders to directly access pixel data.
+//</param>
+void DescriptorWriter::Write_Image(const int aBinding, const VkImageView aImage, const VkSampler aSampler, const VkImageLayout aLayout, const VkDescriptorType aType)
+{
+	const VkDescriptorImageInfo& info = _image_infos.emplace_back(VkDescriptorImageInfo{
+	.sampler = aSampler,
+	.imageView = aImage,
+	.imageLayout = aLayout
+		});
+
+	VkWriteDescriptorSet write = {};
+	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+	write.dstBinding = aBinding;
+	write.dstSet = VK_NULL_HANDLE; //left empty for now until we need to write it
+	write.descriptorCount = 1;
+	write.descriptorType = aType;
+	write.pImageInfo = &info;
+
+	_writes.push_back(write);
 }
 
 
@@ -169,9 +197,15 @@ void DescriptorWriter::write_image(int binding, VkImageView image, VkSampler sam
 // VK_DESCRIPTOR_TYPE_STORAGE_BUFFER
 // VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC
 // VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC
+
+// Vulkan Type,				Read/Write,	Size Limit,				Offset Fixed?,		DX11 Closest Equivalent,				Typical Use Case
+// UNIFORM_BUFFER,			Read-only,	"Small (e.g., ≤64KB)",	Yes,				Constant buffer(cbuffer),				Per - frame / camera data
+// STORAGE_BUFFER,			Read+Write,	Large,					Yes,				StructuredBuffer / RWStructuredBuffer,	"Particles, compute data"
+// UNIFORM_BUFFER_DYNAMIC,	Read-only,	Small,					No(dynamic),		(No direct; multiple cbuffers),			"Many objects, one big UBO"
+// STORAGE_BUFFER_DYNAMIC,	Read+Write,	Large,					No(dynamic),		(No direct; multiple SRVs / UAVs),		"Many objects, one big SSBO"
 void DescriptorWriter::Write_Buffer(const int aBinding, const VkBuffer aBuffer, const size_t aSize, const size_t aOffset, const VkDescriptorType aType)
 {
-	const VkDescriptorBufferInfo& info = bufferInfos.emplace_back(VkDescriptorBufferInfo{
+	const VkDescriptorBufferInfo& info = _buffer_infos.emplace_back(VkDescriptorBufferInfo{
 		.buffer = aBuffer,
 		.offset = aOffset,
 		.range = aSize
@@ -185,15 +219,23 @@ void DescriptorWriter::Write_Buffer(const int aBinding, const VkBuffer aBuffer, 
 	write.descriptorType = aType;
 	write.pBufferInfo = &info; // We have created the info by doing emplace_back on the std::deque, so it's fine to take a pointer to it.
 
-	writes.push_back(write);
+	_writes.push_back(write);
 }
 
-void DescriptorWriter::clear()
+void DescriptorWriter::Clear()
 {
-
+	_image_infos.clear();
+	_writes.clear();
+	_buffer_infos.clear();
 }
 
-void DescriptorWriter::update_set(VkDevice device, VkDescriptorSet set)
+void DescriptorWriter::Update_Set(const VkDevice aDevice, const VkDescriptorSet aSet)
 {
+	for (VkWriteDescriptorSet& write : _writes) 
+	{
+		write.dstSet = aSet;
+	}
+
+	vkUpdateDescriptorSets(aDevice, static_cast<uint32_t>(_writes.size()), _writes.data(), 0, nullptr);
 
 }

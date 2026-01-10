@@ -77,6 +77,7 @@ void VulkanEngine::Draw()
 	// wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	VK_CHECK(vkWaitForFences(_device, 1, &Get_Current_Frame()._renderFence, true, 1000000000));
 	Get_Current_Frame()._deletionQueue.Flush();
+	Get_Current_Frame()._frameDescriptors.Clear_Pools(_device);
 	VK_CHECK(vkResetFences(_device, 1, &Get_Current_Frame()._renderFence));
 	//< draw_1
 
@@ -672,12 +673,12 @@ void VulkanEngine::Init_Sync_Structures()
 void VulkanEngine::Init_Descriptors()
 {
 	//create a descriptor pool that will hold 10 sets with 1 image each
-	std::vector<DescriptorAllocator::PoolSizeRatio> sizes =
+	std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes =
 	{
 		{._type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 1}
 	};
 
-	_globalDescriptorAllocator.Init_Pool(_device, 10, sizes);
+	_globalDescriptorAllocator.Init(_device, 10, sizes);
 
 	//make the descriptor set layout for our compute draw
 	{
@@ -689,29 +690,42 @@ void VulkanEngine::Init_Descriptors()
 	//allocate a descriptor set for our draw image
 	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout);
 
-	VkDescriptorImageInfo imgInfo{};
-	imgInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
-	imgInfo.imageView = _drawImage.imageView;
+	{
+		DescriptorLayoutBuilder builder;
+		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		_gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
 
-	VkWriteDescriptorSet drawImageWrite = {};
-	drawImageWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-	drawImageWrite.pNext = nullptr;
-
-	drawImageWrite.dstBinding = 0;
-	drawImageWrite.dstSet = _drawImageDescriptors;
-	drawImageWrite.descriptorCount = 1;
-	drawImageWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-	drawImageWrite.pImageInfo = &imgInfo;
-
-	vkUpdateDescriptorSets(_device, 1, &drawImageWrite, 0, nullptr);
+	DescriptorWriter writer;
+	writer.Write_Image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+	writer.Update_Set(_device, _drawImageDescriptors);
 
 	//make sure both the descriptor allocator and the new layout get cleaned up properly
 	_mainDeletionQueue.Push_Function([&]()
 	{
-		_globalDescriptorAllocator.Destroy_Pool(_device);
+		_globalDescriptorAllocator.Destroy_Pools(_device);
 
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
 	});
+
+	for (unsigned int i = 0; i < FRAME_OVERLAP; i++)   // NOLINT(modernize-loop-convert)
+	{
+		// create a descriptor pool
+		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_Sizes = 
+		{
+			{._type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
+			{._type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
+			{._type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 3 },
+			{._type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
+		};
+
+		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
+		_frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes);
+
+		_mainDeletionQueue.Push_Function([&, i]() {
+			_frames[i]._frameDescriptors.Destroy_Pools(_device);
+			});
+	}
 }
 
 void VulkanEngine::Init_Pipelines()
@@ -1151,7 +1165,7 @@ void VulkanEngine::Imgui_Run()
 	ImGui::End();
 }
 
-void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd) const
+void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 {
 	//begin a render pass  connected to our draw image
 	const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -1182,6 +1196,26 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd) const
 	scissor.extent.height = _drawExtent.height;
 
 	vkCmdSetScissor(aCmd, 0, 1, &scissor);
+
+	//allocate a new uniform buffer for the scene data
+	AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	//add it to the deletion queue of this frame so it gets deleted once it's been used
+	Get_Current_Frame()._deletionQueue.Push_Function([=, this]() 
+	{
+		Destroy_Buffer(gpuSceneDataBuffer);
+	});
+
+	//write the buffer
+	GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
+	*sceneUniformData = _sceneData;
+
+	//create a descriptor set that binds that buffer and update it
+	VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout);
+
+	DescriptorWriter writer;
+	writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.Update_Set(_device, globalDescriptor);
 
 	GPUDrawPushConstants push_Constants;
 	const glm::mat4 view = glm::translate(tempView);
