@@ -778,8 +778,12 @@ void VulkanEngine::Init_Descriptors()
 	DescriptorWriter writer;
 	writer.Write_Image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 	writer.Update_Set(_device, _drawImageDescriptors);
+	
+	// for textures
+	{
+		// TODO:
+		// When we do drawing, we want to use the fixed hardware in the GPU for accessing texture data, which needs the sampler.We have the option to either use VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, which packages an image and a sampler to use with that image, or to use 2 descriptors, and separate the two into VK_DESCRIPTOR_TYPE_SAMPLER and VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE.According to gpu vendors, the separated approach can be faster as there is less duplicated data.But its a bit harder to deal with so we won't be doing it for now.Instead, we will use the combined descriptor to make our shaders simpler.
 
-	{ // TODO NOTE: this is never deleted!
 		DescriptorLayoutBuilder builder;
 		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_singleImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
@@ -809,8 +813,9 @@ void VulkanEngine::Init_Descriptors()
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
 		_frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes);
 
-		_mainDeletionQueue.Push_Function([&, i]() {
-			_frames[i]._frameDescriptors.Destroy_Pools(_device);
+		_mainDeletionQueue.Push_Function([&, i]() 
+			{
+				_frames[i]._frameDescriptors.Destroy_Pools(_device);
 			});
 	}
 }
@@ -1053,8 +1058,6 @@ void VulkanEngine::Init_Default_Data()
 	}
 	_errorCheckerboardImage = Create_Image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT);
-
-	// When we did the compute based rendering, we bound the image using a VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, which was the type we use for a read / write texture with no sampling logic.This is roughly equivalent to binding a buffer, just a multi - dimensional one with different memory layout.But when we do drawing, we want to use the fixed hardware in the GPU for accessing texture data, which needs the sampler.We have the option to either use VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, which packages an image and a sampler to use with that image, or to use 2 descriptors, and separate the two into VK_DESCRIPTOR_TYPE_SAMPLER and VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE.According to gpu vendors, the separated approach can be faster as there is less duplicated data.But its a bit harder to deal with so we wont be doing it for now.Instead, we will use the combined descriptor to make our shaders simpler.
 
 	VkSamplerCreateInfo sampler = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
 
@@ -1342,26 +1345,27 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipelineLayout, 0, 1, &imageSet, 0, nullptr);
 
+	{
+		 //allocate a new uniform buffer for the scene data
+		 AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+		
+		 //add it to the deletion queue of this frame so it gets deleted once it's been used
+		 Get_Current_Frame()._deletionQueue.Push_Function([=, this]() 
+		 {
+	 		Destroy_Buffer(gpuSceneDataBuffer);
+		 });
+		
+		 //write the buffer
+		 GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
+		 *sceneUniformData = _sceneData;
 
-	 //allocate a new uniform buffer for the scene data
-	 AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-	
-	 //add it to the deletion queue of this frame so it gets deleted once it's been used
-	 Get_Current_Frame()._deletionQueue.Push_Function([=, this]() 
-	 {
-	 	Destroy_Buffer(gpuSceneDataBuffer);
-	 });
-	
-	 //write the buffer
-	 GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
-	 *sceneUniformData = _sceneData;
+		// create a descriptor set that binds that buffer and update it
+		 VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout);
 
-	// create a descriptor set that binds that buffer and update it
-	 VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout);
-
-	 DescriptorWriter writer;
-	 writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	 writer.Update_Set(_device, globalDescriptor);
+		 DescriptorWriter writer;
+		 writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		 writer.Update_Set(_device, globalDescriptor);
+	}
 
 	const glm::mat4 view = glm::translate(tempView);
 	// For the projection matrix, we are doing a trick here. Note that we are sending 10000 to the “near” and 0.1 to the “far”. We will be reversing the depth, so that depth 1 is the near plane, and depth 0 the far plane. This is a technique that greatly increases the quality of depth testing.

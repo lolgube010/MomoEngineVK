@@ -232,12 +232,10 @@ private:
 	void Destroy_Swapchain() const;
 
 	void Draw_Background(VkCommandBuffer aCmd) const;
+	void Draw_Geometry(VkCommandBuffer aCmd);
 
 	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
-
 	void Imgui_Run();
-
-	void Draw_Geometry(VkCommandBuffer aCmd);
 
 	[[nodiscard]] AllocatedBuffer Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage) const;
 	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;
