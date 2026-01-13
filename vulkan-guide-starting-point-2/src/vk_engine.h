@@ -199,6 +199,11 @@ public:
 
 	GPUSceneData _sceneData = {};
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+
+	AllocatedImage Create_Image(VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
+	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
+	void destroy_image(const AllocatedImage& img);
+
 private:
 	void ProcessInput(SDL_Event& anE);
 

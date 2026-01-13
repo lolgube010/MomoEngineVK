@@ -350,6 +350,52 @@ void VulkanEngine::SetDebugInfo(const uint64_t aObjectHandle, const VkObjectType
 	}
 }
 
+AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const bool aMipmapped) const
+{
+	AllocatedImage newImage;
+	newImage.imageFormat = aFormat;
+	newImage.imageExtent = aSize;
+
+	VkImageCreateInfo img_Info = vkInit::image_create_info(aFormat, aUsage, aSize);
+	if (aMipmapped) 
+	{
+		img_Info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(aSize.width, aSize.height)))) + 1;
+	}
+
+	// always allocate images on dedicated GPU memory
+	VmaAllocationCreateInfo allocInfo = {};
+	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	allocInfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	// allocate and create the image
+	VK_CHECK(vmaCreateImage(_allocator, &img_Info, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
+
+	// if the format is a depth format, we will need to have it use the correct
+	// aspect flag
+	VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
+	if (aFormat == VK_FORMAT_D32_SFLOAT) {
+		aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
+	}
+
+	// build a image-view for the image
+	VkImageViewCreateInfo view_Info = vkInit::imageview_create_info(aFormat, newImage.image, aspectFlag);
+	view_Info.subresourceRange.levelCount = img_Info.mipLevels;
+
+	VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage.imageView));
+
+	return newImage;
+
+}
+
+AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
+	bool mipmapped)
+{
+}
+
+void VulkanEngine::destroy_image(const AllocatedImage& img)
+{
+}
+
 void VulkanEngine::ProcessInput(SDL_Event& anE)
 {
 	auto& e = anE;
