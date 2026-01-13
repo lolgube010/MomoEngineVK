@@ -373,11 +373,12 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 	// if the format is a depth format, we will need to have it use the correct
 	// aspect flag
 	VkImageAspectFlags aspectFlag = VK_IMAGE_ASPECT_COLOR_BIT;
-	if (aFormat == VK_FORMAT_D32_SFLOAT) {
+	if (aFormat == VK_FORMAT_D32_SFLOAT) 
+	{
 		aspectFlag = VK_IMAGE_ASPECT_DEPTH_BIT;
 	}
 
-	// build a image-view for the image
+	// build an image-view for the image
 	VkImageViewCreateInfo view_Info = vkInit::imageview_create_info(aFormat, newImage.image, aspectFlag);
 	view_Info.subresourceRange.levelCount = img_Info.mipLevels;
 
@@ -387,13 +388,45 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 
 }
 
-AllocatedImage VulkanEngine::create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage,
-	bool mipmapped)
+AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const bool aMipmapped) const
 {
+	const size_t data_Size = static_cast<size_t>(aSize.depth) * aSize.width * aSize.height * 4;
+	const AllocatedBuffer uploadBuffer = Create_Buffer(data_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+
+	memcpy(uploadBuffer.info.pMappedData, aData, data_Size);
+
+	const AllocatedImage new_Image = Create_Image(aSize, aFormat, aUsage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, aMipmapped);
+
+	Immediate_Submit([&](const VkCommandBuffer aCmd) 
+	{
+		vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+		VkBufferImageCopy copyRegion = {};
+		copyRegion.bufferOffset = 0;
+		copyRegion.bufferRowLength = 0;
+		copyRegion.bufferImageHeight = 0;
+
+		copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		copyRegion.imageSubresource.mipLevel = 0;
+		copyRegion.imageSubresource.baseArrayLayer = 0;
+		copyRegion.imageSubresource.layerCount = 1;
+		copyRegion.imageExtent = aSize;
+
+		// copy the buffer into the image
+		vkCmdCopyBufferToImage(aCmd, uploadBuffer.buffer, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+
+		vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
+	});
+
+	Destroy_Buffer(uploadBuffer);
+
+	return new_Image;
 }
 
-void VulkanEngine::destroy_image(const AllocatedImage& img)
+void VulkanEngine::Destroy_Image(const AllocatedImage& aImg) const
 {
+	vkDestroyImageView(_device, aImg.imageView, nullptr);
+	vmaDestroyImage(_allocator, aImg.image, aImg.allocation);
 }
 
 void VulkanEngine::ProcessInput(SDL_Event& anE)
@@ -746,12 +779,20 @@ void VulkanEngine::Init_Descriptors()
 	writer.Write_Image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 	writer.Update_Set(_device, _drawImageDescriptors);
 
+	{ // TODO NOTE: this is never deleted!
+		DescriptorLayoutBuilder builder;
+		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+		_singleImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
+
 	//make sure both the descriptor allocator and the new layout get cleaned up properly
 	_mainDeletionQueue.Push_Function([&]()
 	{
 		_globalDescriptorAllocator.Destroy_Pools(_device);
 
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _singleImageDescriptorLayout, nullptr);
+		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
 	});
 
 	for (unsigned int i = 0; i < FRAME_OVERLAP; i++)   // NOLINT(modernize-loop-convert)
@@ -993,6 +1034,53 @@ void VulkanEngine::Init_Default_Data()
 	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\structure.glb)").value();
 	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\thejunkshopsplashscreen2.glb)").value();
 
+	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+	_whiteImage = Create_Image(&white, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+	_greyImage = Create_Image(&grey, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+	_blackImage = Create_Image(&black, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+
+
+	const uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
+	std::array<uint32_t, 16 * 16 > pixels; //for 16x16 checkerboard texture
+	for (int x = 0; x < 16; x++) 
+	{
+		for (int y = 0; y < 16; y++) 
+		{
+			pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+		}
+	}
+	_errorCheckerboardImage = Create_Image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
+		VK_IMAGE_USAGE_SAMPLED_BIT);
+
+	// When we did the compute based rendering, we bound the image using a VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, which was the type we use for a read / write texture with no sampling logic.This is roughly equivalent to binding a buffer, just a multi - dimensional one with different memory layout.But when we do drawing, we want to use the fixed hardware in the GPU for accessing texture data, which needs the sampler.We have the option to either use VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, which packages an image and a sampler to use with that image, or to use 2 descriptors, and separate the two into VK_DESCRIPTOR_TYPE_SAMPLER and VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE.According to gpu vendors, the separated approach can be faster as there is less duplicated data.But its a bit harder to deal with so we wont be doing it for now.Instead, we will use the combined descriptor to make our shaders simpler.
+
+	VkSamplerCreateInfo sampler = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+
+	// nearest gives pixelated look
+	sampler.magFilter = VK_FILTER_NEAREST;
+	sampler.minFilter = VK_FILTER_NEAREST;
+
+	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest);
+
+	// linear blurs
+	sampler.magFilter = VK_FILTER_LINEAR;
+	sampler.minFilter = VK_FILTER_LINEAR;
+	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerLinear);
+
+	_mainDeletionQueue.Push_Function([&]() 
+	{
+		vkDestroySampler(_device, _defaultSamplerNearest, nullptr);
+		vkDestroySampler(_device, _defaultSamplerLinear, nullptr);
+
+		Destroy_Image(_whiteImage);
+		Destroy_Image(_greyImage);
+		Destroy_Image(_blackImage);
+		Destroy_Image(_errorCheckerboardImage);
+	});
+
+
 	//delete the rectangle data on engine shutdown
 	// _mainDeletionQueue.Push_Function([&]
 	// {
@@ -1005,7 +1093,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 {
 	VkResult res = {};
 
-	const auto fragPath = momo_util::BuildShaderPath("colored_triangle", momo_util::ShaderType::Fragment, false);
+	const auto fragPath = momo_util::BuildShaderPath("tex_image", momo_util::ShaderType::Fragment, false);
 	VkShaderModule triangleFragShader;
 	if (!vkUtil::LoadShaderModule(fragPath.c_str(), _device, &triangleFragShader, res))
 	{
@@ -1013,7 +1101,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 	}
 	else
 	{
-		fmt::print("Triangle fragment shader successfully loaded PATH: {}\n", fragPath);
+		fmt::print("Frag shader successfully loaded. PATH: {}\n", fragPath);
 	}
 
 	const auto vertPath = momo_util::BuildShaderPath("colored_triangle_mesh", momo_util::ShaderType::Vertex, false);
@@ -1024,7 +1112,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 	}
 	else
 	{
-		fmt::print("Triangle vertex shader successfully loaded PATH: {}\n", vertPath);
+		fmt::print("Vert shader successfully loaded. PATH: {}\n", vertPath);
 	}
 
 	VkPushConstantRange bufferRange{};
@@ -1035,7 +1123,8 @@ void VulkanEngine::Init_Mesh_Pipeline()
 	VkPipelineLayoutCreateInfo pipeline_layout_info = vkInit::pipeline_layout_create_info();
 	pipeline_layout_info.pPushConstantRanges = &bufferRange;
 	pipeline_layout_info.pushConstantRangeCount = 1;
-
+	pipeline_layout_info.pSetLayouts = &_singleImageDescriptorLayout;
+	pipeline_layout_info.setLayoutCount = 1;
 	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_meshPipelineLayout));
 
 	PipelineBuilder pipelineBuilder;
@@ -1217,9 +1306,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	const VkRenderingAttachmentInfo depthAttachment = vkInit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-	// TODO- why window extent instead of draw_extent?
 	const VkRenderingInfo renderInfo = vkInit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
-
 	vkCmdBeginRendering(aCmd, &renderInfo);
 
 	vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);
@@ -1243,39 +1330,49 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	vkCmdSetScissor(aCmd, 0, 1, &scissor);
 
-	//allocate a new uniform buffer for the scene data
-	AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
-
-	//add it to the deletion queue of this frame so it gets deleted once it's been used
-	Get_Current_Frame()._deletionQueue.Push_Function([=, this]() 
+	// bind a texture
+	VkDescriptorSet imageSet = Get_Current_Frame()._frameDescriptors.Allocate(_device, _singleImageDescriptorLayout);
 	{
-		Destroy_Buffer(gpuSceneDataBuffer);
-	});
+		auto& imageToBind = _errorCheckerboardImage;
+		DescriptorWriter writer;
+		writer.Write_Image(0, imageToBind.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-	//write the buffer
-	GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
-	*sceneUniformData = _sceneData;
+		writer.Update_Set(_device, imageSet);
+	}
 
-	//create a descriptor set that binds that buffer and update it
-	VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout);
+	vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipelineLayout, 0, 1, &imageSet, 0, nullptr);
 
-	DescriptorWriter writer;
-	writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.Update_Set(_device, globalDescriptor);
 
-	GPUDrawPushConstants push_Constants;
+	 //allocate a new uniform buffer for the scene data
+	 AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	
+	 //add it to the deletion queue of this frame so it gets deleted once it's been used
+	 Get_Current_Frame()._deletionQueue.Push_Function([=, this]() 
+	 {
+	 	Destroy_Buffer(gpuSceneDataBuffer);
+	 });
+	
+	 //write the buffer
+	 GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
+	 *sceneUniformData = _sceneData;
+
+	// create a descriptor set that binds that buffer and update it
+	 VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout);
+
+	 DescriptorWriter writer;
+	 writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	 writer.Update_Set(_device, globalDescriptor);
+
 	const glm::mat4 view = glm::translate(tempView);
-
 	// For the projection matrix, we are doing a trick here. Note that we are sending 10000 to the “near” and 0.1 to the “far”. We will be reversing the depth, so that depth 1 is the near plane, and depth 0 the far plane. This is a technique that greatly increases the quality of depth testing.
 	glm::mat4 projection = glm::perspective(glm::radians(tempCameraFOV), static_cast<float>(_drawExtent.width) / static_cast<float>(_drawExtent.height), 10000.f, 0.1f);
 
-	// invert the Y direction on projection matrix so that we are more similar
-	// to opengl and gltf axis
+	// invert the Y direction on projection matrix so that we are more similar to opengl and gltf axis
 	projection[1][1] *= -1;
 
-	push_Constants._worldMatrix = projection * view;
-
 	const auto& mesh = _testMeshes[2]; // 0 cube, 1 sphere, 2 monke
+	GPUDrawPushConstants push_Constants{};
+	push_Constants._worldMatrix = projection * view;
 	push_Constants._vertexBuffer = mesh->meshBuffers._vertexBufferAddress;
 	
 	vkCmdPushConstants(aCmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_Constants);

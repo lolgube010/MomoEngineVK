@@ -201,9 +201,18 @@ public:
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
 
 	AllocatedImage Create_Image(VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
-	AllocatedImage create_image(void* data, VkExtent3D size, VkFormat format, VkImageUsageFlags usage, bool mipmapped = false);
-	void destroy_image(const AllocatedImage& img);
+	AllocatedImage Create_Image(const void* aData, VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
+	void Destroy_Image(const AllocatedImage& aImg) const;
 
+	AllocatedImage _whiteImage;
+	AllocatedImage _blackImage;
+	AllocatedImage _greyImage;
+	AllocatedImage _errorCheckerboardImage;
+
+	VkSampler _defaultSamplerLinear;
+	VkSampler _defaultSamplerNearest;
+
+	VkDescriptorSetLayout _singleImageDescriptorLayout;
 private:
 	void ProcessInput(SDL_Event& anE);
 
