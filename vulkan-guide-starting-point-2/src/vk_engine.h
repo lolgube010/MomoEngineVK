@@ -91,6 +91,67 @@ struct GPUSceneData
 	glm::vec4 sunlightColor;
 };
 
+enum class MaterialPass
+{
+	Opaque,
+	Transparent
+};
+
+struct MaterialPipeline 
+{
+	VkPipeline pipeline;
+	VkPipelineLayout layout;
+};
+
+struct MaterialInstance 
+{
+	MaterialPipeline* pipeline;
+	VkDescriptorSet materialSet;
+	MaterialPass passType;
+};
+
+struct RenderObject
+{
+	uint32_t indexCount;
+	uint32_t firstIndex;
+	VkBuffer indexBuffer;
+
+	MaterialInstance* material;
+
+	glm::mat4 transform;
+	VkDeviceAddress vertexBufferAddress;
+};
+
+struct DrawContext
+{
+	std::vector<RenderObject*> Objects;
+};
+
+// base class for a renderable dynamic object
+class IRenderable 
+{
+	virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
+};
+
+class Node : public IRenderable
+{
+	glm::mat4 localTransform;
+	std::vector<Node*> children;
+};
+
+class MeshNode : public Node
+{
+	// We then have a MeshNode class, that derives from Node. It holds the draw resources needed, and when Draw() is called on it, it builds the RenderObject and adds it to the DrawContext for drawing.
+
+	// When we add other drawing types, such as lights, it will still work the same.We will hold a list of lights on the DrawContext, and a LightNode will add its parameters to it if the light is enabled.Same with other things we might want to draw such as a terrain, particles, etc.
+
+		// A trick we will be doing too is that once we add GLTF, we will also have a LoadedGLTF class as a IRenderable(not a Node). this will hold the entire state and all the resources like textures and meshes of a given GLTF file, and when Draw() is called it will draw the contents of the GLTF.Having a similar class for OBJ and other formats will be useful.
+
+		// Loading the GLTF itself will be done next chapter, but we will ready the mechanics of the RenderObjects and gltf material now.
+
+
+};
+
 constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
 
 class VulkanEngine
