@@ -11,35 +11,7 @@
 
 #include "vk_loader.h"
 
-
 union SDL_Event;
-
-struct ComputePushConstants
-{
-	glm::vec4 data1;
-	glm::vec4 data2;
-	glm::vec4 data3;
-	glm::vec4 data4;
-};
-
-struct ComputeEffect
-{
-	const char* name;
-	VkPipeline pipeline;
-	VkPipelineLayout layout;
-
-	ComputePushConstants data;
-};
-
-//
-struct AllocatedImage
-{
-	VkImage image; // equivalent to ID3D11Resource/ID3D11Texture2D
-	VkImageView imageView; // in vulkan, RTV/SRV/DSV/UAV don't exist, instead this generic one for all of them
-	VmaAllocation allocation; // tracks memory
-	VkExtent3D imageExtent; // stores width height depth
-	VkFormat imageFormat; // stores format of img, like DXGI_FORMAT_R8G8B8_UNORM
-};
 
 struct DeletionQueue
 {
@@ -73,41 +45,68 @@ struct FrameData
 	// NOTE: render semaphore replaced with vector since it's supposed to be tied to image count and not FIF. 
 	VkSemaphore _swapchainSemaphore/*, _renderSemaphore*/; // gpu to gpu sync. 
 	VkFence _renderFence; // gpu to cpu sync
-	
+
 	VkCommandPool _commandPool; // a command pool creates buffers, one pool / thread, even though pools can create multiple buffers
 	VkCommandBuffer _mainCommandBuffer; // holds commands, this is mainly just a handle, actual data is being handled by vulkan
-	
+
 	DeletionQueue _deletionQueue;
 	DescriptorAllocatorGrowable _frameDescriptors;
 };
 
-struct GPUSceneData 
+constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
+
+
+struct ComputePushConstants
 {
-	glm::mat4 view;
-	glm::mat4 proj;
-	glm::mat4 viewproj;
-	glm::vec4 ambientColor;
-	glm::vec4 sunlightDirection; // w for sun power
-	glm::vec4 sunlightColor;
+	glm::vec4 data1;
+	glm::vec4 data2;
+	glm::vec4 data3;
+	glm::vec4 data4;
 };
 
-enum class MaterialPass
+struct ComputeEffect
 {
-	Opaque,
-	Transparent
-};
-
-struct MaterialPipeline 
-{
+	const char* name;
 	VkPipeline pipeline;
 	VkPipelineLayout layout;
+
+	ComputePushConstants data;
 };
 
-struct MaterialInstance 
+struct GLTFMetallic_Roughness
 {
-	MaterialPipeline* pipeline;
-	VkDescriptorSet materialSet;
-	MaterialPass passType;
+	MaterialPipeline opaquePipeline;
+	MaterialPipeline transparentPipeline;
+
+	VkDescriptorSetLayout materialLayout;
+
+	struct MaterialConstants
+	{
+		glm::vec4 colorFactors; // used to multiply the color texture
+		glm::vec4 metal_rough_factors; // metallic and roughness parameters on r and b components, plus two more that are used in other places.
+
+		// We have also a bunch of vec4s for padding. In vulkan, when you want to bind a uniform buffer, it needs to meet a minimum requirement for its alignment. 256 bytes is a good default alignment for this which all the gpus we target meet, so we are adding those vec4s to pad the structure to 256 bytes.
+		glm::vec4 extra[14];
+	};
+
+	// When we create the descriptor set, there are some textures we want to bind, and the uniform buffer with the color factors and other properties. We will hold those in the MaterialResources struct, so that its easy to send them to the write_material function.
+	struct MaterialResources
+	{
+		AllocatedImage colorImage;
+		VkSampler colorSampler;
+		AllocatedImage metalRoughImage;
+		VkSampler metalRoughSampler;
+		VkBuffer dataBuffer;
+		uint32_t dataBufferOffset;
+	};
+
+	DescriptorWriter writer;
+
+	void Build_Pipelines(VulkanEngine* aEngine);
+	void clear_resources(VkDevice device) const;
+
+	// create the descriptor set and return a fully built MaterialInstance struct
+	MaterialInstance Write_Material(VkDevice aDevice, MaterialPass aPass, const MaterialResources& aResources, DescriptorAllocatorGrowable& aDescriptorAllocator);
 };
 
 struct RenderObject
@@ -124,35 +123,15 @@ struct RenderObject
 
 struct DrawContext
 {
-	std::vector<RenderObject*> Objects;
+	std::vector<RenderObject> opaqueSurfaces;
 };
 
-// base class for a renderable dynamic object
-class IRenderable 
+struct MeshNode : public Node 
 {
-	virtual void Draw(const glm::mat4& topMatrix, DrawContext& ctx) = 0;
+	std::shared_ptr<MeshAsset> mesh;
+
+	void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
 };
-
-class Node : public IRenderable
-{
-	glm::mat4 localTransform;
-	std::vector<Node*> children;
-};
-
-class MeshNode : public Node
-{
-	// We then have a MeshNode class, that derives from Node. It holds the draw resources needed, and when Draw() is called on it, it builds the RenderObject and adds it to the DrawContext for drawing.
-
-	// When we add other drawing types, such as lights, it will still work the same.We will hold a list of lights on the DrawContext, and a LightNode will add its parameters to it if the light is enabled.Same with other things we might want to draw such as a terrain, particles, etc.
-
-		// A trick we will be doing too is that once we add GLTF, we will also have a LoadedGLTF class as a IRenderable(not a Node). this will hold the entire state and all the resources like textures and meshes of a given GLTF file, and when Draw() is called it will draw the contents of the GLTF.Having a similar class for OBJ and other formats will be useful.
-
-		// Loading the GLTF itself will be done next chapter, but we will ready the mechanics of the RenderObjects and gltf material now.
-
-
-};
-
-constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
 
 class VulkanEngine
 {
@@ -274,6 +253,12 @@ public:
 	VkSampler _defaultSamplerNearest;
 
 	VkDescriptorSetLayout _singleImageDescriptorLayout;
+
+	MaterialInstance defaultData;
+	GLTFMetallic_Roughness metalRoughMaterial;
+
+	DrawContext _mainDrawContext;
+	std::unordered_map<std::string, std::shared_ptr<Node>> _loadedNodes;
 private:
 	void ProcessInput(SDL_Event& anE);
 
@@ -302,9 +287,10 @@ private:
 	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;
 
 	void Resize_Swapchain();
+	void Update_Scene();
 
 	// temp camera settings
 	float tempCameraFOV = 70.f;
-	glm::vec3 tempView = {0.f, 0.f, -3.f};
+	glm::vec3 tempView = {0.f, 0.f, -5.f};
 	// int tempBlendModeIndex = 0;
 };

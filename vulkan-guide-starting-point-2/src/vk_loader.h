@@ -5,13 +5,20 @@
 #include <unordered_map>
 #include <filesystem>
 
+struct GLTFMaterial
+{
+    MaterialInstance data;
+};
+
 struct GeoSurface 
 {
     uint32_t startIndex;
     uint32_t count;
+    std::shared_ptr<GLTFMaterial> material;
 };
 
-struct MeshAsset {
+struct MeshAsset 
+{
     std::string name;
 
     std::vector<GeoSurface> surfaces; // submeshes of this specific mesh

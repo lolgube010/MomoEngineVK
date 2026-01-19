@@ -28,7 +28,7 @@
 constexpr bool bUseValidationLayers = true;
 
 //chapter stage for refactors/changes
-#define CHAPTER_STAGE 0
+#define CHAPTER_STAGE 1
 
 //we want to immediately abort when there is an error. In normal engines this would give an error message to the user, or perform a dump of state.
 using namespace std;
