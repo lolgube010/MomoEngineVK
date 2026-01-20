@@ -127,7 +127,7 @@ VkDescriptorPool DescriptorAllocatorGrowable::Get_Pool(const VkDevice aDevice)
 		//need to create a new pool
 		newPool = Create_Pool(aDevice, _sets_per_pool, _ratios);
 
-		_sets_per_pool = _sets_per_pool * 1.5;
+		_sets_per_pool = static_cast<uint32_t>(static_cast<double>(_sets_per_pool) * 1.5);
 		_sets_per_pool = std::min<uint32_t>(_sets_per_pool, 4092); // can modify 4092 if we want to
 	}
 
