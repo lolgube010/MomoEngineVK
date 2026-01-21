@@ -422,6 +422,7 @@ void VulkanEngine::Cleanup()
 			Destroy_Buffer(mesh->meshBuffers._vertexBuffer);
 		}
 
+		metalRoughMaterial.clear_resources(_device);
 		_mainDeletionQueue.Flush();
 
 		Destroy_Swapchain();
@@ -893,31 +894,19 @@ void VulkanEngine::Init_Descriptors()
 	//create a descriptor pool that will hold 10 sets with 1 image each
 	std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes =
 	{
-		{._type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 1}
+		{._type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 1 },
+		{._type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 1 },
+		{._type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 1 }
 	};
 
 	_globalDescriptorAllocator.Init(_device, 10, sizes);
 
-	//make the descriptor set layout for our compute draw
+	// for our compute draw
 	{
 		DescriptorLayoutBuilder builder;
 		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		_drawImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
 	}
-
-	//allocate a descriptor set for our draw image
-	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout);
-
-	{
-		DescriptorLayoutBuilder builder;
-		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		_gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
-	}
-
-	DescriptorWriter writer;
-	writer.Write_Image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-	writer.Update_Set(_device, _drawImageDescriptors);
-	
 	// for textures
 	{
 		// TODO:
@@ -927,7 +916,21 @@ void VulkanEngine::Init_Descriptors()
 		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 		_singleImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
+	// for our draw image
+	{
+		DescriptorLayoutBuilder builder;
+		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+		_gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+	}
 
+	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout);
+	{
+		DescriptorWriter writer;
+		writer.Write_Image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		writer.Update_Set(_device, _drawImageDescriptors);
+		
+	}
+	
 	//make sure both the descriptor allocator and the new layout get cleaned up properly
 	_mainDeletionQueue.Push_Function([&]
 	{
@@ -1632,13 +1635,13 @@ void VulkanEngine::Update_Scene()
 
 	_loadedNodes["Suzanne"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
 
-	// for (int x = -3; x < 3; x++) {
-	//
-	// 	glm::mat4 scale = glm::scale(glm::vec3{ 0.2 });
-	// 	glm::mat4 translation = glm::translate(glm::vec3{ x, 1, 0 });
-	//
-	// 	_loadedNodes["Cube"]->Draw(translation * scale, _mainDrawContext);
-	// }
+	for (int x = -3; x < 3; x++) {
+	
+		glm::mat4 scale = glm::scale(glm::vec3{ 0.2f });
+		glm::mat4 translation = glm::translate(glm::vec3{ x, 1, 0 });
+	
+		_loadedNodes["Cube"]->Draw(translation * scale, _mainDrawContext);
+	}
 
 	_sceneData.view = glm::translate(tempView);
 	// camera projection
