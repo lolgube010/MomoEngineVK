@@ -5,6 +5,9 @@
 #include <unordered_map>
 #include <filesystem>
 
+#include "vk_descriptors.h"
+#include "fastgltf/types.hpp"
+
 struct GLTFMaterial
 {
     MaterialInstance data;
@@ -28,5 +31,42 @@ struct MeshAsset
 //forward declaration
 class VulkanEngine;
 
+// NOTE: LEGACY
 // std optional allows our vector to be errored / null. 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes(VulkanEngine* aEngine, const std::filesystem::path& aFilePath);
+std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes_Legacy(VulkanEngine* aEngine, const std::filesystem::path& aFilePath);
+
+
+struct LoadedGLTF : public IRenderable 
+{
+
+    // storage for all the data on a given glTF file
+    std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
+    std::unordered_map<std::string, std::shared_ptr<Node>> nodes;
+    std::unordered_map<std::string, AllocatedImage> images;
+    std::unordered_map<std::string, std::shared_ptr<GLTFMaterial>> materials;
+
+    // nodes that dont have a parent, for iterating through the file in tree order
+    std::vector<std::shared_ptr<Node>> topNodes;
+
+    std::vector<VkSampler> samplers;
+
+    DescriptorAllocatorGrowable descriptorPool;
+
+    AllocatedBuffer materialDataBuffer;
+
+    // TODO- We could be using a singleton instead to avoid storing this pointer if we wanted.
+    VulkanEngine* creator;
+
+    ~LoadedGLTF() { ClearAll(); };
+
+    virtual void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx);
+
+private:
+
+    void ClearAll();
+};
+
+std::optional<std::shared_ptr<LoadedGLTF>> LoadGltf(VulkanEngine* engine, std::string_view filePath);
+
+VkFilter extract_filter(fastgltf::Filter aFilter);
+VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter aFilter);

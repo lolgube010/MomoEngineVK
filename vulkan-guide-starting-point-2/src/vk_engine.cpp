@@ -205,6 +205,8 @@ void VulkanEngine::Init()
 	Init_Imgui();
 	Init_Default_Data();
 
+
+
 	_is_initialized = true;
 }
 
@@ -358,6 +360,17 @@ void VulkanEngine::Run()
 				}
 			}
 
+			// putting other input here cuz i'm lazy
+			const auto& key = e.key.keysym.sym;
+			if (e.type == SDL_KEYDOWN && key == SDLK_CAPSLOCK && e.key.repeat == 0)
+			{
+				auto enabled = SDL_GetRelativeMouseMode();
+				fmt::print("caps locked presssed, window is currently: {}\n", static_cast<bool>(enabled));
+				SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!enabled));
+			
+			}
+
+			_mainCamera.ProcessSDLEvent(e);
 			//send SDL event to imgui for handling
 			ImGui_ImplSDL2_ProcessEvent(&e);
 			//process_input(e);
@@ -400,6 +413,8 @@ void VulkanEngine::Cleanup()
 	{
 		vkDeviceWaitIdle(_device);
 
+		_loadedScenes.clear();
+
 		for (auto& frame : _frames)
 		{
 			vkDestroyCommandPool(_device, frame._commandPool, nullptr);
@@ -416,11 +431,11 @@ void VulkanEngine::Cleanup()
 			vkDestroySemaphore(_device, ready_For_Present_Semaphore, nullptr);
 		}
 
-		for (const auto& mesh : _testMeshes) 
-		{
-			Destroy_Buffer(mesh->meshBuffers._indexBuffer);
-			Destroy_Buffer(mesh->meshBuffers._vertexBuffer);
-		}
+		// for (const auto& mesh : _testMeshes) 
+		// {
+		// 	Destroy_Buffer(mesh->meshBuffers._indexBuffer);
+		// 	Destroy_Buffer(mesh->meshBuffers._vertexBuffer);
+		// }
 
 		metalRoughMaterial.clear_resources(_device);
 		_mainDeletionQueue.Flush();
@@ -742,6 +757,17 @@ void VulkanEngine::Init_Vulkan()
 	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 	//< init_queue
 
+	// momo debug stuff
+	g_TotalAllocatedBytes = 0;
+	g_TotalFreedBytes = 0;
+	g_AllocationCount = 0;
+	
+	_callbacks.pUserData = nullptr;
+	_callbacks.pfnAllocate = MyAllocateCallback;
+	_callbacks.pfnFree = MyFreeCallback;
+
+
+
 	//> init vma
 	// initialize the memory allocator
 	VmaAllocatorCreateInfo allocatorInfo = {};
@@ -749,6 +775,9 @@ void VulkanEngine::Init_Vulkan()
 	allocatorInfo.device = _device;
 	allocatorInfo.instance = _instance;
 	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+
+	// allocatorInfo.pDeviceMemoryCallbacks = &_callbacks; // added by momo
+	
 	vmaCreateAllocator(&allocatorInfo, &_allocator);
 
 	// momo debug adventure
@@ -1185,8 +1214,14 @@ void VulkanEngine::Init_Default_Data()
 	// 	// Destroy_Buffer(_rectangle._vertexBuffer);
 	// });
 
+	_mainCamera.velocity = glm::vec3(0.f);
+	_mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
+
+	_mainCamera.pitch = 0;
+	_mainCamera.yaw = 0;
+
 	// In the file provided, index 0 is a cube, index 1 is a sphere, and index 2 is a blender monkey head. we will be drawing that last one, draw it right after drawing the rectangle from before
-	_testMeshes = LoadGltfMeshes(this, R"(..\..\assets\basicmesh.glb)").value(); 
+	// _testMeshes = LoadGltfMeshes_Legacy(this, R"(..\..\assets\basicmesh.glb)").value(); 
 	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\structure.glb)").value();
 	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\thejunkshopsplashscreen2.glb)").value();
 
@@ -1261,21 +1296,29 @@ void VulkanEngine::Init_Default_Data()
 
 	defaultData = metalRoughMaterial.Write_Material(_device, MaterialPass::MainColor, materialResources, _globalDescriptorAllocator);
 
-	for (auto& m : _testMeshes) 
-	{
-		std::shared_ptr<MeshNode> newNode = std::make_shared<MeshNode>();
-		newNode->mesh = m;
+	// for (auto& m : _testMeshes) 
+	// {
+	// 	std::shared_ptr<MeshNode> newNode = std::make_shared<MeshNode>();
+	// 	newNode->mesh = m;
+	//
+	// 	newNode->localTransform = glm::mat4{ 1.f };
+	// 	newNode->worldTransform = glm::mat4{ 1.f };
+	//
+	// 	for (auto& s : newNode->mesh->surfaces) 
+	// 	{
+	// 		s.material = std::make_shared<GLTFMaterial>(defaultData);
+	// 	}
+	//
+	// 	_loadedNodes[m->name] = std::move(newNode);
+	// }
 
-		newNode->localTransform = glm::mat4{ 1.f };
-		newNode->worldTransform = glm::mat4{ 1.f };
 
-		for (auto& s : newNode->mesh->surfaces) 
-		{
-			s.material = std::make_shared<GLTFMaterial>(defaultData);
-		}
+	std::string structurePath = { "..\\..\\assets\\structure.glb" };
+	auto structureFile = LoadGltf(this, structurePath);
 
-		_loadedNodes[m->name] = std::move(newNode);
-	}
+	assert(structureFile.has_value());
+
+	_loadedScenes["structure"] = *structureFile;
 
 	//>materials
 }
@@ -1462,8 +1505,9 @@ void VulkanEngine::Imgui_Run()
 		ImGui::Separator();
 
 		ImGui::SliderFloat("camera fov", &tempCameraFOV, 1, 180);
-		ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
+		// ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
 		ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 1.f);
+		ImGui::Value("valuetest", _mainCamera.pitch);
 
 		//
 		// // The list of names matching your functions
@@ -1631,26 +1675,33 @@ void VulkanEngine::Resize_Swapchain()
 
 void VulkanEngine::Update_Scene()
 {
+
+
 	_mainDrawContext.opaqueSurfaces.clear();
 
-	_loadedNodes["Suzanne"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
+	// _loadedNodes["Suzanne"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
 
-	for (int x = -3; x < 3; x++) {
+	// for (int x = -3; x < 3; x++) {
 	
-		glm::mat4 scale = glm::scale(glm::vec3{ 0.2f });
-		glm::mat4 translation = glm::translate(glm::vec3{ x, 1, 0 });
+		// glm::mat4 scale = glm::scale(glm::vec3{ 0.2f });
+		// glm::mat4 translation = glm::translate(glm::vec3{ x, 1, 0 });
 	
-		_loadedNodes["Cube"]->Draw(translation * scale, _mainDrawContext);
-	}
+		// _loadedNodes["Cube"]->Draw(translation * scale, _mainDrawContext);
+	// }
+	_loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
 
-	_sceneData.view = glm::translate(tempView);
+	_mainCamera.Update();
+	glm::mat4 view = _mainCamera.GetViewMatrix();
 	// camera projection
-	_sceneData.proj = glm::perspective(glm::radians(tempCameraFOV), (float)_windowExtent.width / (float)_windowExtent.height, 10000.f, 0.1f);
+	glm::mat4 projection = glm::perspective(glm::radians(70.f), static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.height), 10000.f, 0.1f);
 
 	// invert the Y direction on projection matrix so that we are more similar
 	// to opengl and gltf axis
-	_sceneData.proj[1][1] *= -1;
-	_sceneData.viewProj = _sceneData.proj * _sceneData.view;
+	projection[1][1] *= -1;
+
+	_sceneData.view = view;
+	_sceneData.proj = projection;
+	_sceneData.viewProj = projection * view;
 
 	//some default lighting parameters
 	_sceneData.ambientColor = glm::vec4(.1f);

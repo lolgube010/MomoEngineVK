@@ -9,6 +9,7 @@
 
 #include <vk_descriptors.h>
 
+#include "camera.h"
 #include "vk_loader.h"
 
 union SDL_Event;
@@ -242,6 +243,7 @@ public:
 
 	AllocatedImage Create_Image(VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
 	AllocatedImage Create_Image(const void* aData, VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
+	[[nodiscard]] AllocatedBuffer Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage) const;
 	void Destroy_Image(const AllocatedImage& aImg) const;
 
 	AllocatedImage _whiteImage;
@@ -259,6 +261,11 @@ public:
 
 	DrawContext _mainDrawContext;
 	std::unordered_map<std::string, std::shared_ptr<Node>> _loadedNodes;
+
+	Camera _mainCamera;
+
+	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> _loadedScenes;
+
 private:
 	void ProcessInput(SDL_Event& anE);
 
@@ -283,7 +290,6 @@ private:
 	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
 	void Imgui_Run();
 
-	[[nodiscard]] AllocatedBuffer Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage) const;
 	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;
 
 	void Resize_Swapchain();
@@ -291,6 +297,40 @@ private:
 
 	// temp camera settings
 	float tempCameraFOV = 70.f;
-	glm::vec3 tempView = {0.f, 0.f, -5.f};
 	// int tempBlendModeIndex = 0;
+
+	// momo slop bs
+
+	VmaDeviceMemoryCallbacks _callbacks = {};
 };
+
+	static uint64_t g_TotalAllocatedBytes;
+	static uint64_t g_TotalFreedBytes;
+	static uint32_t g_AllocationCount;
+
+	static void VKAPI_PTR MyAllocateCallback(
+		VmaAllocator     allocator,
+		uint32_t         memoryType,
+		VkDeviceMemory   vkMem,
+		VkDeviceSize     size,
+		void* pUserData)
+	{
+		g_TotalAllocatedBytes += size;
+		g_AllocationCount++;
+
+		// Optional: you can also log memory type, handle etc.
+		// printf("Allocated %llu B  (type %u)\n", size, memoryType);
+	}
+
+	static void VKAPI_PTR MyFreeCallback(
+		VmaAllocator     allocator,
+		uint32_t         memoryType,
+		VkDeviceMemory   vkMem,
+		VkDeviceSize     size,
+		void* pUserData)
+	{
+		g_TotalFreedBytes += size;
+		g_AllocationCount--;
+
+		// printf("Freed %llu B  (type %u)\n", size, memoryType);
+	}
