@@ -877,6 +877,7 @@ void VulkanEngine::init_vulkan()
     VkPhysicalDeviceVulkan13Features features13 {};
 	features13.dynamicRendering = true;
 	features13.synchronization2 = true;
+    features13.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES;
    
    VkPhysicalDeviceVulkan12Features features12 {};
    features12.bufferDeviceAddress = true;
@@ -884,6 +885,7 @@ void VulkanEngine::init_vulkan()
    features12.descriptorBindingPartiallyBound = true;
    features12.descriptorBindingVariableDescriptorCount = true;
    features12.runtimeDescriptorArray = true;
+   features12.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES;
 
 
     // use vkbootstrap to select a gpu.

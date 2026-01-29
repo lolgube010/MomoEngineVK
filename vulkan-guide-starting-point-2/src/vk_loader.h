@@ -66,7 +66,9 @@ private:
     void ClearAll();
 };
 
-std::optional<std::shared_ptr<LoadedGLTF>> LoadGltf(VulkanEngine* engine, std::string_view filePath);
+std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::string_view filePath);
 
 VkFilter extract_filter(fastgltf::Filter aFilter);
 VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter aFilter);
+
+std::optional<AllocatedImage> load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage);

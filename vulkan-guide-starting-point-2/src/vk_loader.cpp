@@ -162,10 +162,38 @@ void LoadedGLTF::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 
 void LoadedGLTF::ClearAll()
 {
-    // TODO /w textures
+    // Important detail with this.You cant delete a LoadedGLTF within the same frame its being used.Those structures are still around.If you want to destroy a LoadedGLTF at runtime, either do a VkQueueWait like we have in the cleanup function, or add it into the per - frame deletion queue and defer it.We are storing the shared_ptrs to hold LoadedGLTF, so it can abuse the lambda capture functionality to do this.
+
+    VkDevice dv = creator->_device;
+
+    descriptorPool.Destroy_Pools(dv);
+    creator->Destroy_Buffer(materialDataBuffer);
+
+    for (auto& v : meshes | std::views::values) 
+    {
+        creator->Destroy_Buffer(v->meshBuffers._indexBuffer);
+        creator->Destroy_Buffer(v->meshBuffers._vertexBuffer);
+    }
+
+    for (auto& v : images | std::views::values) 
+    {
+
+        if (v.image == creator->_errorCheckerboardImage.image) 
+        {
+            // don't destroy the default images
+            continue;
+        }
+        creator->Destroy_Image(v);
+    }
+
+    for (auto& sampler : samplers) 
+    {
+        vkDestroySampler(dv, sampler, nullptr);
+    }
+
 }
 
-std::optional<std::shared_ptr<LoadedGLTF>> LoadGltf(VulkanEngine* engine, std::string_view filePath)
+std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::string_view filePath)
 {
     fmt::print("Loading GLTF: {}\n", filePath);
 
@@ -175,8 +203,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGltf(VulkanEngine* engine, std::s
 
     fastgltf::Parser parser{};
 
-    constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers;
-    // fastgltf::Options::LoadExternalImages;
+    constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages;
 
     fastgltf::GltfDataBuffer data;
     data.loadFromFile(filePath);
@@ -254,8 +281,20 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGltf(VulkanEngine* engine, std::s
     // load all textures
     for (fastgltf::Image& image : gltf.images) 
     {
-        // TODO
-        images.push_back(engine->_errorCheckerboardImage);
+        std::optional<AllocatedImage> img = load_image(engine, gltf, image);
+
+        if (img.has_value()) 
+        {
+            images.push_back(*img);
+            file.images[image.name.c_str()] = *img;
+        }
+        else 
+        {
+            // we failed to load, so lets give the slot a default white texture to not
+            // completely break loading
+            images.push_back(engine->_errorCheckerboardImage);
+            std::cout << "gltf failed to load texture " << image.name << '\n';
+        }
     }
 
     // create buffer to hold the material data
@@ -508,4 +547,88 @@ VkSamplerMipmapMode extract_mipmap_mode(const fastgltf::Filter aFilter)
         return VK_SAMPLER_MIPMAP_MODE_LINEAR;
     }
 
+}
+
+// TODO:
+// For the textures, we are going to load them using stb_image.This is a single - header library to load png, jpeg, and a few others.Sadly, it does not load KTX or DDS formats, which are much better for graphics usages as they can be uploaded almost directly into the GPU and are a compressed format that the GPU reads directly so it saves VRAM.
+
+std::optional<AllocatedImage> load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage)
+{
+    AllocatedImage newImage{};
+
+    int width, height, nrChannels;
+
+    std::visit(
+        fastgltf::visitor{
+            [](auto& arg) {},
+            [&](fastgltf::sources::URI& filePath) {
+                assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
+                assert(filePath.uri.isLocalPath()); // We're only capable of loading
+                // local files.
+
+const std::string path(filePath.uri.path().begin(),
+    filePath.uri.path().end()); // Thanks C++.
+unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+if (data) {
+    VkExtent3D imagesize;
+    imagesize.width = width;
+    imagesize.height = height;
+    imagesize.depth = 1;
+
+    newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+
+    stbi_image_free(data);
+}
+},
+[&](fastgltf::sources::Vector& vector) {
+    unsigned char* data = stbi_load_from_memory(vector.bytes.data(), static_cast<int>(vector.bytes.size()),
+        &width, &height, &nrChannels, 4);
+    if (data) {
+        VkExtent3D imagesize;
+        imagesize.width = width;
+        imagesize.height = height;
+        imagesize.depth = 1;
+
+        newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,false);
+
+        stbi_image_free(data);
+    }
+},
+[&](fastgltf::sources::BufferView& view) {
+    auto& bufferView = aAsset.bufferViews[view.bufferViewIndex];
+    auto& buffer = aAsset.buffers[bufferView.bufferIndex];
+
+    std::visit(fastgltf::visitor { // We only care about VectorWithMime here, because we
+        // specify LoadExternalBuffers, meaning all buffers
+        // are already loaded into a vector.
+[](auto& arg) {},
+[&](fastgltf::sources::Vector& vector) {
+    unsigned char* data = stbi_load_from_memory(vector.bytes.data() + bufferView.byteOffset,
+        static_cast<int>(bufferView.byteLength),
+        &width, &height, &nrChannels, 4);
+    if (data) {
+        VkExtent3D imagesize;
+        imagesize.width = width;
+        imagesize.height = height;
+        imagesize.depth = 1;
+
+        newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
+            VK_IMAGE_USAGE_SAMPLED_BIT,false);
+
+        stbi_image_free(data);
+    }
+} },
+buffer.data);
+},
+        },
+        aImage.data);
+
+    // if any of the attempts to load the data failed, we havent written the image
+    // so handle is null
+    if (newImage.image == VK_NULL_HANDLE) {
+        return {};
+    }
+    else {
+        return newImage;
+    }
 }

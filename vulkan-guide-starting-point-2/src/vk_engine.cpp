@@ -1314,7 +1314,7 @@ void VulkanEngine::Init_Default_Data()
 
 
 	std::string structurePath = { "..\\..\\assets\\structure.glb" };
-	auto structureFile = LoadGltf(this, structurePath);
+	auto structureFile = LoadGLTF(this, structurePath);
 
 	assert(structureFile.has_value());
 
@@ -1585,21 +1585,36 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	 writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	 writer.Update_Set(_device, globalDescriptor);
 	
-	for (const RenderObject& draw : _mainDrawContext.opaqueSurfaces) 
-	{
-		vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-		vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
-		vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
+	 auto draw = [&](const RenderObject& draw) 
+	 {
+		 vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
+		 vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
+		 vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
 
-		vkCmdBindIndexBuffer(aCmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		 vkCmdBindIndexBuffer(aCmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-		GPUDrawPushConstants pushConstants;
-		pushConstants._vertexBuffer = draw.vertexBufferAddress;
-		pushConstants._worldMatrix = draw.transform;
-		vkCmdPushConstants(aCmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+		 GPUDrawPushConstants pushConstants;
+		 pushConstants._vertexBuffer = draw.vertexBufferAddress;
+		 pushConstants._worldMatrix = draw.transform;
+		 vkCmdPushConstants(aCmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-		vkCmdDrawIndexed(aCmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
-	}
+		 vkCmdDrawIndexed(aCmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+	 };
+
+	 for (auto& r : _mainDrawContext.opaqueSurfaces) 
+	 {
+		 draw(r);
+	 }
+
+	 for (auto& r : _mainDrawContext.transparentSurfaces) 
+	 {
+		 draw(r);
+	 }
+
+	 // we delete the draw commands now that we processed them
+	 _mainDrawContext.opaqueSurfaces.clear();
+	 _mainDrawContext.transparentSurfaces.clear();
+
 
 	vkCmdEndRendering(aCmd);
 	

@@ -125,6 +125,7 @@ struct RenderObject
 struct DrawContext
 {
 	std::vector<RenderObject> opaqueSurfaces;
+	std::vector<RenderObject> transparentSurfaces;
 };
 
 struct MeshNode : public Node 
@@ -245,6 +246,7 @@ public:
 	AllocatedImage Create_Image(const void* aData, VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
 	[[nodiscard]] AllocatedBuffer Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage) const;
 	void Destroy_Image(const AllocatedImage& aImg) const;
+	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;
 
 	AllocatedImage _whiteImage;
 	AllocatedImage _blackImage;
@@ -289,8 +291,6 @@ private:
 
 	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
 	void Imgui_Run();
-
-	void Destroy_Buffer(const AllocatedBuffer& aBuffer) const;
 
 	void Resize_Swapchain();
 	void Update_Scene();
