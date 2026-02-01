@@ -130,11 +130,20 @@ struct DrawContext
 	std::vector<RenderObject> transparentSurfaces;
 };
 
-struct MeshNode : public Node 
+struct MeshNode : Node 
 {
 	std::shared_ptr<MeshAsset> mesh;
 
 	void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
+};
+
+struct EngineStats
+{
+	float frameTime;
+	float tri_count;
+	int drawCall_count;
+	float scene_update_time;
+	float mesh_draw_time;
 };
 
 class VulkanEngine
@@ -274,6 +283,7 @@ public:
 	tracy::VkCtx* _tracyVkCtx = nullptr;
 #endif
 
+	EngineStats _stats;
 private:
 	void ProcessInput(SDL_Event& anE);
 
