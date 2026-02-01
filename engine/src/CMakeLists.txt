@@ -10,7 +10,17 @@ set_property(TARGET MomoVK PROPERTY CXX_STANDARD 20)
 target_compile_definitions(MomoVK PUBLIC GLM_FORCE_DEPTH_ZERO_TO_ONE)
 target_include_directories(MomoVK PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
-target_link_libraries(MomoVK PUBLIC vma glm Vulkan::Vulkan fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf dxcompiler)
+target_link_libraries(MomoVK 
+	PUBLIC 
+		vma glm Vulkan::Vulkan fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf dxcompiler
+	PRIVATE
+		Tracy::TracyClient
+)
+
+# Optional but strongly recommended for better symbols / line numbers
+target_compile_definitions(MomoVK PRIVATE
+    TRACY_ENABLE=$<BOOL:${TRACY_ENABLE}>
+)
 
 target_precompile_headers(MomoVK PUBLIC <optional> <vector> <memory> <string> <vector> <unordered_map> <glm/mat4x4.hpp>  <glm/vec4.hpp> <vulkan/vulkan.h>)
 

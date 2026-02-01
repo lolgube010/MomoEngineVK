@@ -12,6 +12,8 @@
 #include "camera.h"
 #include "vk_loader.h"
 
+#include "MomoTracy.h"
+
 union SDL_Event;
 
 struct DeletionQueue
@@ -268,6 +270,10 @@ public:
 
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> _loadedScenes;
 
+#ifdef TRACY_ENABLE
+	tracy::VkCtx* _tracyVkCtx = nullptr;
+#endif
+
 private:
 	void ProcessInput(SDL_Event& anE);
 
@@ -277,6 +283,7 @@ private:
 	void Init_Sync_Structures();
 	void Init_Descriptors();
 	void Init_Imgui();
+	void Init_Tracy();
 	void Init_Default_Data(); // where we load models.
 
 	void Init_Pipelines();

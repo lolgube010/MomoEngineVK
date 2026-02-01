@@ -51,6 +51,14 @@ target_link_libraries(imgui PUBLIC Vulkan::Vulkan SDL2::SDL2)
 
 target_include_directories(stb_image INTERFACE stb_image)
 
+if(NOT TARGET Tracy::TracyClient)
+	option(TRACY_ENABLE "Enable Tracy profiling" ON)
+	option(TRACY_ON_DEMAND "Tracy on-demand mode (connect manually)" ON)   # ← often useful
+	add_subdirectory(tracy)
+endif()
+
+option(TRACY_HAS_VULKAN "Enable Vulkan support in Tracy" ON)
+
 # --- DXC Runtime Support ---
 
 # 1. Find the header (dxc/dxcapi.h)

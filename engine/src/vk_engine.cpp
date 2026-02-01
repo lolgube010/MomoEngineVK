@@ -25,6 +25,7 @@
 #endif
 #include <glm/gtx/transform.hpp>
 
+
 // globals
 namespace
 {
@@ -195,7 +196,7 @@ void VulkanEngine::Init()
 		_windowExtent.height,
 		window_flags
 	);
-
+	
 	Init_Vulkan();
 	Init_Swapchain();
 	Init_Commands();
@@ -203,9 +204,8 @@ void VulkanEngine::Init()
 	Init_Descriptors();
 	Init_Pipelines();
 	Init_Imgui();
+	Init_Tracy();
 	Init_Default_Data();
-
-
 
 	_is_initialized = true;
 }
@@ -259,7 +259,10 @@ void VulkanEngine::Draw()
 	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-	Draw_Geometry(cmd);
+	{
+		PROFILE_SCOPE_N("Draw Geometry")
+		Draw_Geometry(cmd);
+	}
 
 	//transition the draw image and the swapchain image into their correct transfer layouts
 	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
@@ -327,6 +330,7 @@ void VulkanEngine::Draw()
 	//increase the number of frames drawn
 	_frame_number++;
 	//< draw_6
+
 }
 
 
@@ -403,6 +407,7 @@ void VulkanEngine::Run()
 		ImGui::Render();
 
 		Draw();
+		PROFILE_FRAME;
 	}
 }
 
@@ -430,7 +435,11 @@ void VulkanEngine::Cleanup()
 		{
 			vkDestroySemaphore(_device, ready_For_Present_Semaphore, nullptr);
 		}
-
+		if (_tracyVkCtx)
+		{
+			TracyVkDestroy(_tracyVkCtx);
+			_tracyVkCtx = nullptr;
+		}
 		// for (const auto& mesh : _testMeshes) 
 		// {
 		// 	Destroy_Buffer(mesh->meshBuffers._indexBuffer);
@@ -766,8 +775,6 @@ void VulkanEngine::Init_Vulkan()
 	_callbacks.pfnAllocate = MyAllocateCallback;
 	_callbacks.pfnFree = MyFreeCallback;
 
-
-
 	//> init vma
 	// initialize the memory allocator
 	VmaAllocatorCreateInfo allocatorInfo = {};
@@ -780,14 +787,14 @@ void VulkanEngine::Init_Vulkan()
 	
 	vmaCreateAllocator(&allocatorInfo, &_allocator);
 
-	// momo debug adventure
-	_vkSetDebugUtilsObjectNameEXT = (PFN_vkSetDebugUtilsObjectNameEXT)vkGetInstanceProcAddr(_instance, "vkSetDebugUtilsObjectNameEXT");
-
 	_mainDeletionQueue.Push_Function([&]
 	{
 		vmaDestroyAllocator(_allocator);
 	});
 	//< init vma
+	
+	// momo debug adventure
+	_vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(_instance, "vkSetDebugUtilsObjectNameEXT"));
 }
 
 void VulkanEngine::Init_Swapchain()
@@ -986,8 +993,8 @@ void VulkanEngine::Init_Descriptors()
 
 		_mainDeletionQueue.Push_Function([&, i]
 		{
-				_frames[i]._frameDescriptors.Destroy_Pools(_device);
-			});
+			_frames[i]._frameDescriptors.Destroy_Pools(_device);
+		});
 	}
 }
 
@@ -1179,6 +1186,15 @@ void VulkanEngine::Init_Imgui()
 		ImGui_ImplVulkan_Shutdown();
 		vkDestroyDescriptorPool(_device, imguiPool, nullptr);
 	});
+}
+
+void VulkanEngine::Init_Tracy()
+{
+	// init tracy
+#ifdef TRACY_ENABLE
+	_tracyVkCtx = TracyVkContext(_chosen_GPU, _device, _graphicsQueue, Get_Current_Frame()._mainCommandBuffer)
+		TracyVkContextName(_tracyVkCtx, "Main Graphics Queue", sizeof("Main Graphics Queue") - 1)
+#endif
 }
 
 void VulkanEngine::Init_Default_Data()
