@@ -8,3 +8,8 @@
 
 * open the .slnx in /build
 * set 'MomoVK' as startup project, and build
+
+# tracy how to set up
+cd path/to/tracy/profiler
+cmake -B build -S . -G "Visual Studio 18 2026" -A x64
+cmake --build build --config Release
