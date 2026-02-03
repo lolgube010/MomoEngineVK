@@ -151,7 +151,7 @@ MaterialInstance GLTFMetallic_Roughness::Write_Material(const VkDevice aDevice, 
 
 void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 {
-	glm::mat4 nodeMatrix = aTopMatrix * worldTransform;
+	const glm::mat4 nodeMatrix = aTopMatrix * worldTransform;
 
 	for (auto& s : mesh->surfaces) // a mesh can have multiple surfaces with different materials.
 	{
@@ -343,6 +343,8 @@ void VulkanEngine::Run()
 	// main loop
 	while (!bQuit)
 	{
+		auto start = std::chrono::system_clock::now();
+
 		// Handle events on queue
 		while (SDL_PollEvent(&e) != 0)
 		{
@@ -408,6 +410,10 @@ void VulkanEngine::Run()
 
 		Draw();
 		PROFILE_FRAME;
+
+		auto end = std::chrono::system_clock::now();
+		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+		_stats.frameTime = elapsed.count() / 1000.f;
 	}
 }
 
@@ -1523,7 +1529,16 @@ void VulkanEngine::Imgui_Run()
 		ImGui::SliderFloat("camera fov", &tempCameraFOV, 1, 180);
 		// ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
 		ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 1.f);
-		ImGui::Value("valuetest", _mainCamera.pitch);
+		ImGui::Value("cameraPitchRad", _mainCamera.pitch);
+
+		ImGui::Begin("Stats");
+
+		ImGui::Text("frametime %f ms", _stats.frameTime);
+		ImGui::Text("draw time %f ms", _stats.mesh_draw_time);
+		ImGui::Text("update time %f ms", _stats.scene_update_time);
+		ImGui::Text("triangles %i", _stats.tri_count);
+		ImGui::Text("draws %i", _stats.drawCall_count);
+		ImGui::End();
 
 		//
 		// // The list of names matching your functions
@@ -1553,6 +1568,36 @@ void VulkanEngine::Imgui_Run()
 
 void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 {
+	// reset counters
+	_stats.drawCall_count = 0;
+	_stats.tri_count = 0;
+	auto start = std::chrono::system_clock::now();
+
+	std::vector<uint32_t> opaque_draws;
+	opaque_draws.reserve(_mainDrawContext.opaqueSurfaces.size());
+
+	for (uint32_t i = 0; i < _mainDrawContext.opaqueSurfaces.size(); i++) 
+	{
+		opaque_draws.push_back(i);
+	}
+
+	// TODO:
+	// Another way of doing this is that we would calculate a sort key, and then our opaque_draws would be something like 20 bits draw index, and 44 bits for sort key / hash.That way would be faster than this as it can be sorted through faster methods.
+	// TODO: multithread? maybe?
+	
+	// sort the opaque surfaces by material and mesh
+	std::ranges::sort(opaque_draws, [&](const auto& iA, const auto& iB) 
+	{
+		const RenderObject& A = _mainDrawContext.opaqueSurfaces[iA];
+		const RenderObject& B = _mainDrawContext.opaqueSurfaces[iB];
+		if (A.material == B.material) 
+		{
+			return A.indexBuffer < B.indexBuffer;
+		}
+		return A.material < B.material;
+	});
+
+
 	//begin a render pass  connected to our draw image
 	const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	const VkRenderingAttachmentInfo depthAttachment = vkInit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
@@ -1601,25 +1646,66 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	 writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	 writer.Update_Set(_device, globalDescriptor);
 	
-	 auto draw = [&](const RenderObject& draw) 
+	 //defined outside of the draw function, this is the state we will try to skip
+	 MaterialPipeline* lastPipeline = nullptr;
+	 MaterialInstance* lastMaterial = nullptr;
+	 VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+
+	 auto draw = [&](const RenderObject& r) 
 	 {
-		 vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->pipeline);
-		 vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
-		 vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, draw.material->pipeline->layout, 1, 1, &draw.material->materialSet, 0, nullptr);
+		if (r.material != lastMaterial)
+		{
+			lastMaterial = r.material;
+			// rebind pipeline and descriptors if the material changed
+			if (r.material->pipeline != lastPipeline)
+			{
+				lastPipeline = r.material->pipeline;
 
-		 vkCmdBindIndexBuffer(aCmd, draw.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+				vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
+				vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
 
-		 GPUDrawPushConstants pushConstants;
-		 pushConstants._vertexBuffer = draw.vertexBufferAddress;
-		 pushConstants._worldMatrix = draw.transform;
-		 vkCmdPushConstants(aCmd, draw.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+				//set dynamic viewport and scissor
+				VkViewport viewport;
+				viewport.x = 0;
+				viewport.y = 0;
+				viewport.width = static_cast<float>(_windowExtent.width);
+				viewport.height = static_cast<float>(_windowExtent.height);
+				viewport.minDepth = 0.f;
+				viewport.maxDepth = 1.f;
 
-		 vkCmdDrawIndexed(aCmd, draw.indexCount, 1, draw.firstIndex, 0, 0);
+				vkCmdSetViewport(aCmd, 0, 1, &viewport);
+
+				VkRect2D scissor;
+				scissor.offset.x = 0;
+				scissor.offset.y = 0;
+				scissor.extent.width = _windowExtent.width;
+				scissor.extent.height = _windowExtent.height;
+
+				vkCmdSetScissor(aCmd, 0, 1, &scissor);
+			}
+			vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->materialSet, 0, nullptr);
+
+		}
+	 	
+		if (r.indexBuffer != lastIndexBuffer)
+		{
+			lastIndexBuffer = r.indexBuffer;
+			vkCmdBindIndexBuffer(aCmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		}
+
+	 	GPUDrawPushConstants pushConstants;
+	 	pushConstants._worldMatrix = r.transform;
+	 	pushConstants._vertexBuffer = r.vertexBufferAddress;
+	 	vkCmdPushConstants(aCmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+
+	 	vkCmdDrawIndexed(aCmd, r.indexCount, 1, r.firstIndex, 0, 0);
+	 	_stats.drawCall_count++;
+	 	_stats.tri_count += r.indexCount / 3;
 	 };
 
-	 for (auto& r : _mainDrawContext.opaqueSurfaces) 
+	 for (auto& r : opaque_draws) 
 	 {
-		 draw(r);
+		 draw(_mainDrawContext.opaqueSurfaces[r]);
 	 }
 
 	 for (auto& r : _mainDrawContext.transparentSurfaces) 
@@ -1634,6 +1720,10 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	vkCmdEndRendering(aCmd);
 	
+	auto end = std::chrono::system_clock::now();
+	//convert to microseconds (integer), and then come back to miliseconds
+	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+	_stats.mesh_draw_time = elapsed.count() / 1000.f;
 	// old manual drawing
 	// VkDescriptorSet imageSet = Get_Current_Frame()._frameDescriptors.Allocate(_device, _singleImageDescriptorLayout);
 	// {
@@ -1706,7 +1796,7 @@ void VulkanEngine::Resize_Swapchain()
 
 void VulkanEngine::Update_Scene()
 {
-
+	auto start = std::chrono::system_clock::now();
 
 	_mainDrawContext.opaqueSurfaces.clear();
 
@@ -1738,6 +1828,11 @@ void VulkanEngine::Update_Scene()
 	_sceneData.ambientColor = glm::vec4(.1f);
 	_sceneData.sunlightColor = glm::vec4(1.f);
 	_sceneData.sunlightDirection = glm::vec4(0, 1, 0.5, 1.f);
+
+	auto end = std::chrono::system_clock::now();
+	//convert to microseconds (integer), and then come back to miliseconds
+	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+	_stats.scene_update_time = elapsed.count() / 1000.f;
 }
 
 GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, const std::span<Vertex> aVertices) const

@@ -59,7 +59,7 @@ struct LoadedGLTF : public IRenderable
 
     ~LoadedGLTF() { ClearAll(); };
 
-    virtual void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx);
+    void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
 
 private:
 
