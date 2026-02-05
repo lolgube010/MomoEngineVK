@@ -80,3 +80,8 @@ void vkUtil::copy_image_to_image(const VkCommandBuffer aCmd, const VkImage aSour
 
 	vkCmdBlitImage2(aCmd, &blitInfo);
 }
+
+void vkUtil::generate_mipmaps(VkCommandBuffer cmd, VkImage image, VkExtent2D imageSize)
+{
+
+}

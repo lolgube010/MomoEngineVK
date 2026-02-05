@@ -160,16 +160,25 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 		def.firstIndex = s.startIndex;
 		def.indexBuffer = mesh->meshBuffers._indexBuffer.buffer;
 		def.material = &s.material->data;
-
+		def.bounds = s.bounds;
 		def.transform = nodeMatrix;
 		def.vertexBufferAddress = mesh->meshBuffers._vertexBufferAddress;
 
-		aCtx.opaqueSurfaces.push_back(def);
+		switch (s.material->data.passType)
+		{
+		case MaterialPass::MainColor:
+			aCtx.opaqueSurfaces.push_back(def);
+			break;
+		case MaterialPass::Transparent:
+			aCtx.transparentSurfaces.push_back(def);
+			break;
+		case MaterialPass::Other:
+			throw;
+		}
 	}
 
 	// recurse down
 	Node::Draw(aTopMatrix, aCtx);
-
 }
 
 VulkanEngine& VulkanEngine::Get()
@@ -333,8 +342,6 @@ void VulkanEngine::Draw()
 
 }
 
-
-
 void VulkanEngine::Run()
 {
 	SDL_Event e;
@@ -417,7 +424,6 @@ void VulkanEngine::Run()
 	}
 }
 
-
 void VulkanEngine::Cleanup()
 {
 	if (_is_initialized)
@@ -467,7 +473,6 @@ void VulkanEngine::Cleanup()
 	}
 	gl_LoadedEngine = nullptr;
 }
-
 
 void VulkanEngine::Draw_Imgui(const VkCommandBuffer aCmd, const VkImageView aTargetImageView) const
 {
@@ -585,11 +590,17 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 		// copy the buffer into the image
 		vkCmdCopyBufferToImage(aCmd, uploadBuffer.buffer, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
-		vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
+		// if (aMipmapped)
+		// {
+		// 	vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{ new_Image.imageExtent.width,new_Image.imageExtent.height });
+		// }
+		// else
+		// {
+			vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
+		// }
 	});
 
 	Destroy_Buffer(uploadBuffer);
-
 	return new_Image;
 }
 
@@ -1337,7 +1348,6 @@ void VulkanEngine::Init_Default_Data()
 
 	std::string structurePath = { "..\\..\\assets\\structure.glb" };
 	auto structureFile = LoadGLTF(this, structurePath);
-
 	assert(structureFile.has_value());
 
 	_loadedScenes["structure"] = *structureFile;
@@ -1453,17 +1463,17 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 	_swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
 
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
-	                              //.use_default_format_selection()
-	                              .set_desired_format(VkSurfaceFormatKHR{
-		                              .format = _swapchain_image_format,
-		                              .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
-	                              })
-	                              //use vsync present mode
-	                              .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-	                              .set_desired_extent(aWidth, aHeight)
-	                              .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-	                              .build()
-	                              .value();
+		//.use_default_format_selection()
+		.set_desired_format(VkSurfaceFormatKHR{
+		  .format = _swapchain_image_format,
+		  .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
+		})
+		//use vsync present mode
+		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+		.set_desired_extent(aWidth, aHeight)
+		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+		.build()
+		.value();
 
 	_swapchain_extent = vkbSwapchain.extent;
 	//store swapchain and its related images
@@ -1533,10 +1543,10 @@ void VulkanEngine::Imgui_Run()
 
 		ImGui::Begin("Stats");
 
-		ImGui::Text("frametime %f ms", _stats.frameTime);
+		ImGui::Text("frame time %f ms", _stats.frameTime);
 		ImGui::Text("draw time %f ms", _stats.mesh_draw_time);
 		ImGui::Text("update time %f ms", _stats.scene_update_time);
-		ImGui::Text("triangles %i", _stats.tri_count);
+		ImGui::Text("triangles %u", _stats.tri_count);
 		ImGui::Text("draws %i", _stats.drawCall_count);
 		ImGui::End();
 
@@ -1578,11 +1588,26 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	for (uint32_t i = 0; i < _mainDrawContext.opaqueSurfaces.size(); i++) 
 	{
-		opaque_draws.push_back(i);
+		if (is_visible(_mainDrawContext.opaqueSurfaces[i], _sceneData.viewProj))
+		{
+			opaque_draws.push_back(i);
+		}
+	}
+
+	std::vector<uint32_t> transparent_draws;
+	transparent_draws.reserve(_mainDrawContext.transparentSurfaces.size());
+	
+	for (uint32_t i = 0; i < _mainDrawContext.transparentSurfaces.size(); i++)
+	{
+		if (is_visible(_mainDrawContext.transparentSurfaces[i], _sceneData.viewProj))
+		{
+			transparent_draws.push_back(i);
+		}
 	}
 
 	// TODO:
 	// Another way of doing this is that we would calculate a sort key, and then our opaque_draws would be something like 20 bits draw index, and 44 bits for sort key / hash.That way would be faster than this as it can be sorted through faster methods.
+	// this is also done every frame which I don't know is needed? since when do shaders on objects change.....? not that often right?
 	// TODO: multithread? maybe?
 	
 	// sort the opaque surfaces by material and mesh
@@ -1596,7 +1621,43 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 		}
 		return A.material < B.material;
 	});
+	
+	// TODO- With the transparent objects, you want to also change the sorting code so that it checks distance from bounds to the camera, so that objects draw more correct. But sorting by depth is incompatible with sorting by pipeline, so you will need to decide what works better for your case.
+	std::ranges::sort(transparent_draws, [&](const auto& iA, const auto& iB)
+	{
+		// pipeline only sorting
+		
+		// const RenderObject& A = _mainDrawContext.transparentSurfaces[iA];
+		// const RenderObject& B = _mainDrawContext.transparentSurfaces[iB];
+		// if (A.material == B.material)
+		// {
+		// 	return A.indexBuffer < B.indexBuffer;
+		// }
+		// return A.material < B.material;
+		
+		// depth only sorting (slop)
+		
+		// const RenderObject& A = _mainDrawContext.transparentSurfaces[iA];
+		// const RenderObject& B = _mainDrawContext.transparentSurfaces[iB];
+		// // Assume you have a camera position (vec3) and each RenderObject has a bounds center (vec3).
+		// const glm::vec3 cameraPos = _sceneData.view[3];
+		// float distA = glm::distance(cameraPos, A.bounds.origin);  // Or use sqrDistance for speed.
+		// float distB = glm::distance(cameraPos, B.bounds.origin);
+		// return distA > distB;  // Farther first (back-to-front).
 
+		// material first, then depth within material group (slop)
+
+		const RenderObject& A = _mainDrawContext.transparentSurfaces[iA];
+		const RenderObject& B = _mainDrawContext.transparentSurfaces[iB];
+		if (A.material != B.material) 
+		{
+			return A.material < B.material;  // Batch materials.
+		}
+		const glm::vec3 cameraPos = _sceneData.view[3];
+		float distA = distance(cameraPos, A.bounds.origin);
+		float distB = distance(cameraPos, B.bounds.origin);
+		return distA > distB;  // Depth within material.
+	});
 
 	//begin a render pass  connected to our draw image
 	const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
@@ -1708,9 +1769,9 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 		 draw(_mainDrawContext.opaqueSurfaces[r]);
 	 }
 
-	 for (auto& r : _mainDrawContext.transparentSurfaces) 
+	 for (auto& r : transparent_draws) 
 	 {
-		 draw(r);
+		 draw(_mainDrawContext.transparentSurfaces[r]);
 	 }
 
 	 // we delete the draw commands now that we processed them
@@ -1835,6 +1896,121 @@ void VulkanEngine::Update_Scene()
 	_stats.scene_update_time = elapsed.count() / 1000.f;
 }
 
+bool is_visible(const RenderObject& aObj, const glm::mat4& aViewProj)
+{
+	// TODO.
+	// This is just one of the multiple possible functions we could be using for frustum culling.The way this works is that we are transforming each of the 8 corners of the mesh - space bounding box into screenspace, using object matrix and view - projection matrix.For those, we find the screen - space box bounds, and we check if that box is inside the clip - space view.This way of calculating bounds is on the slow side compared to other formulas, and can have false - positives where it things objects are visible when they arent. All the functions have different tradeoffs, and this one was selected for code simplicity and parallels with the functions we are doing on the vertex shaders.
+
+	constexpr std::array corners
+	{
+		glm::vec3 { 1, 1, 1 },
+		glm::vec3 { 1, 1, -1 },
+		glm::vec3 { 1, -1, 1 },
+		glm::vec3 { 1, -1, -1 },
+		glm::vec3 { -1, 1, 1 },
+		glm::vec3 { -1, 1, -1 },
+		glm::vec3 { -1, -1, 1 },
+		glm::vec3 { -1, -1, -1 },
+	};
+
+	const glm::mat4 matrix = aViewProj * aObj.transform;
+
+	glm::vec3 min = { 1.5, 1.5, 1.5 };
+	glm::vec3 max = { -1.5, -1.5, -1.5 };
+	
+	for (int c = 0; c < 8; c++) 
+	{
+		// project each corner into clip space
+		glm::vec4 v = matrix * glm::vec4(aObj.bounds.origin + (corners[c] * aObj.bounds.extents), 1.f);
+		
+		// perspective correction
+		v.x = v.x / v.w;
+		v.y = v.y / v.w;
+		v.z = v.z / v.w;
+	
+		min = glm::min(glm::vec3{ v.x, v.y, v.z }, min);
+		max = glm::max(glm::vec3{ v.x, v.y, v.z }, max);
+	}
+	
+	// check the clip space box is within the view
+	return min.z <= 1.f && max.z >= 0.f && min.x <= 1.f && max.x >= -1.f && min.y <= 1.f && max.y >= -1.f;
+
+	// slop
+	// // Compute clip space positions for all 8 corners
+	// std::array<glm::vec4, 8> clip_verts;
+	// for (int c = 0; c < 8; c++) {
+	// 	glm::vec3 corner_pos = aObj.bounds.origin + (corners[c] * aObj.bounds.extents);
+	// 	clip_verts[c] = matrix * glm::vec4(corner_pos, 1.f);
+	// }
+	//
+	// // Define the 6 frustum planes' outside conditions
+	// // For each plane, check if ALL vertices are on the outside
+	// // If yes for any plane, the object is not visible
+	//
+	// // Left plane: x < -w
+	// bool all_outside = true;
+	// for (const auto& v : clip_verts) {
+	// 	if (!(v.x < -v.w)) {
+	// 		all_outside = false;
+	// 		break;
+	// 	}
+	// }
+	// if (all_outside) return false;
+	//
+	// // Right plane: x > w
+	// all_outside = true;
+	// for (const auto& v : clip_verts) {
+	// 	if (!(v.x > v.w)) {
+	// 		all_outside = false;
+	// 		break;
+	// 	}
+	// }
+	// if (all_outside) return false;
+	//
+	// // Bottom plane: y < -w
+	// all_outside = true;
+	// for (const auto& v : clip_verts) {
+	// 	if (!(v.y < -v.w)) {
+	// 		all_outside = false;
+	// 		break;
+	// 	}
+	// }
+	// if (all_outside) return false;
+	//
+	// // Top plane: y > w
+	// all_outside = true;
+	// for (const auto& v : clip_verts) {
+	// 	if (!(v.y > v.w)) {
+	// 		all_outside = false;
+	// 		break;
+	// 	}
+	// }
+	// if (all_outside) return false;
+	//
+	// // Near plane: z < 0
+	// all_outside = true;
+	// for (const auto& v : clip_verts) {
+	// 	if (!(v.z < 0.f)) {
+	// 		all_outside = false;
+	// 		break;
+	// 	}
+	// }
+	// if (all_outside) return false;
+	//
+	// // Far plane: z > w
+	// all_outside = true;
+	// for (const auto& v : clip_verts) {
+	// 	if (!(v.z > v.w)) {
+	// 		all_outside = false;
+	// 		break;
+	// 	}
+	// }
+	// if (all_outside) return false;
+	//
+	// // If not culled by any plane, the object is potentially visible
+	// return true;
+}
+
 GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, const std::span<Vertex> aVertices) const
 {
 	const size_t vertexBufferSize = aVertices.size() * sizeof(Vertex);
@@ -1884,5 +2060,4 @@ GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, cons
 	Destroy_Buffer(staging);
 
 	return newSurface;
-
 }

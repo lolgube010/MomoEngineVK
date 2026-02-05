@@ -8,13 +8,11 @@ glm::mat4 Camera::GetViewMatrix() const
     const glm::mat4 cameraTranslation = glm::translate(glm::mat4(1.f), position);
     const glm::mat4 cameraRotation = GetRotationMatrix();
     return glm::inverse(cameraTranslation * cameraRotation);
-
 }
 
 glm::mat4 Camera::GetRotationMatrix() const
 {
     // fairly typical FPS style camera. we join the pitch and yaw rotations into the final rotation matrix
-
     const glm::quat pitchRotation = glm::angleAxis(pitch, glm::vec3{ 1.f, 0.f, 0.f });
     const glm::quat yawRotation = glm::angleAxis(yaw, glm::vec3{ 0.f, -1.f, 0.f });
 

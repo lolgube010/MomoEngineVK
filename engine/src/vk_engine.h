@@ -119,7 +119,7 @@ struct RenderObject
 	VkBuffer indexBuffer;
 
 	MaterialInstance* material;
-
+	Bounds bounds;
 	glm::mat4 transform;
 	VkDeviceAddress vertexBufferAddress;
 };
@@ -140,7 +140,7 @@ struct MeshNode : Node
 struct EngineStats
 {
 	float frameTime;
-	float tri_count;
+	uint32_t tri_count;
 	int drawCall_count;
 	float scene_update_time;
 	float mesh_draw_time;
@@ -155,7 +155,7 @@ public:
 	VkExtent2D _windowExtent{ 1700, 900 }; // og was 1700, 900
 	bool _resize_requested;
 
-	struct SDL_Window* _window{nullptr};
+	SDL_Window* _window{nullptr};
 
 	static VulkanEngine& Get();
 
@@ -320,6 +320,8 @@ private:
 
 	VmaDeviceMemoryCallbacks _callbacks = {};
 };
+
+bool is_visible(const RenderObject& aObj, const glm::mat4& aViewProj);
 
 	static uint64_t g_TotalAllocatedBytes;
 	static uint64_t g_TotalFreedBytes;

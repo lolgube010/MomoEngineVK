@@ -13,10 +13,18 @@ struct GLTFMaterial
     MaterialInstance data;
 };
 
+struct Bounds 
+{
+    glm::vec3 origin;
+    float sphereRadius;
+    glm::vec3 extents;
+};
+
 struct GeoSurface 
 {
     uint32_t startIndex;
     uint32_t count;
+    Bounds bounds;
     std::shared_ptr<GLTFMaterial> material;
 };
 
@@ -38,7 +46,6 @@ std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes_Legacy(Vul
 
 struct LoadedGLTF : public IRenderable 
 {
-
     // storage for all the data on a given glTF file
     std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
     std::unordered_map<std::string, std::shared_ptr<Node>> nodes;
@@ -62,7 +69,6 @@ struct LoadedGLTF : public IRenderable
     void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
 
 private:
-
     void ClearAll();
 };
 

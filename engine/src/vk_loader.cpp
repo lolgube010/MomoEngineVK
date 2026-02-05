@@ -443,6 +443,21 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::s
                 newSurface.material = materials[0];
             }
 
+
+            // MOMO TODO- can't we do this while fetching the vertices...?
+			//loop the vertices of this surface, find min/max bounds
+            glm::vec3 minPos = vertices[initial_vtx].pos;
+            glm::vec3 maxPos = vertices[initial_vtx].pos;
+            for (size_t i = initial_vtx; i < vertices.size(); i++) 
+            {
+                minPos = glm::min(minPos, vertices[i].pos);
+                maxPos = glm::max(maxPos, vertices[i].pos);
+            }
+            // calculate origin and extents from the min/max, use extent length for radius
+            newSurface.bounds.origin = (maxPos + minPos) / 2.f;
+            newSurface.bounds.extents = (maxPos - minPos) / 2.f;
+            newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
+
             newMesh->surfaces.push_back(newSurface);
         }
 
