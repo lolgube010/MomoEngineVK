@@ -13,6 +13,7 @@
 #include <thread>
 
 #define VMA_IMPLEMENTATION
+
 #include "vk_mem_alloc.h"
 #include "vk_pipelines.h"
 
@@ -24,7 +25,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #endif
 #include <glm/gtx/transform.hpp>
-
+#include <glm/gtx/norm.hpp>
 
 // globals
 namespace
@@ -153,7 +154,7 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 {
 	const glm::mat4 nodeMatrix = aTopMatrix * worldTransform;
 
-	for (auto& s : mesh->surfaces) // a mesh can have multiple surfaces with different materials.
+	for (const auto& s : mesh->surfaces) // a mesh can have multiple surfaces with different materials.
 	{
 		RenderObject def;
 		def.indexCount = s.count;
@@ -377,7 +378,7 @@ void VulkanEngine::Run()
 			const auto& key = e.key.keysym.sym;
 			if (e.type == SDL_KEYDOWN && key == SDLK_CAPSLOCK && e.key.repeat == 0)
 			{
-				auto enabled = SDL_GetRelativeMouseMode();
+				const auto enabled = SDL_GetRelativeMouseMode();
 				fmt::print("caps locked presssed, window is currently: {}\n", static_cast<bool>(enabled));
 				SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!enabled));
 			
@@ -1258,11 +1259,11 @@ void VulkanEngine::Init_Default_Data()
 	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\structure.glb)").value();
 	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\thejunkshopsplashscreen2.glb)").value();
 
-	uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
+	const uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
 	_whiteImage = Create_Image(&white, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
-	uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
+	const uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
 	_greyImage = Create_Image(&grey, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
-	uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
+	const uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
 	_blackImage = Create_Image(&black, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
 
@@ -1346,8 +1347,8 @@ void VulkanEngine::Init_Default_Data()
 	// }
 
 
-	std::string structurePath = { "..\\..\\assets\\structure.glb" };
-	auto structureFile = LoadGLTF(this, structurePath);
+	const std::string structurePath = { "..\\..\\assets\\structure.glb" };
+	const auto structureFile = LoadGLTF(this, structurePath);
 	assert(structureFile.has_value());
 
 	_loadedScenes["structure"] = *structureFile;
@@ -1654,9 +1655,13 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 			return A.material < B.material;  // Batch materials.
 		}
 		const glm::vec3 cameraPos = _sceneData.view[3];
-		float distA = distance(cameraPos, A.bounds.origin);
-		float distB = distance(cameraPos, B.bounds.origin);
-		return distA > distB;  // Depth within material.
+		const float distSqA = distance2(cameraPos, A.bounds.origin);
+		const float distSqB = distance2(cameraPos, B.bounds.origin);
+		if (distSqA > distSqB) return true;
+		if (distSqA < distSqB) return false;
+
+		// Tertiary: stable tie-breaker
+		return A.indexBuffer < B.indexBuffer;	
 	});
 
 	//begin a render pass  connected to our draw image
@@ -1857,7 +1862,7 @@ void VulkanEngine::Resize_Swapchain()
 
 void VulkanEngine::Update_Scene()
 {
-	auto start = std::chrono::system_clock::now();
+	const auto start = std::chrono::system_clock::now();
 
 	_mainDrawContext.opaqueSurfaces.clear();
 
@@ -1873,7 +1878,7 @@ void VulkanEngine::Update_Scene()
 	_loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
 
 	_mainCamera.Update();
-	glm::mat4 view = _mainCamera.GetViewMatrix();
+	const glm::mat4 view = _mainCamera.GetViewMatrix();
 	// camera projection
 	glm::mat4 projection = glm::perspective(glm::radians(70.f), static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.height), 10000.f, 0.1f);
 
@@ -1890,9 +1895,9 @@ void VulkanEngine::Update_Scene()
 	_sceneData.sunlightColor = glm::vec4(1.f);
 	_sceneData.sunlightDirection = glm::vec4(0, 1, 0.5, 1.f);
 
-	auto end = std::chrono::system_clock::now();
+	const auto end = std::chrono::system_clock::now();
 	//convert to microseconds (integer), and then come back to miliseconds
-	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+	const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	_stats.scene_update_time = elapsed.count() / 1000.f;
 }
 
