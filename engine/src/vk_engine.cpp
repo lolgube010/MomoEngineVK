@@ -591,14 +591,14 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 		// copy the buffer into the image
 		vkCmdCopyBufferToImage(aCmd, uploadBuffer.buffer, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
-		// if (aMipmapped)
-		// {
-		// 	vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{ new_Image.imageExtent.width,new_Image.imageExtent.height });
-		// }
-		// else
-		// {
+		if (aMipmapped)
+		{
+			vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{ new_Image.imageExtent.width,new_Image.imageExtent.height });
+		}
+		else
+		{
 			vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
-		// }
+		}
 	});
 
 	Destroy_Buffer(uploadBuffer);
