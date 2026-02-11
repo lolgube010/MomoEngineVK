@@ -3,6 +3,7 @@
 
 # features
 * hlsl and glsl
+* everything vkguide has up to chapter 5 as of 2026-02-11
 
 # planned features
 * everything unreal&unity has but better and cooler and faster and more awesomer
