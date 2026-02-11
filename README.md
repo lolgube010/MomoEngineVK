@@ -1,6 +1,13 @@
 # what is this?
 * engine built using vkguide as a base. will continue on this and add whatever I find interesting. the idea is to eventually make a low-scope-game with this. (wow!)
 
+# features
+* hlsl and glsl
+
+#planned features
+* everything unreal&unity has but better and cooler and faster and more awesomer
+* no but, whatever I fixate on is what I'll implement. we'll see.
+
 # How to Build:
 * [Install Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 * Maybe enable some debug stuff in the config. you can always do this later.
