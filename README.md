@@ -4,7 +4,7 @@
 # features
 * hlsl and glsl
 
-#planned features
+# planned features
 * everything unreal&unity has but better and cooler and faster and more awesomer
 * no but, whatever I fixate on is what I'll implement. we'll see.
 
