@@ -1,12 +1,20 @@
 # what is this?
 * engine built using vkguide as a base. will continue on this and add whatever I find interesting. the idea is to eventually make a low-scope-game with this. (wow!)
 
+# features
+* hlsl and glsl
+* everything vkguide has up to chapter 5 as of 2026-02-11
+
+# planned features
+* everything unreal&unity has but better and cooler and faster and more awesomer
+* no but, whatever I fixate on is what I'll implement. we'll see.
+
 # How to Build:
 * [Install Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 * Maybe enable some debug stuff in the config. you can always do this later.
 * [Install CMake](https://cmake.org/)
 * Open CMake-gui
-* Fill in the vars like this, then click generate and then build.
+* Fill in the source code / build location like this, then click generate and then build.
 <img width="1148" height="392" alt="image" src="https://github.com/user-attachments/assets/87c68351-2c45-4b2e-862e-c9cc5f492be4" />
 
 * open the .slnx in /build
