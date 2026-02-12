@@ -47,6 +47,10 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 		{
 			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
 		}
+		else
+		{
+			fmt::print("Fragment shader successfully loaded. PATH: {}\n", shaderPath);
+		}
 	}
 
 	VkShaderModule meshVertexShader;
@@ -55,6 +59,10 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 		if (!vkUtil::LoadShaderModule(shaderPath.c_str(), aEngine->_device, &meshVertexShader, loadShaderResult))
 		{
 			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
+		}
+		else
+		{
+			fmt::print("Vertex shader successfully loaded. PATH: {}\n", shaderPath);
 		}
 	}
 
@@ -743,32 +751,46 @@ void VulkanEngine::Init_Vulkan()
 	//> init_device
 	SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
 
+	// vk 1.4 features
+	// VkPhysicalDeviceVulkan14Features features14{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES};
+	
 	// vk 1.3 features
 	VkPhysicalDeviceVulkan13Features features13{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
 	features13.dynamicRendering = true;
 	features13.synchronization2 = true;
 
-	// vulkan 1.2 features
+	// vk 1.2 features
 	VkPhysicalDeviceVulkan12Features features12{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
 	features12.bufferDeviceAddress = true;
 	features12.descriptorIndexing = true;
 
+	// vk 1.1 features
+	// VkPhysicalDeviceVulkan11Features features11{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
+
 	// vulkan 1.0 features
 	VkPhysicalDeviceFeatures features10{};
-	features10.shaderInt64 = true;
+	features10.shaderInt64 = true; // needed for vertex pulling in hlsl only
 
 	// Use vk-bootstrap to select a gpu. 
 	// We want a gpu that can write to the SDL surface and supports vulkan 1.3 with the correct features
 	vkb::PhysicalDeviceSelector selector{vkb_inst};
-	vkb::PhysicalDevice physicalDevice = selector
-	                                     .set_minimum_version(1, 3)
-	                                     .set_required_features_13(features13)
-	                                     .set_required_features_12(features12)
-	                                     .set_required_features(features10)
-	                                     .set_surface(_surface)
-	                                     .select()
-	                                     .value();
+	auto phys_ret = selector
+		.set_minimum_version(1, 3)
+		.set_required_features_13(features13)
+		.set_required_features_12(features12)
+		.set_required_features(features10)
+		.set_surface(_surface)
+		.select();
 
+	// NOTE FOR FUTURE ME: please check if an extension is actually available. tried adding a debug one only for it to only have drivers on NVIDIA and not AMD. 
+	// make sure to check before adding random extensions!!!
+
+	if (!phys_ret)
+	{
+		throw std::runtime_error("failed to find a suitable GPU: " + phys_ret.error().message());
+	}
+
+	const vkb::PhysicalDevice& physicalDevice = phys_ret.value();
 	//create the final vulkan device (driver) from the physical device (gpu)
 	vkb::DeviceBuilder deviceBuilder{physicalDevice};
 
@@ -1049,19 +1071,27 @@ void VulkanEngine::Init_Background_Pipelines()
 
 	VkShaderModule gradientShader;
 	{
-		const std::string gradientShaderPath = momo_util::BuildShaderPath("gradient_color", momo_util::ShaderType::Compute, true);
+		const std::string gradientShaderPath = momo_util::BuildShaderPath("gradient_color", momo_util::ShaderType::Compute, false);
 		if (!vkUtil::LoadShaderModule(gradientShaderPath.c_str(), _device, &gradientShader, loadShaderResult))
 		{
 			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
+		}
+		else
+		{
+			fmt::print("Compute shader successfully loaded. PATH: {}\n", gradientShaderPath);
 		}
 	}
 
 	VkShaderModule skyShader;
 	{
-		const std::string skyShaderPath = momo_util::BuildShaderPath("sky", momo_util::ShaderType::Compute, true);
+		const std::string skyShaderPath = momo_util::BuildShaderPath("sky", momo_util::ShaderType::Compute, false);
 		if (!vkUtil::LoadShaderModule(skyShaderPath.c_str(), _device, &skyShader, loadShaderResult))
 		{
 			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
+		}
+		else
+		{
+			fmt::print("Compute shader successfully loaded. PATH: {}\n", skyShaderPath);
 		}
 	}
 

@@ -5,7 +5,6 @@ cmake_minimum_required (VERSION 3.12)
 
 project ("vulkan_guide")
 
-
 find_package(Vulkan REQUIRED)
 
 add_subdirectory(third_party)
@@ -14,6 +13,16 @@ set (CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
 set (CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
 
 add_subdirectory(src)
+
+option(SHADERS_ENABLE_DEBUG "Build shaders with debug information" OFF)
+
+if(SHADERS_ENABLE_DEBUG)
+    set(GLSLANG_DEBUG_FLAGS -g -Od) #-gVS: rich non-semantic debug + source embedding (not supported on AMD as of 2026-02-12, use just -g instead), -0d: no optimization
+    set(DXC_DEBUG_FLAGS -Zi -Od -fspv-debug=vulkan-with-source) #-Zi: debug info, -0d: no optimization, -fspv-debug=vulkan-with-source: vk info
+else()
+    set(GLSLANG_DEBUG_FLAGS )
+    set(DXC_DEBUG_FLAGS )
+endif()
 
 find_program(GLSL_VALIDATOR glslangValidator HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
 find_program(DXC_COMPILER dxc HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
@@ -29,13 +38,15 @@ file(GLOB_RECURSE GLSL_SOURCE_FILES CONFIGURE_DEPENDS
     )
 
 foreach(GLSL ${GLSL_SOURCE_FILES})
-  message(STATUS "BUILDING SHADER")
   get_filename_component(FILE_NAME ${GLSL} NAME)
+  message(STATUS "BUILDING GLSL SHADER: ${FILE_NAME}")
   set(SPIRV "${PROJECT_SOURCE_DIR}/shaders/${FILE_NAME}.spv")
-  message(STATUS ${GLSL})
   add_custom_command(
     OUTPUT ${SPIRV}
-    COMMAND ${GLSL_VALIDATOR} -V ${GLSL} -o ${SPIRV}
+    COMMAND ${GLSL_VALIDATOR} 
+	-V
+	${GLSLANG_DEBUG_FLAGS}
+	${GLSL} -o ${SPIRV}
     DEPENDS ${GLSL})
   list(APPEND SPIRV_BINARY_FILES ${SPIRV})
 endforeach(GLSL)
@@ -53,12 +64,13 @@ macro(compile_hlsl FILE_LIST PROFILE ENTRY_POINT)
 
         add_custom_command(
             OUTPUT ${SPIRV}
-            # DXC Flags:
-            # -spirv : Output SPIR-V
-            # -T : Target Profile (vs_6_0, ps_6_0, etc.)
-            # -E : Entry point (defaulting to 'main' here)
-            # -Fo : Output file
-            COMMAND ${DXC_COMPILER} -spirv -T ${PROFILE} -E ${ENTRY_POINT} ${HLSL} -Fo ${SPIRV}
+            COMMAND ${DXC_COMPILER} 
+		-spirv # -spirv : Output SPIR-V
+		-T ${PROFILE} # -T : Target Profile (vs_6_0, ps_6_0, etc.)
+		-E ${ENTRY_POINT} # -E : Entry point (defaulting to 'main' here)
+		${DXC_DEBUG_FLAGS}
+		${HLSL} 
+		-Fo ${SPIRV} # -Fo : Output file
             DEPENDS ${HLSL}
         )
         
@@ -83,3 +95,16 @@ add_custom_target(
     Shaders 
     DEPENDS ${SPIRV_BINARY_FILES}
     )
+
+add_custom_command(
+    TARGET Shaders
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo
+    "----------------------------------------------"
+    COMMAND ${CMAKE_COMMAND} -E echo
+    "Shaders built with debug info: ${SHADERS_ENABLE_DEBUG}"
+    COMMAND ${CMAKE_COMMAND} -E echo
+    "----------------------------------------------"
+    COMMENT ""   # optional: suppresses default "[Shaders] ..." line if you want
+    VERBATIM
+)

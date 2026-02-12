@@ -283,7 +283,7 @@ public:
 	tracy::VkCtx* _tracyVkCtx = nullptr;
 #endif
 
-	EngineStats _stats;
+	EngineStats _stats = {};
 private:
 	void ProcessInput(SDL_Event& anE);
 
