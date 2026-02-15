@@ -96,9 +96,19 @@ compile_hlsl(HLSL_COMP_FILES "cs_6_0" "main")
 
 # --- FINAL TARGET ---
 
+set(ALL_SHADER_SOURCES
+    ${GLSL_SOURCE_FILES}
+    ${HLSL_VERT_FILES}
+    ${HLSL_FRAG_FILES}
+    ${HLSL_COMP_FILES}
+)
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Shaders" FILES ${ALL_SHADER_SOURCES})
+
 add_custom_target(
     Shaders
+	ALL # makes shaders build automatically when the solution is built.
     DEPENDS ${SPIRV_BINARY_FILES}
+	SOURCES ${ALL_SHADER_SOURCES}
 )
 
 add_custom_command(
