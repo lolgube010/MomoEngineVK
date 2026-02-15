@@ -1074,7 +1074,8 @@ void VulkanEngine::Init_Background_Pipelines()
 		const std::string gradientShaderPath = momo_util::BuildShaderPath("gradient_color", momo_util::ShaderType::Compute, false);
 		if (!vkUtil::LoadShaderModule(gradientShaderPath.c_str(), _device, &gradientShader, loadShaderResult))
 		{
-			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
+			fmt::print("Error when building the compute shader {}\n", gradientShaderPath);
+			throw;
 		}
 		else
 		{
@@ -1087,7 +1088,7 @@ void VulkanEngine::Init_Background_Pipelines()
 		const std::string skyShaderPath = momo_util::BuildShaderPath("sky", momo_util::ShaderType::Compute, false);
 		if (!vkUtil::LoadShaderModule(skyShaderPath.c_str(), _device, &skyShader, loadShaderResult))
 		{
-			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
+			fmt::print("Error when building the compute shader {}\n", skyShaderPath);
 		}
 		else
 		{

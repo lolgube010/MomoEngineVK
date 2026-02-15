@@ -349,8 +349,11 @@ std::string momo_util::GetShaderExtension(const ShaderType aType)
 std::string momo_util::BuildShaderPath(const std::string& aFileName, const ShaderType aType, const bool aIsHlsl)
 {
 	// Base directory (adjust this to match your project structure)
-	const std::string basePath = "../../shaders/";
-
+#ifdef _DEBUG
+	const std::string basePath = "../../shaders/bin/debug/";
+#else
+	const std::string basePath = "../../shaders/bin/release/";
+#endif
 	// Get standard extension (e.g., ".comp")
 	const std::string stageExt = GetShaderExtension(aType);
 
