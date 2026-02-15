@@ -13,6 +13,7 @@
 #include "vk_loader.h"
 
 #include "MomoTracy.h"
+#include "vk_debug.h"
 
 union SDL_Event;
 
@@ -179,9 +180,6 @@ public:
 
 	void Immediate_Submit(std::function<void(VkCommandBuffer aCmd)>&& aFunction) const;
 
-	// added by momo
-	void SetDebugInfo(uint64_t aObjectHandle, VkObjectType aObjectType, const char* a_pObjectName) const;
-	
 	// TODO:
 	// Note that this pattern is not very efficient, as we are waiting for the GPU command to fully execute before continuing with our CPU side logic. This is something people generally put on a background thread, whose sole job is to execute uploads like this one, and deleting/reusing the staging buffers.
 	GPUMeshBuffers UploadMesh(std::span<uint32_t> aIndices, std::span<Vertex> aVertices) const;
@@ -238,8 +236,7 @@ public:
 	std::vector<ComputeEffect> backgroundEffects;
 	int currentBackgroundEffect{0};
 
-	// momo debug adventure
-	PFN_vkSetDebugUtilsObjectNameEXT _vkSetDebugUtilsObjectNameEXT;
+	Vk_Debug_Info _debugInfo;
 
 	// VkPipelineLayout _trianglePipelineLayout;
 	// VkPipeline _trianglePipeline;

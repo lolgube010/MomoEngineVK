@@ -2,7 +2,7 @@
 #include <fstream>
 #include <vk_initializers.h>
 
-bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
+bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, Vk_Debug_Info* aVkDebugInfo, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
 {
 	// open the file. With cursor at the end
 	std::ifstream file(aFilePath, std::ios::ate | std::ios::binary);
@@ -11,7 +11,7 @@ bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkS
 	{
 		return false;
 	}
-
+	
 	// find what the size of the file is by looking up the location of the cursor because the cursor is at the end, it gives the size directly in bytes
 	const size_t fileSize = file.tellg();
 
@@ -43,6 +43,7 @@ bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkS
 		return false;
 	}
 	*aOutShaderModule = shaderModule;
+    aVkDebugInfo->SetDebugInfo(&aDevice, uint64_t(*aOutShaderModule), VK_OBJECT_TYPE_SHADER_MODULE, aFilePath);
 	return true;
 }
 

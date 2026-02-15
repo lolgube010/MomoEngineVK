@@ -43,7 +43,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	VkShaderModule meshFragShader;
 	{
 		const std::string shaderPath = momo_util::BuildShaderPath("mesh", momo_util::ShaderType::Fragment, false);
-		if (!vkUtil::LoadShaderModule(shaderPath.c_str(), aEngine->_device, &meshFragShader, loadShaderResult))
+        if (!vkUtil::LoadShaderModule(shaderPath.c_str(), aEngine->_device, &aEngine->_debugInfo, &meshFragShader, loadShaderResult))
 		{
 			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
 		}
@@ -56,7 +56,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	VkShaderModule meshVertexShader;
 	{
 		const std::string shaderPath = momo_util::BuildShaderPath("mesh", momo_util::ShaderType::Vertex, false);
-		if (!vkUtil::LoadShaderModule(shaderPath.c_str(), aEngine->_device, &meshVertexShader, loadShaderResult))
+        if (!vkUtil::LoadShaderModule(shaderPath.c_str(), aEngine->_device, &aEngine->_debugInfo, &meshVertexShader, loadShaderResult))
 		{
 			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
 		}
@@ -520,20 +520,6 @@ void VulkanEngine::Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& a
 	VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
 }
 
-void VulkanEngine::SetDebugInfo(const uint64_t aObjectHandle, const VkObjectType aObjectType, const char* a_pObjectName) const
-{
-	if (_vkSetDebugUtilsObjectNameEXT)
-	{
-		VkDebugUtilsObjectNameInfoEXT nameInfo = {};
-		nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-		nameInfo.objectType = aObjectType;
-		nameInfo.objectHandle = aObjectHandle;
-		nameInfo.pObjectName = a_pObjectName;
-
-		_vkSetDebugUtilsObjectNameEXT(_device, &nameInfo);
-	}
-}
-
 AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const bool aMipmapped) const
 {
 	AllocatedImage newImage;
@@ -834,7 +820,7 @@ void VulkanEngine::Init_Vulkan()
 	//< init vma
 	
 	// momo debug adventure
-	_vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(_instance, "vkSetDebugUtilsObjectNameEXT"));
+	_debugInfo._vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(_instance, "vkSetDebugUtilsObjectNameEXT"));
 }
 
 void VulkanEngine::Init_Swapchain()
@@ -874,7 +860,7 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo rview_info = vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
-	SetDebugInfo((uint64_t)_drawImage.image, VK_OBJECT_TYPE_IMAGE, "OOGILI BOOGILI ZOOGILI SHMALOOGILI");
+	_debugInfo.SetDebugInfo(&_device, (uint64_t)_drawImage.image, VK_OBJECT_TYPE_IMAGE, "OOGILI BOOGILI ZOOGILI SHMALOOGILI main draw img");
 	//< create image
 
 	//> create depth
@@ -892,7 +878,7 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo dview_info = vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
-	SetDebugInfo((uint64_t)_depthImage.image, VK_OBJECT_TYPE_IMAGE, "(gabagool) main depth");
+    _debugInfo.SetDebugInfo(&_device, (uint64_t) _depthImage.image, VK_OBJECT_TYPE_IMAGE, "(gabagool) main depth");
 	//< create depth
 
 
@@ -1072,7 +1058,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	VkShaderModule gradientShader;
 	{
 		const std::string gradientShaderPath = momo_util::BuildShaderPath("gradient_color", momo_util::ShaderType::Compute, false);
-		if (!vkUtil::LoadShaderModule(gradientShaderPath.c_str(), _device, &gradientShader, loadShaderResult))
+        if (!vkUtil::LoadShaderModule(gradientShaderPath.c_str(), _device, &_debugInfo, &gradientShader, loadShaderResult))
 		{
 			fmt::print("Error when building the compute shader {}\n", gradientShaderPath);
 			throw;
@@ -1086,7 +1072,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	VkShaderModule skyShader;
 	{
 		const std::string skyShaderPath = momo_util::BuildShaderPath("sky", momo_util::ShaderType::Compute, false);
-		if (!vkUtil::LoadShaderModule(skyShaderPath.c_str(), _device, &skyShader, loadShaderResult))
+        if (!vkUtil::LoadShaderModule(skyShaderPath.c_str(), _device, &_debugInfo, &skyShader, loadShaderResult))
 		{
 			fmt::print("Error when building the compute shader {}\n", skyShaderPath);
 		}
@@ -1393,7 +1379,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 
 	const auto fragPath = momo_util::BuildShaderPath("tex_image", momo_util::ShaderType::Fragment, false);
 	VkShaderModule triangleFragShader;
-	if (!vkUtil::LoadShaderModule(fragPath.c_str(), _device, &triangleFragShader, res))
+    if (!vkUtil::LoadShaderModule(fragPath.c_str(), _device, &_debugInfo, &triangleFragShader, res))
 	{
 		fmt::print("Error when building the triangle fragment shader module: {}", static_cast<int>(res));
 	}
@@ -1404,7 +1390,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 
 	const auto vertPath = momo_util::BuildShaderPath("colored_triangle_mesh", momo_util::ShaderType::Vertex, false);
 	VkShaderModule triangleVertexShader;
-	if (!vkUtil::LoadShaderModule(vertPath.c_str(), _device, &triangleVertexShader, res))
+    if (!vkUtil::LoadShaderModule(vertPath.c_str(), _device, &_debugInfo, &triangleVertexShader, res))
 	{
 		fmt::print("Error when building the triangle vertex shader module: {}", static_cast<int>(res));
 	}

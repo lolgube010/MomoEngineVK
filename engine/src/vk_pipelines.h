@@ -1,11 +1,13 @@
 ﻿#pragma once 
 #include <vk_types.h>
+#include "vk_debug.h"
 
 // Will contain abstractions for pipelines.
 
 namespace vkUtil
 {
-	bool LoadShaderModule(const char* aFilePath, VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
+	// TODO- simplify usage of, right now is way too spammy with the checking things we do and I don't really like that. todo fix. 
+	bool LoadShaderModule(const char* aFilePath, VkDevice aDevice, Vk_Debug_Info* aVkDebugInfo, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
 };
 
 class PipelineBuilder
