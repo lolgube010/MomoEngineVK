@@ -4,10 +4,12 @@
 
 // Will contain abstractions for pipelines.
 
+class VulkanEngine;
+
 namespace vkUtil
 {
 	// TODO- simplify usage of, right now is way too spammy with the checking things we do and I don't really like that. todo fix. 
-	bool LoadShaderModule(const char* aFilePath, VkDevice aDevice, Vk_Debug_Info* aVkDebugInfo, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
+	bool LoadShaderModule(const char* aFilePath, VkDevice aDevice, const Vk_Debug_Info* aVkDebugInfo, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
 };
 
 class PipelineBuilder
@@ -64,9 +66,7 @@ namespace momo_util
 		Compute,
 	};
 
-	// Helper to get the extension string from the enum
 	std::string GetShaderExtension(ShaderType aType);
-
-	// 2. & 3. The Support Function
 	std::string BuildShaderPath(const std::string& aFileName, ShaderType aType, bool aIsHlsl);
+    std::optional<VkShaderModule> LoadShader(const std::string& aName, momo_util::ShaderType aType, bool aIsHLSL, VkDevice aDevice, const Vk_Debug_Info* aVkDebugInfo);
 }

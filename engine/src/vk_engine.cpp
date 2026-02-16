@@ -40,31 +40,8 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 {
 	VkResult loadShaderResult = {};
 
-	VkShaderModule meshFragShader;
-	{
-		const std::string shaderPath = momo_util::BuildShaderPath("mesh", momo_util::ShaderType::Fragment, false);
-        if (!vkUtil::LoadShaderModule(shaderPath.c_str(), aEngine->_device, &aEngine->_debugInfo, &meshFragShader, loadShaderResult))
-		{
-			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
-		}
-		else
-		{
-			fmt::print("Fragment shader successfully loaded. PATH: {}\n", shaderPath);
-		}
-	}
-
-	VkShaderModule meshVertexShader;
-	{
-		const std::string shaderPath = momo_util::BuildShaderPath("mesh", momo_util::ShaderType::Vertex, false);
-        if (!vkUtil::LoadShaderModule(shaderPath.c_str(), aEngine->_device, &aEngine->_debugInfo, &meshVertexShader, loadShaderResult))
-		{
-			fmt::print("Error when building the compute shader {}\n", static_cast<int>(loadShaderResult));
-		}
-		else
-		{
-			fmt::print("Vertex shader successfully loaded. PATH: {}\n", shaderPath);
-		}
-	}
+	auto meshFragShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Fragment, false, aEngine->_device, &aEngine->_debugInfo);
+    auto meshVertexShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Vertex, false, aEngine->_device, &aEngine->_debugInfo);
 
 	VkPushConstantRange matrixRange{};
 	matrixRange.offset = 0;
@@ -94,7 +71,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 
 	// build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	PipelineBuilder pipelineBuilder;
-	pipelineBuilder.Set_Shaders(meshVertexShader, meshFragShader);
+	pipelineBuilder.Set_Shaders(meshVertexShader.value(), meshFragShader.value());
 	pipelineBuilder.Set_Input_Topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_FILL);
 	pipelineBuilder.Set_Cull_Mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
@@ -119,8 +96,8 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 
 	transparentPipeline.pipeline = pipelineBuilder.Build_Pipeline(aEngine->_device);
 
-	vkDestroyShaderModule(aEngine->_device, meshFragShader, nullptr);
-	vkDestroyShaderModule(aEngine->_device, meshVertexShader, nullptr);
+	vkDestroyShaderModule(aEngine->_device, meshFragShader.value(), nullptr);
+	vkDestroyShaderModule(aEngine->_device, meshVertexShader.value(), nullptr);
 }
 
 void GLTFMetallic_Roughness::clear_resources(VkDevice device) const
@@ -820,7 +797,7 @@ void VulkanEngine::Init_Vulkan()
 	//< init vma
 	
 	// momo debug adventure
-	_debugInfo._vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(_instance, "vkSetDebugUtilsObjectNameEXT"));
+    _debugInfo.Init(_instance);
 }
 
 void VulkanEngine::Init_Swapchain()
@@ -1053,40 +1030,14 @@ void VulkanEngine::Init_Background_Pipelines()
 
 	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_gradientPipelineLayout));
 
-	VkResult loadShaderResult = {};
-
-	VkShaderModule gradientShader;
-	{
-		const std::string gradientShaderPath = momo_util::BuildShaderPath("gradient_color", momo_util::ShaderType::Compute, false);
-        if (!vkUtil::LoadShaderModule(gradientShaderPath.c_str(), _device, &_debugInfo, &gradientShader, loadShaderResult))
-		{
-			fmt::print("Error when building the compute shader {}\n", gradientShaderPath);
-			throw;
-		}
-		else
-		{
-			fmt::print("Compute shader successfully loaded. PATH: {}\n", gradientShaderPath);
-		}
-	}
-
-	VkShaderModule skyShader;
-	{
-		const std::string skyShaderPath = momo_util::BuildShaderPath("sky", momo_util::ShaderType::Compute, false);
-        if (!vkUtil::LoadShaderModule(skyShaderPath.c_str(), _device, &_debugInfo, &skyShader, loadShaderResult))
-		{
-			fmt::print("Error when building the compute shader {}\n", skyShaderPath);
-		}
-		else
-		{
-			fmt::print("Compute shader successfully loaded. PATH: {}\n", skyShaderPath);
-		}
-	}
+    auto gradientShader = momo_util::LoadShader("gradient_color", momo_util::ShaderType::Compute, false, _device, &_debugInfo);
+    auto skyShader = momo_util::LoadShader("sky", momo_util::ShaderType::Compute, false, _device, &_debugInfo);
 
 	VkPipelineShaderStageCreateInfo stageInfo{};
 	stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	stageInfo.pNext = nullptr;
 	stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stageInfo.module = gradientShader;
+	stageInfo.module = gradientShader.value();
 	stageInfo.pName = "main"; // this option gives you the ability to have multiple shaders in the same file, having different entry points.
 
 	VkComputePipelineCreateInfo computePipelineCreateInfo{};
@@ -1108,7 +1059,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	backgroundEffects.push_back(gradient);
 
 	//change the shader module only to create the sky shader
-	computePipelineCreateInfo.stage.module = skyShader;
+	computePipelineCreateInfo.stage.module = skyShader.value();
 
 	ComputeEffect sky{};
 	sky.layout = _gradientPipelineLayout;
@@ -1123,8 +1074,8 @@ void VulkanEngine::Init_Background_Pipelines()
 	backgroundEffects.push_back(sky);
 
 	//destroy structures properly
-	vkDestroyShaderModule(_device, gradientShader, nullptr);
-	vkDestroyShaderModule(_device, skyShader, nullptr);
+	vkDestroyShaderModule(_device, gradientShader.value(), nullptr);
+	vkDestroyShaderModule(_device, skyShader.value(), nullptr);
 	_mainDeletionQueue.Push_Function([=]
 	{
 		vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
@@ -1377,27 +1328,8 @@ void VulkanEngine::Init_Mesh_Pipeline()
 {
 	VkResult res = {};
 
-	const auto fragPath = momo_util::BuildShaderPath("tex_image", momo_util::ShaderType::Fragment, false);
-	VkShaderModule triangleFragShader;
-    if (!vkUtil::LoadShaderModule(fragPath.c_str(), _device, &_debugInfo, &triangleFragShader, res))
-	{
-		fmt::print("Error when building the triangle fragment shader module: {}", static_cast<int>(res));
-	}
-	else
-	{
-		fmt::print("Frag shader successfully loaded. PATH: {}\n", fragPath);
-	}
-
-	const auto vertPath = momo_util::BuildShaderPath("colored_triangle_mesh", momo_util::ShaderType::Vertex, false);
-	VkShaderModule triangleVertexShader;
-    if (!vkUtil::LoadShaderModule(vertPath.c_str(), _device, &_debugInfo, &triangleVertexShader, res))
-	{
-		fmt::print("Error when building the triangle vertex shader module: {}", static_cast<int>(res));
-	}
-	else
-	{
-		fmt::print("Vert shader successfully loaded. PATH: {}\n", vertPath);
-	}
+	auto triangleFragShader = momo_util::LoadShader("tex_image", momo_util::ShaderType::Fragment, false, _device, &_debugInfo);
+    auto triangleVertexShader = momo_util::LoadShader("colored_triangle_mesh", momo_util::ShaderType::Vertex, false, _device, &_debugInfo);
 
 	VkPushConstantRange bufferRange{};
 	bufferRange.offset = 0;
@@ -1416,7 +1348,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 	//use the triangle layout we created
 	pipelineBuilder._pipelineLayout = _meshPipelineLayout;
 	//connecting the vertex and pixel shaders to the pipeline
-	pipelineBuilder.Set_Shaders(triangleVertexShader, triangleFragShader);
+	pipelineBuilder.Set_Shaders(triangleVertexShader.value(), triangleFragShader.value());
 	//it will draw triangles
 	pipelineBuilder.Set_Input_Topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	//filled triangles
@@ -1463,8 +1395,8 @@ void VulkanEngine::Init_Mesh_Pipeline()
 	_meshPipeline = pipelineBuilder.Build_Pipeline(_device);
 
 	//clean structures
-	vkDestroyShaderModule(_device, triangleFragShader, nullptr);
-	vkDestroyShaderModule(_device, triangleVertexShader, nullptr);
+	vkDestroyShaderModule(_device, triangleFragShader.value(), nullptr);
+	vkDestroyShaderModule(_device, triangleVertexShader.value(), nullptr);
 
 	_mainDeletionQueue.Push_Function([&]
 	{

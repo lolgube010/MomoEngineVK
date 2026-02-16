@@ -3,7 +3,12 @@
 class Vk_Debug_Info
 {
 public:
-    void SetDebugInfo(const VkDevice* aDevice, uint64_t aObjectHandle, VkObjectType aObjectType, const char* a_pObjectName) const
+    void Init(const VkInstance& aVkInstance) 
+    { 
+        _vkSetDebugUtilsObjectNameEXT = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(aVkInstance, "vkSetDebugUtilsObjectNameEXT"));
+    }
+
+    void SetDebugInfo(const VkDevice* aDevice, const uint64_t aObjectHandle, const VkObjectType aObjectType, const char* a_pObjectName) const
     {
         if (_vkSetDebugUtilsObjectNameEXT)
         {
@@ -17,5 +22,6 @@ public:
         }
     }
 
-    PFN_vkSetDebugUtilsObjectNameEXT _vkSetDebugUtilsObjectNameEXT;
+private:
+    PFN_vkSetDebugUtilsObjectNameEXT _vkSetDebugUtilsObjectNameEXT = {};
 };

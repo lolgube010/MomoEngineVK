@@ -2,7 +2,7 @@
 #include <fstream>
 #include <vk_initializers.h>
 
-bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, Vk_Debug_Info* aVkDebugInfo, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
+bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, const Vk_Debug_Info* aVkDebugInfo, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
 {
 	// open the file. With cursor at the end
 	std::ifstream file(aFilePath, std::ios::ate | std::ios::binary);
@@ -367,8 +367,24 @@ std::string momo_util::BuildShaderPath(const std::string& aFileName, const Shade
 		fullPath += ".hlsl";
 	}
 
-	// Assuming you load compiled SPIR-V files
 	fullPath += ".spv";
 
 	return fullPath;
+}
+
+std::optional<VkShaderModule> momo_util::LoadShader(const std::string& aName, const momo_util::ShaderType aType, bool aIsHLSL, const VkDevice aDevice, const Vk_Debug_Info* aVkDebugInfo)
+{
+    const std::string path = BuildShaderPath(aName, aType, aIsHLSL);
+
+    VkShaderModule module;
+
+    if (VkResult errorCode = {}; 
+		!vkUtil::LoadShaderModule(path.c_str(), aDevice, aVkDebugInfo, &module, errorCode))
+    {
+        fmt::print("Error loading shader. Type: {} Name: {} ErrorCode: {}\n", GetShaderExtension(aType), aName, static_cast<int>(errorCode));
+        return std::nullopt;
+    }
+
+    fmt::print("Shader loaded. Type: {} Name: {}\n", GetShaderExtension(aType), aName);
+    return module;
 }
