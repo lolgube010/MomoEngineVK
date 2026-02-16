@@ -26,6 +26,16 @@ void Camera::ProcessSDLEvent(const SDL_Event& aE)
     {
         if (aE.key.repeat == 0)
         {
+            if (key == SDLK_TAB)
+            {
+                isLocked = !isLocked;
+                velocity = glm::vec3{};
+            }
+            if (isLocked)
+            {
+                return;
+            }
+
 	        if (key == SDLK_w) { velocity.z += -1; }
 	        if (key == SDLK_s) { velocity.z += 1; }
 	        if (key == SDLK_a) { velocity.x += -1; }
@@ -33,6 +43,10 @@ void Camera::ProcessSDLEvent(const SDL_Event& aE)
         }
     }
 
+    if (isLocked)
+    {
+        return;
+    }
     if (aE.type == SDL_KEYUP) 
     {
         if (key == SDLK_w) { velocity.z -= -1; }

@@ -1,26 +1,32 @@
 # --- CONFIGURATION & FLAGS ---
 
-# 1. Define Output Directories (Relative to the ROOT project, not this folder)
 set(SHADER_DIR_DEBUG   "${PROJECT_SOURCE_DIR}/shaders/bin/debug")
 set(SHADER_DIR_RELEASE "${PROJECT_SOURCE_DIR}/shaders/bin/release")
 
-# Create directories immediately
 file(MAKE_DIRECTORY ${SHADER_DIR_DEBUG})
 file(MAKE_DIRECTORY ${SHADER_DIR_RELEASE})
 
-# 2. Define Compiler Flags
 set(GLSL_FLAGS_DBG -g -Od)
 set(GLSL_FLAGS_REL) 
 
 set(DXC_FLAGS_DBG -Zi -Od -fspv-debug=vulkan-with-source)
 set(DXC_FLAGS_REL -O3) 
 
-# 3. Find Tools
 find_program(GLSL_VALIDATOR glslangValidator HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
 find_program(DXC_COMPILER dxc HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
 
 # Initialize list to hold all compiled SPIR-V files
 set(SPIRV_BINARY_FILES)
+
+# recurse for headers (.glsl / .hlsli)
+
+file(GLOB_RECURSE GLSL_INCLUDE_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.glsl"
+)
+
+file(GLOB_RECURSE HLSL_INCLUDE_FILES CONFIGURE_DEPENDS 
+	"${CMAKE_CURRENT_SOURCE_DIR}/*.hlsli"
+)
 
 # --- GLSL COMPILATION ---
 
@@ -42,14 +48,14 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
     add_custom_command(
         OUTPUT ${SPV_DBG}
         COMMAND ${GLSL_VALIDATOR} -V ${GLSL_FLAGS_DBG} ${GLSL} -o ${SPV_DBG}
-        DEPENDS ${GLSL}
+        DEPENDS ${GLSL} ${GLSL_INCLUDE_FILES}
     )
 
     # Release
     add_custom_command(
         OUTPUT ${SPV_REL}
         COMMAND ${GLSL_VALIDATOR} -V ${GLSL_FLAGS_REL} ${GLSL} -o ${SPV_REL}
-        DEPENDS ${GLSL}
+        DEPENDS ${GLSL} ${GLSL_INCLUDE_FILES}
     )
 
     list(APPEND SPIRV_BINARY_FILES ${SPV_DBG} ${SPV_REL})
@@ -70,14 +76,14 @@ macro(compile_hlsl FILE_LIST PROFILE ENTRY_POINT)
         add_custom_command(
             OUTPUT ${SPV_DBG}
             COMMAND ${DXC_COMPILER} -spirv -T ${PROFILE} -E ${ENTRY_POINT} ${DXC_FLAGS_DBG} ${HLSL} -Fo ${SPV_DBG}
-            DEPENDS ${HLSL}
+            DEPENDS ${HLSL} ${HLSL_INCLUDE_FILES}
         )
 
         # Release
         add_custom_command(
             OUTPUT ${SPV_REL}
             COMMAND ${DXC_COMPILER} -spirv -T ${PROFILE} -E ${ENTRY_POINT} ${DXC_FLAGS_REL} ${HLSL} -Fo ${SPV_REL}
-            DEPENDS ${HLSL}
+            DEPENDS ${HLSL} ${HLSL_INCLUDE_FILES}
         )
         
         list(APPEND SPIRV_BINARY_FILES ${SPV_DBG} ${SPV_REL})
@@ -98,9 +104,11 @@ compile_hlsl(HLSL_COMP_FILES "cs_6_0" "main")
 
 set(ALL_SHADER_SOURCES
     ${GLSL_SOURCE_FILES}
+    ${GLSL_INCLUDE_FILES}
     ${HLSL_VERT_FILES}
     ${HLSL_FRAG_FILES}
     ${HLSL_COMP_FILES}
+    ${HLSL_INCLUDE_FILES}
 )
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Shaders" FILES ${ALL_SHADER_SOURCES})
 

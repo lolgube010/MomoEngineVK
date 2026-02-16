@@ -17,5 +17,5 @@ public:
     void ProcessSDLEvent(const SDL_Event& aE);
 
     void Update();
-
+    bool isLocked = false;
 };

@@ -282,8 +282,6 @@ public:
 
 	EngineStats _stats = {};
 private:
-	void ProcessInput(SDL_Event& anE);
-
 	void Init_Vulkan();
 	void Init_Swapchain();
 	void Init_Commands();
@@ -311,6 +309,9 @@ private:
 
 	// temp camera settings
 	float tempCameraFOV = 70.f;
+    glm::vec4 tempAmbientColor = glm::vec4(.1f);
+    glm::vec4 tempSunColor = glm::vec4(1.f);
+    glm::vec4 tempSunDir = glm::vec4(0, 1, 0.5, 1.f);
 	// int tempBlendModeIndex = 0;
 
 	// momo slop bs

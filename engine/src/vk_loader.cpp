@@ -197,7 +197,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::s
 {
     fmt::print("Loading GLTF: {}\n", filePath);
 
-    std::shared_ptr<LoadedGLTF> scene = std::make_shared<LoadedGLTF>();
+    auto scene = std::make_shared<LoadedGLTF>();
     scene->creator = engine;
     LoadedGLTF& file = *scene;
 
@@ -247,9 +247,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::s
 
     // we can stimate the descriptors we will need accurately
     std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes = { 
-    	{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 3 },
-        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
-        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1 } 
+    	{._type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 3 },
+        {._type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 3 },
+        {._type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 1 } 
     };
 
     file.descriptorPool.Init(engine->_device, static_cast<uint32_t>(gltf.materials.size()), sizes);
@@ -257,17 +257,17 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::s
     // load samplers
     for (fastgltf::Sampler& sampler : gltf.samplers)
     {
-        VkSamplerCreateInfo sampl = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr };
-        sampl.maxLod = VK_LOD_CLAMP_NONE;
-        sampl.minLod = 0;
+        VkSamplerCreateInfo samplerCreateInfo = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr };
+        samplerCreateInfo.maxLod = VK_LOD_CLAMP_NONE;
+        samplerCreateInfo.minLod = 0;
 
-        sampl.magFilter = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Nearest));
-        sampl.minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+        samplerCreateInfo.magFilter = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Nearest));
+        samplerCreateInfo.minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
 
-        sampl.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+        samplerCreateInfo.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
 
         VkSampler newSampler;
-        vkCreateSampler(engine->_device, &sampl, nullptr, &newSampler);
+        vkCreateSampler(engine->_device, &samplerCreateInfo, nullptr, &newSampler);
 
         file.samplers.push_back(newSampler);
     }
@@ -290,8 +290,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::s
         }
         else 
         {
-            // we failed to load, so lets give the slot a default white texture to not
-            // completely break loading
+            // we failed to load, so lets give the slot a default texture to not completely break loading
             images.push_back(engine->_errorCheckerboardImage);
             std::cout << "gltf failed to load texture " << image.name << '\n';
         }
@@ -301,7 +300,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::s
     file.materialDataBuffer = engine->Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
     int data_index = 0;
-    GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
+    auto sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
 
     for (fastgltf::Material& mat : gltf.materials) 
     {
@@ -320,7 +319,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::s
         // write material parameters to buffer
         sceneMaterialConstants[data_index] = constants;
 
-        MaterialPass passType = MaterialPass::MainColor;
+        auto passType = MaterialPass::MainColor;
         if (mat.alphaMode == fastgltf::AlphaMode::Blend) 
         {
             passType = MaterialPass::Transparent;
@@ -357,7 +356,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::s
 
     for (fastgltf::Mesh& mesh : gltf.meshes) 
     {
-        std::shared_ptr<MeshAsset> newMesh = std::make_shared<MeshAsset>();
+        auto newMesh = std::make_shared<MeshAsset>();
         meshes.push_back(newMesh);
         file.meshes[mesh.name.c_str()] = newMesh;
         newMesh->name = mesh.name;

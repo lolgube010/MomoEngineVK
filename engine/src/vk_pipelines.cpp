@@ -381,8 +381,13 @@ std::optional<VkShaderModule> momo_util::LoadShader(const std::string& aName, co
     if (VkResult errorCode = {}; 
 		!vkUtil::LoadShaderModule(path.c_str(), aDevice, aVkDebugInfo, &module, errorCode))
     {
+		// TODO- load error shader here instead!.. probably
         fmt::print("Error loading shader. Type: {} Name: {} ErrorCode: {}\n", GetShaderExtension(aType), aName, static_cast<int>(errorCode));
+#ifdef _DEBUG
+        throw;
+#else
         return std::nullopt;
+#endif
     }
 
     fmt::print("Shader loaded. Type: {} Name: {}\n", GetShaderExtension(aType), aName);

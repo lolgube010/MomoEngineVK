@@ -366,7 +366,6 @@ void VulkanEngine::Run()
 				const auto enabled = SDL_GetRelativeMouseMode();
 				fmt::print("caps locked presssed, window is currently: {}\n", static_cast<bool>(enabled));
 				SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!enabled));
-			
 			}
 
 			_mainCamera.ProcessSDLEvent(e);
@@ -580,116 +579,6 @@ void VulkanEngine::Destroy_Image(const AllocatedImage& aImg) const
 {
 	vkDestroyImageView(_device, aImg.imageView, nullptr);
 	vmaDestroyImage(_allocator, aImg.image, aImg.allocation);
-}
-
-void VulkanEngine::ProcessInput(SDL_Event& anE)
-{
-	auto& e = anE;
-	switch (e.type)
-	{
-	// ------------------- KEYBOARD -------------------
-	case SDL_KEYDOWN:
-		if (!e.key.repeat)
-		{
-			switch (e.key.keysym.sym)
-			{
-			case SDLK_w: fmt::print("W pressed\n");
-				break;
-			case SDLK_s: fmt::print("S pressed\n");
-				break;
-			case SDLK_a: fmt::print("A pressed\n");
-				break;
-			case SDLK_d: fmt::print("D pressed\n");
-				break;
-			case SDLK_LEFT: fmt::print("Left arrow\n");
-				break;
-			case SDLK_RIGHT: fmt::print("Right arrow\n");
-				break;
-			case SDLK_UP: fmt::print("Up arrow\n");
-				break;
-			case SDLK_DOWN: fmt::print("Down arrow\n");
-				break;
-			case SDLK_SPACE: fmt::print("Space pressed\n");
-				break;
-				// Add more keys as needed
-			}
-		}
-		break;
-
-	case SDL_KEYUP:
-		switch (e.key.keysym.sym)
-		{
-		case SDLK_w: fmt::print("W released\n");
-			break;
-		case SDLK_s: fmt::print("S released\n");
-			break;
-		case SDLK_a: fmt::print("A released\n");
-			break;
-		case SDLK_d: fmt::print("D released\n");
-			break;
-		case SDLK_LEFT: fmt::print("Left arrow up\n");
-			break;
-		case SDLK_RIGHT: fmt::print("Right arrow up\n");
-			break;
-		case SDLK_UP: fmt::print("Up arrow up\n");
-			break;
-		case SDLK_DOWN: fmt::print("Down arrow up\n");
-			break;
-		case SDLK_SPACE: fmt::print("Space released\n");
-			break;
-		}
-		break;
-
-	// ------------------- MOUSE MOTION -------------------
-	case SDL_MOUSEMOTION:
-		fmt::print("Mouse at: ({}, {})\n",
-		           e.motion.x,
-		           e.motion.y);
-		// e.motion.xrel, e.motion.yrel for relative movement
-		break;
-
-	// ------------------- MOUSE BUTTONS -------------------
-	case SDL_MOUSEBUTTONDOWN:
-		if (e.button.button == SDL_BUTTON_LEFT)
-		{
-			fmt::print("Left click DOWN at ({}, {})\n",
-			           e.button.x,
-			           e.button.y);
-		}
-		else if (e.button.button == SDL_BUTTON_RIGHT)
-		{
-			fmt::print("Right click DOWN at ({}, {})\n",
-			           e.button.x,
-			           e.button.y);
-		}
-		else if (e.button.button == SDL_BUTTON_MIDDLE)
-		{
-			fmt::print("Middle click DOWN\n");
-		}
-		break;
-
-	case SDL_MOUSEBUTTONUP:
-		if (e.button.button == SDL_BUTTON_LEFT)
-		{
-			fmt::print("Left click UP\n");
-		}
-		else if (e.button.button == SDL_BUTTON_RIGHT)
-		{
-			fmt::print("Right click UP\n");
-		}
-		else if (e.button.button == SDL_BUTTON_MIDDLE)
-		{
-			fmt::print("Middle click UP\n");
-		}
-		break;
-
-	// ------------------- MOUSE WHEEL -------------------
-	case SDL_MOUSEWHEEL:
-		fmt::print("Mouse wheel: x={} y={}\n",
-		           e.wheel.x,
-		           e.wheel.y);
-		break;
-	}
 }
 
 void VulkanEngine::Init_Vulkan()
@@ -1234,7 +1123,6 @@ void VulkanEngine::Init_Default_Data()
 	const uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
 	_blackImage = Create_Image(&black, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
 
-
 	const uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
 	std::array<uint32_t, 16 * 16 > pixels; //for 16x16 checkerboard texture
 	for (int x = 0; x < 16; x++) 
@@ -1490,9 +1378,11 @@ void VulkanEngine::Imgui_Run()
 		// ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
 		ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 1.f);
 		ImGui::Value("cameraPitchRad", _mainCamera.pitch);
+		ImGui::ColorEdit4("SunColor", reinterpret_cast<float*>(&tempSunColor));
+		ImGui::ColorEdit4("AmbientColor", reinterpret_cast<float*>(&tempAmbientColor));
+		ImGui::DragFloat3("SunDir1", reinterpret_cast<float*>(&tempSunDir), 0.1f);
 
 		ImGui::Begin("Stats");
-
 		ImGui::Text("frame time %f ms", _stats.frameTime);
 		ImGui::Text("draw time %f ms", _stats.mesh_draw_time);
 		ImGui::Text("update time %f ms", _stats.scene_update_time);
@@ -1840,9 +1730,9 @@ void VulkanEngine::Update_Scene()
 	_sceneData.viewProj = projection * view;
 
 	//some default lighting parameters
-	_sceneData.ambientColor = glm::vec4(.1f);
-	_sceneData.sunlightColor = glm::vec4(1.f);
-	_sceneData.sunlightDirection = glm::vec4(0, 1, 0.5, 1.f);
+	_sceneData.ambientColor = tempAmbientColor;
+	_sceneData.sunlightColor = tempSunColor;
+    _sceneData.sunlightDirection = tempSunDir;
 
 	const auto end = std::chrono::system_clock::now();
 	//convert to microseconds (integer), and then come back to miliseconds
