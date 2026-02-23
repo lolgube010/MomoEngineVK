@@ -9,6 +9,7 @@
 
 #include "VkBootstrap.h"
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -331,32 +332,145 @@ void VulkanEngine::Run()
 {
 	bool bQuit = false;
 
+    // timer stuff
+    _clocks_per_second = SDL_GetPerformanceFrequency();
+    _desired_frametime = _clocks_per_second / _update_rate;
+    vsync_maxerror = _clocks_per_second * .0002;
+
+	SDL_DisplayMode current_display_mode;
+    if (SDL_GetCurrentDisplayMode(SDL_GetWindowDisplayIndex(_window), &current_display_mode) == 0)
+    {
+        display_framerate = current_display_mode.refresh_rate;
+    }
+    snap_hz = display_framerate;
+    if (snap_hz <= 0)
+    {
+        snap_hz = 60;
+    }
+
+	// these are to snap deltaTime to vsync values if it's close enough
+	int64_t snap_frequencies[8] = {};
+    for (int i = 0; i < 8; i++)
+    {
+        snap_frequencies[i] = (_clocks_per_second / snap_hz) * (i + 1);
+    }
+
+	// this is for delta time averaging
+    // I know you can and should use a ring buffer for this, but I didn't want to include dependencies in this sample code
+	// TODO
+    constexpr int time_history_count = 4;
+    int64_t time_averager[time_history_count] = {_desired_frametime, _desired_frametime, _desired_frametime, _desired_frametime};
+    int64_t averager_residual = 0;
+
+	prev_frame_time = SDL_GetPerformanceCounter();
+
 	// main loop
-	while (!bQuit)
-	{
-		auto start = std::chrono::system_clock::now();
+    while (!bQuit)
+    {
+        auto current_frame_time = SDL_GetPerformanceCounter();
+        int64_t delta_time = current_frame_time - prev_frame_time;
+        prev_frame_time = current_frame_time;
 
-		ProcessEvents(bQuit);
-	
+        // handle unexpected timer anomalies (overflow, extra slow frames, etc)
+        if (delta_time > _desired_frametime * 8) // ignore extra-slow frames
+        { 
+            delta_time = _desired_frametime;
+        }
+        delta_time = std::max<int64_t>(delta_time, 0);
 
-		// do not draw if we are minimized
-		if (_stop_rendering)
-		{
-			// throttle the speed to avoid the endless spinning
-			std::this_thread::sleep_for(std::chrono::milliseconds(100));
-			continue;
-		}
+        // vsync time snapping
+        for (int64_t snap : snap_frequencies)
+        {
+            if (std::abs(delta_time - snap) < vsync_maxerror)
+            {
+                delta_time = snap;
+                break;
+            }
+        }
 
-		if (_resize_requested)
-		{
-			Resize_Swapchain();
-		}
+        // delta time averaging
+        for (int i = 0; i < time_history_count - 1; i++)
+        {
+            time_averager[i] = time_averager[i + 1];
+        }
+        time_averager[time_history_count - 1] = delta_time;
+        int64_t averager_sum = 0;
+        for (long long i : time_averager)
+        {
+            averager_sum += i;
+        }
+        delta_time = averager_sum / time_history_count;
 
-		TempRender();
+        averager_residual += averager_sum % time_history_count;
+        delta_time += averager_residual / time_history_count;
+        averager_residual %= time_history_count;
 
-		auto end = std::chrono::system_clock::now();
-		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-		_stats.frameTime = elapsed.count() / 1000.f;
+        // add to the accumulator
+        frame_accumulator += delta_time;
+
+        // spiral of death protection
+        if (frame_accumulator > _desired_frametime * 8)
+        {
+            resync = true;
+        }
+
+        // timer resync if requested
+        if (resync)
+        {
+            frame_accumulator = 0;
+            delta_time = _desired_frametime;
+            resync = false;
+        }
+
+        Process_Events(bQuit);
+
+        // do not draw if we are minimized
+        if (_stop_rendering)
+        {
+            // throttle the speed to avoid the endless spinning
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
+        }
+
+        if (_resize_requested)
+        {
+            Resize_Swapchain();
+        }
+
+        if (_unlock_framerate)
+        {
+            int64_t consumedDeltaTime = delta_time;
+
+            while (frame_accumulator >= _desired_frametime)
+            {
+                // game.fixed_update(_fixed_deltatime);
+                if (consumedDeltaTime > _desired_frametime)
+                { // cap variable update's dt to not be larger than fixed update, and interleave it (so game state can always get animation frames it needs)
+                    // game.variable_update(_fixed_deltatime);
+                    consumedDeltaTime -= _desired_frametime;
+                }
+                frame_accumulator -= _desired_frametime;
+            }
+
+            // game.variable_update((double)consumedDeltaTime / _clocks_per_second);
+            // game.render((double)frame_accumulator / _desired_frametime);
+            // display(); // swap buffers
+            TempRender((double)frame_accumulator / _desired_frametime);
+        }
+        else
+        {
+            while (frame_accumulator >= _desired_frametime * _update_multiplicity)
+            {
+                for (int i = 0; i < _update_multiplicity; i++)
+                {
+                    // game.fixed_update(fixed_deltatime);
+                    // game.variable_update(fixed_deltatime);
+                    frame_accumulator -= _desired_frametime;
+                }
+            }
+            TempRender(1.0);
+        }
+        _stats.frameTime = prev_frame_time / 1000.f;
 	}
 }
 
@@ -1364,7 +1478,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	// reset counters
 	_stats.drawCall_count = 0;
 	_stats.tri_count = 0;
-	auto start = std::chrono::system_clock::now();
+    const auto start = SDL_GetPerformanceCounter();
 
 	std::vector<uint32_t> opaque_draws;
 	opaque_draws.reserve(_mainDrawContext.opaqueSurfaces.size());
@@ -1568,10 +1682,9 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	vkCmdEndRendering(aCmd);
 	
-	auto end = std::chrono::system_clock::now();
-	//convert to microseconds (integer), and then come back to miliseconds
-	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-	_stats.mesh_draw_time = elapsed.count() / 1000.f;
+	auto end = SDL_GetPerformanceCounter();
+    _stats.mesh_draw_time = ((double)(end - start) * 1000.0) / _clocks_per_second;
+
 	// old manual drawing
 	// VkDescriptorSet imageSet = Get_Current_Frame()._frameDescriptors.Allocate(_device, _singleImageDescriptorLayout);
 	// {
@@ -1644,7 +1757,7 @@ void VulkanEngine::Resize_Swapchain()
 
 void VulkanEngine::Update_Scene()
 {
-	const auto start = std::chrono::system_clock::now();
+    const auto start = SDL_GetPerformanceCounter();
 
 	_mainDrawContext.opaqueSurfaces.clear();
 
@@ -1677,10 +1790,67 @@ void VulkanEngine::Update_Scene()
 	_sceneData.sunlightColor = tempSunColor;
     _sceneData.sunlightDirection = tempSunDir;
 
-	const auto end = std::chrono::system_clock::now();
-	//convert to microseconds (integer), and then come back to miliseconds
-	const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-	_stats.scene_update_time = elapsed.count() / 1000.f;
+	auto end = SDL_GetPerformanceCounter();
+    _stats.scene_update_time = ((double)(end - start) * 1000.0) / _clocks_per_second;
+}
+
+void VulkanEngine::Process_Events(bool& aQuit)
+{
+    SDL_Event e;
+    // Handle events on queue
+    while (SDL_PollEvent(&e) != 0)
+    {
+        // close the window when user alt-f4s or clicks the X button
+        if (e.type == SDL_QUIT)
+        {
+            aQuit = true;
+        }
+
+        if (e.type == SDL_WINDOWEVENT)
+        {
+            if (e.window.event == SDL_WINDOWEVENT_MINIMIZED)
+            {
+                _stop_rendering = true;
+            }
+            if (e.window.event == SDL_WINDOWEVENT_RESTORED)
+            {
+                _stop_rendering = false;
+            }
+        }
+
+        // putting other input here cuz i'm lazy
+        const auto& key = e.key.keysym.sym;
+        if (e.type == SDL_KEYDOWN && key == SDLK_CAPSLOCK && e.key.repeat == 0)
+        {
+            const auto enabled = SDL_GetRelativeMouseMode();
+            fmt::print("caps locked presssed, window is currently: {}\n", static_cast<bool>(enabled));
+            SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!enabled));
+        }
+
+        _mainCamera.ProcessSDLEvent(e); // TODO- REMOVE this and make the camera not care about SDL Events... just make this process event set an input map!
+        // send SDL event to imgui for handling
+        ImGui_ImplSDL2_ProcessEvent(&e);
+        // process_input(e);
+    }
+}
+
+void VulkanEngine::TempRender(int64_t aDT)
+{
+    // imgui new frame
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
+
+    ////some imgui UI to test
+    // ImGui::ShowDemoWindow();
+
+    Imgui_Run();
+
+    // make imgui calculate internal draw structures
+    ImGui::Render();
+
+    Draw();
+    PROFILE_FRAME;
 }
 
 void VulkanEngine::ProcessEvents(bool& aQuit)

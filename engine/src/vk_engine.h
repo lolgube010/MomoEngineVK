@@ -151,12 +151,31 @@ class VulkanEngine
 {
 public:
 	bool _is_initialized{false};
-	int _frame_number{0};
 	bool _stop_rendering{false};
-	VkExtent2D _windowExtent{ 1700, 900 }; // og was 1700, 900
 	bool _resize_requested;
+	int _frame_number{0};
+	VkExtent2D _windowExtent{ 1700, 900 }; // og was 1700, 900
 
 	SDL_Window* _window{nullptr};
+
+    // --- TIMING & FRAMERATE CONTROL ---
+    double _update_rate = 60.0;
+    int _update_multiplicity = 1;
+    bool _unlock_framerate = true;
+
+    int64_t _clocks_per_second = {};
+    double _fixed_deltatime = 1.0 / _update_rate;
+    int64_t _desired_frametime = {};
+
+	// these are to snap deltaTime to vsync values if it's close enough
+    int64_t vsync_maxerror = {};
+
+    int display_framerate = 60;
+    int64_t snap_hz = 0;
+
+	bool resync = true;
+    int64_t prev_frame_time = {};
+    int64_t frame_accumulator = 0;
 
 	static VulkanEngine& Get();
 
@@ -165,10 +184,9 @@ public:
 
 	// run main loop
 	void Run();
-	
+
     // draw loop
 	void Draw();
-
 	
 	// shuts down the engine
 	void Cleanup();
@@ -281,7 +299,7 @@ public:
 	tracy::VkCtx* _tracyVkCtx = nullptr;
 #endif
 
-	EngineStats _stats = {};
+	EngineStats _stats = {}; // TODO- replace with SDL calls instead of chrono!
 private:
 	void Init_Vulkan();
 	void Init_Swapchain();
@@ -308,8 +326,8 @@ private:
 	void Resize_Swapchain();
 	void Update_Scene();
 
-	void ProcessEvents(bool& aQuit);
-    void TempRender();
+	void Process_Events(bool& aQuit);
+    void TempRender(int64_t aDT); // todo remove
 
 	// temp camera settings
 	float tempCameraFOV = 70.f;
@@ -317,7 +335,6 @@ private:
     glm::vec4 tempSunColor = glm::vec4(1.f);
     glm::vec4 tempSunDir = glm::vec4(0, 1, 0.5, 1.f);
 	// int tempBlendModeIndex = 0;
-
 };
 
 bool is_visible(const RenderObject& aObj, const glm::mat4& aViewProj);
