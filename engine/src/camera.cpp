@@ -22,25 +22,33 @@ glm::mat4 Camera::GetRotationMatrix() const
 void Camera::ProcessSDLEvent(const SDL_Event& aE)
 {
     const auto& key = aE.key.keysym.sym;
-    if (aE.type == SDL_KEYDOWN) 
+    if (aE.type == SDL_KEYDOWN && aE.key.repeat == 0) 
     {
-        if (aE.key.repeat == 0)
+        if (key == SDLK_CAPSLOCK)
         {
-            if (key == SDLK_TAB)
-            {
-                isLocked = !isLocked;
-                velocity = glm::vec3{};
-            }
-            if (isLocked)
-            {
-                return;
-            }
-
-	        if (key == SDLK_w) { velocity.z += -1; }
-	        if (key == SDLK_s) { velocity.z += 1; }
-	        if (key == SDLK_a) { velocity.x += -1; }
-	        if (key == SDLK_d) { velocity.x += 1; }
+            const auto enabled = SDL_GetRelativeMouseMode();
+            fmt::print("caps locked presssed, window is currently: {}\n", static_cast<bool>(enabled));
+            SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!enabled));
         }
+        if (key == SDLK_ESCAPE)
+        {
+            // set dt to 0
+        }
+
+        if (key == SDLK_TAB)
+        {
+            isLocked = !isLocked;
+            velocity = glm::vec3{};
+        }
+        if (isLocked)
+        {
+            return;
+        }
+
+        if (key == SDLK_w) { velocity.z += -1; }
+        if (key == SDLK_s) { velocity.z += 1; }
+        if (key == SDLK_a) { velocity.x += -1; }
+        if (key == SDLK_d) { velocity.x += 1; }
     }
 
     if (isLocked)
