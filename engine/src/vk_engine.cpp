@@ -38,10 +38,9 @@ constexpr auto AppName = "MomoVK";
 
 void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 {
-	VkResult loadShaderResult = {};
-
-	auto meshFragShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Fragment, false, aEngine->_device, &aEngine->_debugInfo);
-    auto meshVertexShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Vertex, false, aEngine->_device, &aEngine->_debugInfo);
+    constexpr bool useHLSL = true;
+    auto meshFragShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Fragment, useHLSL, aEngine->_device, &aEngine->_debugInfo);
+    auto meshVertexShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Vertex, useHLSL, aEngine->_device, &aEngine->_debugInfo);
 
 	VkPushConstantRange matrixRange{};
 	matrixRange.offset = 0;
@@ -615,6 +614,7 @@ void VulkanEngine::Init_Vulkan()
 	VkPhysicalDeviceVulkan12Features features12{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES};
 	features12.bufferDeviceAddress = true;
 	features12.descriptorIndexing = true;
+    features12.scalarBlockLayout = true;
 
 	// vk 1.1 features
 	// VkPhysicalDeviceVulkan11Features features11{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};

@@ -15,3 +15,5 @@ set (CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
 
 add_subdirectory(src)
 add_subdirectory(shaders)
+
+add_dependencies(MomoVK Shaders)
