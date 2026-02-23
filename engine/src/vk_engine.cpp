@@ -331,13 +331,13 @@ void VulkanEngine::Run()
 {
 	bool bQuit = false;
 
+	uint64_t lastTime = SDL_GetPerformanceCounter();
 	// main loop
 	while (!bQuit)
 	{
-		auto start = std::chrono::system_clock::now();
+        uint64_t currentTime = SDL_GetPerformanceCounter();
 
 		ProcessEvents(bQuit);
-	
 
 		// do not draw if we are minimized
 		if (_stop_rendering)
@@ -354,9 +354,9 @@ void VulkanEngine::Run()
 
 		TempRender();
 
-		auto end = std::chrono::system_clock::now();
-		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-		_stats.frameTime = elapsed.count() / 1000.f;
+		const float deltaTime = static_cast<float>(currentTime - lastTime) / static_cast<float>(_stats.frequency);
+        _stats.frameTime = deltaTime * 1000.0f;
+        lastTime = currentTime;
 	}
 }
 
@@ -1047,6 +1047,7 @@ void VulkanEngine::Init_Default_Data()
 	// 	// Destroy_Buffer(_rectangle._indexBuffer);
 	// 	// Destroy_Buffer(_rectangle._vertexBuffer);
 	// });
+    _stats.frequency = SDL_GetPerformanceFrequency();
 
 	_mainCamera.velocity = glm::vec3(0.f);
 	_mainCamera.position = glm::vec3(30.f, -00.f, -085.f);

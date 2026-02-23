@@ -145,6 +145,7 @@ struct EngineStats
 	int drawCall_count;
 	float scene_update_time;
 	float mesh_draw_time;
+    uint64_t frequency;
 };
 
 class VulkanEngine
