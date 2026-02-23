@@ -92,24 +92,26 @@ struct DrawContext;
 // base class for a renderable dynamic object
 class IRenderable 
 {
+public:
+    virtual ~IRenderable() = default; // to prevent UB if someone were to delete a derived class through a pointer to this base class.
     virtual void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) = 0;
 };
 
 // implementation of a drawable scene node. 
 // the scene node can hold children and will also keep a transform to propagate to them
-struct Node : IRenderable {
-
+struct Node : IRenderable 
+{
     // parent pointer must be a weak pointer to avoid circular dependencies
     std::weak_ptr<Node> parent;
     std::vector<std::shared_ptr<Node>> children;
 
-    glm::mat4 localTransform;
-    glm::mat4 worldTransform;
+    glm::mat4 localTransform; // "my" transform
+    glm::mat4 worldTransform; // transform in the world when multiplied by this node's parents.
 
     void RefreshTransform(const glm::mat4& aParentMatrix)
     {
         worldTransform = aParentMatrix * localTransform;
-        for (const auto c : children) 
+        for (const auto& c : children) 
         {
             c->RefreshTransform(worldTransform);
         }

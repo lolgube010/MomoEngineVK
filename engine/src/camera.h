@@ -2,12 +2,13 @@
 #include <vk_types.h>
 #include <SDL_events.h>
 
-class Camera {
+class Camera 
+{
 public:
     glm::vec3 velocity;
-    glm::vec3 position;
     // vertical rotation
     float pitch{ 0.f };
+    glm::vec3 position;
     // horizontal rotation
     float yaw{ 0.f };
 

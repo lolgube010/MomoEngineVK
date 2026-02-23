@@ -24,7 +24,7 @@ public:
 
 	[[nodiscard]] bool Init() const;
 
-	[[nodiscard]] std::vector<uint32_t> Compile(const std::filesystem::path& path, bool optimize = false) const;
+	[[nodiscard]] std::vector<uint32_t> Compile(const std::filesystem::path& aPath, bool aOptimize = false) const;
 
 private:
 	// This pointer hides all the ugly Windows/COM details

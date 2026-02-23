@@ -12,7 +12,7 @@
 // Named + colored (handy for render passes)
 #define PROFILE_NAMED(name)     ZoneNamedN(___tracy, name, true)
 
-// Frame marker — call once per frame!
+// Frame marker - call once per frame!
 #define PROFILE_FRAME           FrameMark
 #define PROFILE_FRAME_N(name)   FrameMarkNamed(name)
 

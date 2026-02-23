@@ -41,7 +41,7 @@ ShaderCompiler& ShaderCompiler::operator=(ShaderCompiler&&) noexcept = default;
 // --- Internal Helper ---
 namespace
 {
-	std::wstring GetTargetProfile(const std::filesystem::path& aPath)
+	std::wstring get_target_profile(const std::filesystem::path& aPath)
 	{
 		const auto ext = aPath.extension().string();
 		if (ext == ".vert") return L"vs_6_0";
@@ -74,7 +74,7 @@ bool ShaderCompiler::Init() const
 	return true;
 }
 
-std::vector<uint32_t> ShaderCompiler::Compile(const std::filesystem::path& path, bool optimize) const
+std::vector<uint32_t> ShaderCompiler::Compile(const std::filesystem::path& aPath, const bool aOptimize) const
 {
 	// Safety check
 	if (!_impl->_compiler || !_impl->_utils)
@@ -83,11 +83,11 @@ std::vector<uint32_t> ShaderCompiler::Compile(const std::filesystem::path& path,
 		return {};
 	}
 
-	const std::wstring profile = GetTargetProfile(path);
+	const std::wstring profile = get_target_profile(aPath);
 
 	// Convert path to wide string for Windows API
 	// (Note: std::filesystem handles this, but DXC specifically wants LPCWSTR)
-	const std::wstring widePath = path.c_str();
+	const std::wstring widePath = aPath.c_str();
 
 	// 1. Load File
 	uint32_t codePage = DXC_CP_ACP;
@@ -96,7 +96,7 @@ std::vector<uint32_t> ShaderCompiler::Compile(const std::filesystem::path& path,
 	HRESULT hres = _impl->_utils->LoadFile(widePath.c_str(), &codePage, &sourceBlob);
 	if (FAILED(hres))
 	{
-		std::cerr << "Could not load shader file: " << path.string() << '\n';
+		std::cerr << "Could not load shader file: " << aPath.string() << '\n';
 		return {};
 	}
 
@@ -109,7 +109,7 @@ std::vector<uint32_t> ShaderCompiler::Compile(const std::filesystem::path& path,
 	arguments.push_back(L"-spirv");
 	arguments.push_back(L"-fspv-target-env=vulkan1.2");
 
-	if (optimize)
+	if (aOptimize)
 	{
 		arguments.push_back(L"-O3");
 	}
@@ -120,7 +120,7 @@ std::vector<uint32_t> ShaderCompiler::Compile(const std::filesystem::path& path,
 	}
 
 	// 3. Compile
-	DxcBuffer buffer = {};
+	DxcBuffer buffer;
 	buffer.Encoding = DXC_CP_ACP;
 	buffer.Ptr = sourceBlob->GetBufferPointer();
 	buffer.Size = sourceBlob->GetBufferSize();
@@ -141,7 +141,7 @@ std::vector<uint32_t> ShaderCompiler::Compile(const std::filesystem::path& path,
 	result->GetOutput(DXC_OUT_ERRORS, IID_PPV_ARGS(&errors), nullptr);
 	if (errors && errors->GetStringLength() > 0)
 	{
-		std::cerr << "Shader Error " << path.string() << ":\n" << errors->GetStringPointer() << '\n';
+		std::cerr << "Shader Error " << aPath.string() << ":\n" << errors->GetStringPointer() << '\n';
 	}
 
 	// 5. Get Binary

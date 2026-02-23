@@ -60,7 +60,7 @@ void Camera::ProcessSDLEvent(const SDL_Event& aE)
         yaw += static_cast<float>(aE.motion.xrel) / 200.f;
         pitch -= static_cast<float>(aE.motion.yrel) / 200.f;
 
-        constexpr float maxMinPitch = 0.90f;
+        constexpr float maxMinPitch = 1.50f;
         pitch = glm::clamp(pitch, -maxMinPitch, maxMinPitch);
     }
 }
