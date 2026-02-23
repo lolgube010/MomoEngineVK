@@ -329,7 +329,6 @@ void VulkanEngine::Draw()
 
 void VulkanEngine::Run()
 {
-	SDL_Event e;
 	bool bQuit = false;
 
 	// main loop
@@ -337,41 +336,8 @@ void VulkanEngine::Run()
 	{
 		auto start = std::chrono::system_clock::now();
 
-		// Handle events on queue
-		while (SDL_PollEvent(&e) != 0)
-		{
-			// close the window when user alt-f4s or clicks the X button
-			if (e.type == SDL_QUIT)
-			{
-				bQuit = true;
-			}
-
-			if (e.type == SDL_WINDOWEVENT)
-			{
-				if (e.window.event == SDL_WINDOWEVENT_MINIMIZED)
-				{
-					_stop_rendering = true;
-				}
-				if (e.window.event == SDL_WINDOWEVENT_RESTORED)
-				{
-					_stop_rendering = false;
-				}
-			}
-
-			// putting other input here cuz i'm lazy
-			const auto& key = e.key.keysym.sym;
-			if (e.type == SDL_KEYDOWN && key == SDLK_CAPSLOCK && e.key.repeat == 0)
-			{
-				const auto enabled = SDL_GetRelativeMouseMode();
-				fmt::print("caps locked presssed, window is currently: {}\n", static_cast<bool>(enabled));
-				SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!enabled));
-			}
-
-			_mainCamera.ProcessSDLEvent(e);
-			//send SDL event to imgui for handling
-			ImGui_ImplSDL2_ProcessEvent(&e);
-			//process_input(e);
-		}
+		ProcessEvents(bQuit);
+	
 
 		// do not draw if we are minimized
 		if (_stop_rendering)
@@ -386,21 +352,7 @@ void VulkanEngine::Run()
 			Resize_Swapchain();
 		}
 
-		// imgui new frame
-		ImGui_ImplVulkan_NewFrame();
-		ImGui_ImplSDL2_NewFrame();
-		ImGui::NewFrame();
-
-		////some imgui UI to test
-		//ImGui::ShowDemoWindow();
-
-		Imgui_Run();
-
-		//make imgui calculate internal draw structures
-		ImGui::Render();
-
-		Draw();
-		PROFILE_FRAME;
+		TempRender();
 
 		auto end = std::chrono::system_clock::now();
 		auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
@@ -657,15 +609,6 @@ void VulkanEngine::Init_Vulkan()
 	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
 	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
 	//< init_queue
-
-	// momo debug stuff
-	g_TotalAllocatedBytes = 0;
-	g_TotalFreedBytes = 0;
-	g_AllocationCount = 0;
-	
-	_callbacks.pUserData = nullptr;
-	_callbacks.pfnAllocate = MyAllocateCallback;
-	_callbacks.pfnFree = MyFreeCallback;
 
 	//> init vma
 	// initialize the memory allocator
@@ -1738,6 +1681,66 @@ void VulkanEngine::Update_Scene()
 	//convert to microseconds (integer), and then come back to miliseconds
 	const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	_stats.scene_update_time = elapsed.count() / 1000.f;
+}
+
+void VulkanEngine::ProcessEvents(bool& aQuit)
+{
+    SDL_Event e;
+
+    // Handle events on queue
+    while (SDL_PollEvent(&e) != 0)
+    {
+        // close the window when user alt-f4s or clicks the X button
+        if (e.type == SDL_QUIT)
+        {
+            aQuit = true;
+        }
+
+        if (e.type == SDL_WINDOWEVENT)
+        {
+            if (e.window.event == SDL_WINDOWEVENT_MINIMIZED)
+            {
+                _stop_rendering = true;
+            }
+            if (e.window.event == SDL_WINDOWEVENT_RESTORED)
+            {
+                _stop_rendering = false;
+            }
+        }
+
+        // putting other input here cuz i'm lazy
+        const auto& key = e.key.keysym.sym;
+        if (e.type == SDL_KEYDOWN && key == SDLK_CAPSLOCK && e.key.repeat == 0)
+        {
+            const auto enabled = SDL_GetRelativeMouseMode();
+            fmt::print("caps locked presssed, window is currently: {}\n", static_cast<bool>(enabled));
+            SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!enabled));
+        }
+
+        _mainCamera.ProcessSDLEvent(e);
+        // send SDL event to imgui for handling
+        ImGui_ImplSDL2_ProcessEvent(&e);
+        // process_input(e);
+    }
+}
+
+void VulkanEngine::TempRender()
+{
+    // imgui new frame
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
+
+    ////some imgui UI to test
+    // ImGui::ShowDemoWindow();
+
+    Imgui_Run();
+
+    // make imgui calculate internal draw structures
+    ImGui::Render();
+
+    Draw();
+    PROFILE_FRAME;
 }
 
 bool is_visible(const RenderObject& aObj, const glm::mat4& aViewProj)

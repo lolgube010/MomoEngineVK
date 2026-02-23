@@ -163,11 +163,12 @@ public:
 	// initializes everything in the engine
 	void Init();
 
-	// draw loop
-	void Draw();
-
 	// run main loop
 	void Run();
+	
+    // draw loop
+	void Draw();
+
 	
 	// shuts down the engine
 	void Cleanup();
@@ -307,6 +308,9 @@ private:
 	void Resize_Swapchain();
 	void Update_Scene();
 
+	void ProcessEvents(bool& aQuit);
+    void TempRender();
+
 	// temp camera settings
 	float tempCameraFOV = 70.f;
     glm::vec4 tempAmbientColor = glm::vec4(.1f);
@@ -314,40 +318,6 @@ private:
     glm::vec4 tempSunDir = glm::vec4(0, 1, 0.5, 1.f);
 	// int tempBlendModeIndex = 0;
 
-	// momo slop bs
-
-	VmaDeviceMemoryCallbacks _callbacks = {};
 };
 
 bool is_visible(const RenderObject& aObj, const glm::mat4& aViewProj);
-
-	static uint64_t g_TotalAllocatedBytes;
-	static uint64_t g_TotalFreedBytes;
-	static uint32_t g_AllocationCount;
-
-	static void VKAPI_PTR MyAllocateCallback(
-		VmaAllocator     allocator,
-		uint32_t         memoryType,
-		VkDeviceMemory   vkMem,
-		VkDeviceSize     size,
-		void* pUserData)
-	{
-		g_TotalAllocatedBytes += size;
-		g_AllocationCount++;
-
-		// Optional: you can also log memory type, handle etc.
-		// printf("Allocated %llu B  (type %u)\n", size, memoryType);
-	}
-
-	static void VKAPI_PTR MyFreeCallback(
-		VmaAllocator     allocator,
-		uint32_t         memoryType,
-		VkDeviceMemory   vkMem,
-		VkDeviceSize     size,
-		void* pUserData)
-	{
-		g_TotalFreedBytes += size;
-		g_AllocationCount--;
-
-		// printf("Freed %llu B  (type %u)\n", size, memoryType);
-	}
