@@ -2,8 +2,9 @@
 * engine built using vkguide as a base. will continue on this and add whatever I find interesting. the idea is to eventually make a low-scope-game with this. (wow!)
 
 # features
-* hlsl and glsl
-* everything vkguide has up to chapter 5 as of 2026-02-11
+* hlsl and glsl shader support.
+* BDA
+* GLTF loading (models & textures).
 
 # planned features
 * everything unreal&unity has but better and cooler and faster and more awesomer
