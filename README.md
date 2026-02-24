@@ -3,8 +3,10 @@
 
 # features
 * hlsl and glsl shader support.
-* BDA
+* Buffer Device Address and Vertex Pulling.
 * GLTF loading (models & textures).
+* Basic Frustum Culling & Draw Sorting
+* Mipmaps. 
 
 # planned features
 * everything unreal&unity has but better and cooler and faster and more awesomer
