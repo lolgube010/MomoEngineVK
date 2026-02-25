@@ -441,7 +441,7 @@ void VulkanEngine::Immediate_Submit(std::function<void(VkCommandBuffer cmd)>&& a
 	const VkSubmitInfo2 submit = vkInit::submit_info(&cmdInfo, nullptr, nullptr);
 
 	// submit command buffer to the queue and execute it.
-	//  _renderFence will now block until the graphic commands finish execution
+	// _renderFence will now block until the graphic commands finish execution
 	VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
 
 	VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
@@ -461,7 +461,7 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 
 	// always allocate images on dedicated GPU memory
 	VmaAllocationCreateInfo allocInfo = {};
-	allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+	allocInfo.usage = VMA_MEMORY_USAGE_AUTO; // used to be VMA_MEMORY_USAGE_GPU_ONLY
 	allocInfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	// allocate and create the image
@@ -488,7 +488,8 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const bool aMipmapped) const
 {
 	const size_t data_Size = static_cast<size_t>(aSize.depth) * aSize.width * aSize.height * 4;
-	const AllocatedBuffer uploadBuffer = Create_Buffer(data_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	// was previously VMA_MEMORY_USAGE_CPU_TO_GPU
+	const AllocatedBuffer uploadBuffer = Create_Buffer(data_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO);
 
 	memcpy(uploadBuffer.info.pMappedData, aData, data_Size);
 
@@ -659,7 +660,7 @@ void VulkanEngine::Init_Swapchain()
 
 	//for the draw image, we want to allocate it from gpu local memory
 	VmaAllocationCreateInfo rimg_allocinfo = {};
-	rimg_allocinfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+    rimg_allocinfo.usage = VMA_MEMORY_USAGE_AUTO; // was VMA_MEMORY_USAGE_GPU_ONLY
 	rimg_allocinfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	// allocate and create the image
@@ -1112,11 +1113,13 @@ void VulkanEngine::Init_Default_Data()
 	materialResources.metalRoughImage = _whiteImage;
 	materialResources.metalRoughSampler = _defaultSamplerLinear;
 
-	//set the uniform buffer for the material data
-	AllocatedBuffer materialConstants = Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	//set the uniform buffer for the material data.
+	// was previously VMA_MEMORY_USAGE_CPU_TO_GPU
+	AllocatedBuffer materialConstants = Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO);
 
 	//write the buffer
-	GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(materialConstants.allocation->GetMappedData());
+	GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(materialConstants.info.pMappedData);
+	// GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(materialConstants.allocation->GetMappedData());
 	sceneUniformData->colorFactors = glm::vec4{ 1,1,1,1 };
 	sceneUniformData->metal_rough_factors = glm::vec4{ 1,0.5,0,0 };
 
@@ -1473,8 +1476,9 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	vkCmdSetScissor(aCmd, 0, 1, &scissor);
 
-	 //allocate a new uniform buffer for the scene data
-	 AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+	 //allocate a new uniform buffer for the scene data.
+	 // was previously VMA_MEMORY_USAGE_CPU_TO_GPU
+	 AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO);
 	
 	 //add it to the deletion queue of this frame so it gets deleted once it's been used
 	 Get_Current_Frame()._deletionQueue.Push_Function([gpuSceneDataBuffer, this]
@@ -1483,7 +1487,8 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	 });
 	
 	 //write the buffer
-	 GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
+	 GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.info.pMappedData);
+	 // GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
 	 *sceneUniformData = _sceneData;
 
 	// create a descriptor set that binds that buffer and update it
@@ -1610,7 +1615,8 @@ AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBu
 
 	VmaAllocationCreateInfo vmaAllocInfo = {};
 	vmaAllocInfo.usage = aMemoryUsage;
-	vmaAllocInfo.flags = VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    // VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT was added later to make VMA_MEMORY_USAGE_AUTO work.
+    vmaAllocInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT; 
 	AllocatedBuffer newBuffer;
 
 	// allocate the buffer
@@ -1867,24 +1873,27 @@ GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, cons
 	// create vertex buffer
 	// It's not necessary for meshes to use GPU_ONLY vertex buffers, but it's highly recommended unless it's something like a CPU side particle system or other dynamic effects.
 
-	newSurface._vertexBuffer = Create_Buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	newSurface._vertexBuffer = Create_Buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_AUTO); // was VMA_MEMORY_USAGE_GPU_ONLY
 
 	//find the address of the vertex buffer
 	const VkBufferDeviceAddressInfo deviceAddressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .pNext = nullptr, .buffer = newSurface._vertexBuffer.buffer};
 	newSurface._vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAddressInfo);
 
-	//create index buffer
-	newSurface._indexBuffer = Create_Buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_GPU_ONLY);
+	//create index buffer, was previously VMA_MEMORY_USAGE_CPU_ONLY
+    newSurface._indexBuffer = Create_Buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_AUTO);
 
 	// staging buffer is 1 buffer for both copies to index and vertex buffers.
-	const AllocatedBuffer staging = Create_Buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY);
+    const AllocatedBuffer staging = Create_Buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO);
 
-	void* data = staging.allocation->GetMappedData(); // doing this gives us the address so we can write to it. not a copy but just pointing to the staging buffer.
+	// Buffer is already mapped. You can access its memory.
+	memcpy(staging.info.pMappedData, aVertices.data(), vertexBufferSize);
+    memcpy(static_cast<char*>(staging.info.pMappedData) + vertexBufferSize, aIndices.data(), indexBufferSize);
 
-	// copy vertex buffer
-	memcpy(data, aVertices.data(), vertexBufferSize);
-	// copy index buffer
-	memcpy(static_cast<char*>(data) + vertexBufferSize, aIndices.data(), indexBufferSize);
+	// void* data = staging.allocation->GetMappedData(); // doing this gives us the address so we can write to it. not a copy but just pointing to the staging buffer.
+	// // copy vertex buffer
+	// memcpy(data, aVertices.data(), vertexBufferSize);
+	// // copy index buffer
+	// memcpy(static_cast<char*>(data) + vertexBufferSize, aIndices.data(), indexBufferSize);
 
 	Immediate_Submit([&](const VkCommandBuffer aCmd)
 	{
