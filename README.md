@@ -6,11 +6,11 @@
 * Buffer Device Address and Vertex Pulling.
 * GLTF loading (models & textures).
 * Basic Frustum Culling & Draw Sorting
-* Mipmaps. 
+* Png Texture Loading & Mipmaps. 
 
 # planned features
 * everything unreal&unity has but better and cooler and faster and more awesomer
-* no but, whatever I fixate on is what I'll implement. we'll see.
+* no but, whatever I fixate on is what I'll implement. we'll see. I have too many features planned to write them down, really. 
 
 # How to Build:
 * [Install Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
