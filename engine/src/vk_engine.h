@@ -77,6 +77,7 @@ struct ComputeEffect
 	ComputePushConstants data;
 };
 
+// written into uniform buffers
 struct GLTFMetallic_Roughness
 {
 	MaterialPipeline opaquePipeline;
@@ -201,11 +202,12 @@ public:
 	VkExtent2D _swapchain_extent;
 	// swapchain>
 
-	// momo fix, previously called render_semaphore, also called submit semaphores
-	std::vector<VkSemaphore> ready_for_present_semaphores; // submit semaphores, bug from vulkan from before.
-
 	// <queues
+
 	FrameData _frames[FRAME_OVERLAP];
+	
+    // momo fix, previously called render_semaphore, also called submit semaphores
+	std::vector<VkSemaphore> ready_for_present_semaphores; // submit semaphores, bug from vulkan from before.
 
 	VkQueue _graphicsQueue; // what the command buffers submit into
 	uint32_t _graphicsQueueFamily; // what type of graphics queue we want

@@ -39,7 +39,7 @@
 struct AllocatedBuffer
 {
 	VkBuffer buffer;
-	VmaAllocation allocation;
+	VmaAllocation allocation; // VkDeviceMemory
 	VmaAllocationInfo info;
 };
 
@@ -52,7 +52,6 @@ struct Vertex
 	glm::vec4 color;
 };
 
-// holds buffers for mesh
 struct GPUMeshBuffers
 {
 	AllocatedBuffer _indexBuffer;
@@ -73,6 +72,7 @@ enum class MaterialPass
 	Transparent,
 	Other
 };
+
 
 struct MaterialPipeline
 {
@@ -131,7 +131,7 @@ struct AllocatedImage
 {
     VkImage image; // equivalent to ID3D11Resource/ID3D11Texture2D
     VkImageView imageView; // in vulkan, RTV/SRV/DSV/UAV don't exist, instead this generic one for all of them
-    VmaAllocation allocation; // tracks memory
+    VmaAllocation allocation; // tracks memory, VkDeviceMemory
     VkExtent3D imageExtent; // stores width height depth
     VkFormat imageFormat; // stores format of img, like DXGI_FORMAT_R8G8B8_UNORM
 };

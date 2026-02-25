@@ -38,15 +38,6 @@ constexpr auto AppName = "MomoVK";
 
 void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 {
-    constexpr bool useHLSL = true;
-    auto meshFragShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Fragment, useHLSL, aEngine->_device, &aEngine->_debugInfo);
-    auto meshVertexShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Vertex, useHLSL, aEngine->_device, &aEngine->_debugInfo);
-
-	VkPushConstantRange matrixRange{};
-	matrixRange.offset = 0;
-	matrixRange.size = sizeof(GPUDrawPushConstants);
-	matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-
 	DescriptorLayoutBuilder layoutBuilder;
 	layoutBuilder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	layoutBuilder.Add_Binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
@@ -55,6 +46,11 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	materialLayout = layoutBuilder.Build(aEngine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 
 	VkDescriptorSetLayout layouts[] = { aEngine->_gpuSceneDataDescriptorLayout, materialLayout };
+
+	VkPushConstantRange matrixRange{};
+    matrixRange.offset = 0;
+    matrixRange.size = sizeof(GPUDrawPushConstants);
+    matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
 	VkPipelineLayoutCreateInfo mesh_layout_info = vkInit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 2;
@@ -67,6 +63,10 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 
 	opaquePipeline.layout = newLayout;
 	transparentPipeline.layout = newLayout;
+
+	constexpr bool useHLSL = true;
+    auto meshFragShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Fragment, useHLSL, aEngine->_device, &aEngine->_debugInfo);
+    auto meshVertexShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Vertex, useHLSL, aEngine->_device, &aEngine->_debugInfo);
 
 	// build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	PipelineBuilder pipelineBuilder;
@@ -616,7 +616,7 @@ void VulkanEngine::Init_Vulkan()
 	allocatorInfo.physicalDevice = _chosen_GPU;
 	allocatorInfo.device = _device;
 	allocatorInfo.instance = _instance;
-	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; // used for BDA
 
 	// allocatorInfo.pDeviceMemoryCallbacks = &_callbacks; // added by momo
 	
@@ -1158,9 +1158,7 @@ void VulkanEngine::Init_Default_Data()
 
 void VulkanEngine::Init_Mesh_Pipeline()
 {
-	VkResult res = {};
-
-	auto triangleFragShader = momo_util::LoadShader("tex_image", momo_util::ShaderType::Fragment, false, _device, &_debugInfo);
+    auto triangleFragShader = momo_util::LoadShader("tex_image", momo_util::ShaderType::Fragment, false, _device, &_debugInfo);
     auto triangleVertexShader = momo_util::LoadShader("colored_triangle_mesh", momo_util::ShaderType::Vertex, false, _device, &_debugInfo);
 
 	VkPushConstantRange bufferRange{};
@@ -1495,7 +1493,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	 writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	 writer.Update_Set(_device, globalDescriptor);
 	
-	 //defined outside of the draw function, this is the state we will try to skip
+	 //defined outside the draw function, this is the state we will try to skip
 	 MaterialPipeline* lastPipeline = nullptr;
 	 MaterialInstance* lastMaterial = nullptr;
 	 VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
