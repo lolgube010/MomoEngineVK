@@ -74,7 +74,7 @@ enum class MaterialPass
 	Other
 };
 
-
+// material shaders, input layout, states etc.
 struct MaterialPipeline
 {
 	VkPipeline pipeline;
@@ -84,12 +84,13 @@ struct MaterialPipeline
 struct MaterialInstance
 {
 	MaterialPipeline* pipeline; // non owning
-	VkDescriptorSet materialSet;
+	VkDescriptorSet materialSet; // set of multiple bindings, e.g. an image view and a buffer.
 	MaterialPass passType;
 };
 
 struct DrawContext;
 
+// TODO- MOVE?
 // base class for a renderable dynamic object
 class IRenderable 
 {
@@ -145,4 +146,21 @@ struct GPUSceneData
     glm::vec4 ambientColor;
     glm::vec4 sunlightDirection; // w for sun power
     glm::vec4 sunlightColor;
+};
+
+struct ComputePushConstants
+{
+    glm::vec4 data1;
+    glm::vec4 data2;
+    glm::vec4 data3;
+    glm::vec4 data4;
+};
+
+struct ComputeEffect
+{
+    const char* name;
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+
+    ComputePushConstants data;
 };

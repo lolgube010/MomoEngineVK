@@ -17,6 +17,7 @@
 
 union SDL_Event;
 
+// todo- move into own file? just away from here
 struct DeletionQueue
 {
 	// Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.For the amount of objects we will use in this tutorial, it's going to be fine.but if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of various types such as VkImage, VkBuffer, and so on.And then delete those from a loop.
@@ -40,6 +41,7 @@ struct DeletionQueue
 	}
 };
 
+// TODO- move to vktypes.h
 struct FrameData
 {
 	//The _swapchainSemaphore is going to be used so that our render commands wait on the swapchain image request. 
@@ -58,24 +60,6 @@ struct FrameData
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
-
-
-struct ComputePushConstants
-{
-	glm::vec4 data1;
-	glm::vec4 data2;
-	glm::vec4 data3;
-	glm::vec4 data4;
-};
-
-struct ComputeEffect
-{
-	const char* name;
-	VkPipeline pipeline;
-	VkPipelineLayout layout;
-
-	ComputePushConstants data;
-};
 
 // written into uniform buffers
 struct GLTFMetallic_Roughness
@@ -154,10 +138,10 @@ class VulkanEngine
 {
 public:
 	bool _is_initialized{false};
-	int _frame_number{0};
 	bool _stop_rendering{false};
+	bool _resize_requested = false;
+	int _frame_number{0};
 	VkExtent2D _windowExtent{ 1700, 900 }; // og was 1700, 900
-	bool _resize_requested;
 
 	SDL_Window* _window{nullptr};
 
