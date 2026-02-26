@@ -103,6 +103,7 @@ struct GLTFMetallic_Roughness
 		VkSampler metalRoughSampler;
 		VkBuffer dataBuffer;
 		uint32_t dataBufferOffset;
+		uint32_t padding; // added by me
 	};
 
 	DescriptorWriter writer;
@@ -180,6 +181,7 @@ public:
 	{
 		return _frames[_frame_number % FRAME_OVERLAP];
 	}
+    FrameData& Get_Last_Frame() { return _frames[(_frame_number - 1) % FRAME_OVERLAP]; }
 
 	void Immediate_Submit(std::function<void(VkCommandBuffer aCmd)>&& aFunction) const;
 
@@ -207,6 +209,8 @@ public:
 	FrameData _frames[FRAME_OVERLAP];
 	
     // momo fix, previously called render_semaphore, also called submit semaphores
+    uint32_t _swapchainImageCount{0};
+    uint32_t _swapchainImageIndex;
 	std::vector<VkSemaphore> ready_for_present_semaphores; // submit semaphores, bug from vulkan from before.
 
 	VkQueue _graphicsQueue; // what the command buffers submit into

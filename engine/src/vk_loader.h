@@ -64,7 +64,7 @@ struct LoadedGLTF : public IRenderable
     // TODO- We could be using a singleton instead to avoid storing this pointer if we wanted.
     VulkanEngine* creator;
 
-    ~LoadedGLTF() { ClearAll(); };
+    ~LoadedGLTF() override { ClearAll(); };
 
     void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
 

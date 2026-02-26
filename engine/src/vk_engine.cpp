@@ -218,8 +218,7 @@ void VulkanEngine::Draw()
 
 	//> draw_2
 	// request image from the swapchain
-	uint32_t swapchainImageIndex;
-	if (const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &swapchainImageIndex); 
+	if (const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &_swapchainImageIndex); 
 		res == VK_ERROR_OUT_OF_DATE_KHR) 
 	{
 		_resize_requested = true;
@@ -260,19 +259,19 @@ void VulkanEngine::Draw()
 
 	//transition the draw image and the swapchain image into their correct transfer layouts
 	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-	vkUtil::Transition_Image(cmd, _swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+    vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	// execute a copy from the draw image into the swapchain
-	vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[swapchainImageIndex], _drawExtent, _swapchain_extent);
+    vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[_swapchainImageIndex], _drawExtent, _swapchain_extent);
 
 	// set swapchain image layout to Attachment Optimal so we can draw it
-	vkUtil::Transition_Image(cmd, _swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
 	// draw imgui into the swapchain image
-	Draw_Imgui(cmd, _swapchain_image_views[swapchainImageIndex]);
+    Draw_Imgui(cmd, _swapchain_image_views[_swapchainImageIndex]);
 
 	// set swapchain image layout to Present so we can show it on the screen
-	vkUtil::Transition_Image(cmd, _swapchain_images[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
 
 
 	//finalize the command buffer (we can no longer add commands, but it can now be executed)
@@ -289,7 +288,7 @@ void VulkanEngine::Draw()
 
 	const VkSemaphoreSubmitInfo waitInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, Get_Current_Frame()._swapchainSemaphore);
 	//VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, Get_Current_Frame()._renderSemaphore);
-	const VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, ready_for_present_semaphores[swapchainImageIndex]);
+    const VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, ready_for_present_semaphores[_swapchainImageIndex]);
 
 	const VkSubmitInfo2 submit = vkInit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
 
@@ -310,10 +309,10 @@ void VulkanEngine::Draw()
 	presentInfo.swapchainCount = 1;
 
 	//presentInfo.pWaitSemaphores = &Get_Current_Frame()._renderSemaphore;
-	presentInfo.pWaitSemaphores = &ready_for_present_semaphores[swapchainImageIndex];
+    presentInfo.pWaitSemaphores = &ready_for_present_semaphores[_swapchainImageIndex];
 	presentInfo.waitSemaphoreCount = 1;
 
-	presentInfo.pImageIndices = &swapchainImageIndex;
+	presentInfo.pImageIndices = &_swapchainImageIndex;
 
 	if (const VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo); 
 		presentResult == VK_ERROR_OUT_OF_DATE_KHR) 
@@ -378,10 +377,6 @@ void VulkanEngine::Cleanup()
 			//vkDestroySemaphore(_device, _frame._renderSemaphore, nullptr);
 
 			frame._deletionQueue.Flush();
-		}
-		for (const auto& ready_For_Present_Semaphore : ready_for_present_semaphores)
-		{
-			vkDestroySemaphore(_device, ready_For_Present_Semaphore, nullptr);
 		}
 		if (_tracyVkCtx)
 		{
@@ -693,7 +688,7 @@ void VulkanEngine::Init_Swapchain()
 
 
 	//add to deletion queues
-	_mainDeletionQueue.Push_Function([=]
+	_mainDeletionQueue.Push_Function([this]
 	{
 		// main img
 		vkDestroyImageView(_device, _drawImage.imageView, nullptr);
@@ -729,7 +724,7 @@ void VulkanEngine::Init_Commands()
 
 	VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
 
-	_mainDeletionQueue.Push_Function([=]
+	_mainDeletionQueue.Push_Function([this]
 	{
 		vkDestroyCommandPool(_device, _immCommandPool, nullptr);
 	});
@@ -750,15 +745,21 @@ void VulkanEngine::Init_Sync_Structures()
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
 		//VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore));
 	}
-	ready_for_present_semaphores.resize(_swapchain_images.size());
-	for (int i = 0; i < _swapchain_images.size(); ++i)
+	
+    ready_for_present_semaphores.resize(_swapchainImageCount);
+	
+    for (size_t i = 0; i < _swapchainImageCount; ++i)
 	{
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &ready_for_present_semaphores[i]));
+        _mainDeletionQueue.Push_Function([this, i]
+        {
+            vkDestroySemaphore(_device, ready_for_present_semaphores[i], nullptr);
+        });
 	}
-
+    
 	// for imgui
 	VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
-	_mainDeletionQueue.Push_Function([=] { vkDestroyFence(_device, _immFence, nullptr); });
+	_mainDeletionQueue.Push_Function([this] { vkDestroyFence(_device, _immFence, nullptr); });
 }
 
 void VulkanEngine::Init_Descriptors()
@@ -909,7 +910,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	//destroy structures properly
 	vkDestroyShaderModule(_device, gradientShader.value(), nullptr);
 	vkDestroyShaderModule(_device, skyShader.value(), nullptr);
-	_mainDeletionQueue.Push_Function([=]
+	_mainDeletionQueue.Push_Function([this, sky, gradient]
 	{
 		vkDestroyPipelineLayout(_device, _gradientPipelineLayout, nullptr);
 		vkDestroyPipeline(_device, sky.pipeline, nullptr);
@@ -1000,7 +1001,7 @@ void VulkanEngine::Init_Imgui()
 	//IM_ASSERT(font != nullptr);
 
 	// queue the destruction of imgui created structures
-	_mainDeletionQueue.Push_Function([=]
+	_mainDeletionQueue.Push_Function([this, imguiPool]
 	{
 		ImGui_ImplVulkan_Shutdown();
 		vkDestroyDescriptorPool(_device, imguiPool, nullptr);
@@ -1252,7 +1253,8 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 		  .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
 		})
 		//use vsync present mode
-		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+        // https://docs.vulkan.org/spec/latest/chapters/VK_KHR_surface/wsi.html#VkPresentModeKHR
+		.set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR) 
 		.set_desired_extent(aWidth, aHeight)
 		.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		.build()
@@ -1263,6 +1265,10 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 	_swapchain = vkbSwapchain.swapchain;
 	_swapchain_images = vkbSwapchain.get_images().value();
 	_swapchain_image_views = vkbSwapchain.get_image_views().value();
+
+	// Set _swapchainImageCount to the amount of swapchain images - used to initialize the same amount of
+    // _readyForPresentSemaphores in init_sync_structures
+    VK_CHECK(vkGetSwapchainImagesKHR(_device, _swapchain, &_swapchainImageCount, nullptr));
 }
 
 void VulkanEngine::Destroy_Swapchain() const

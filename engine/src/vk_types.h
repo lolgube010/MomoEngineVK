@@ -18,6 +18,7 @@
 #include <vk_mem_alloc.h>
 
 #include <fmt/core.h>
+#include <fmt/std.h>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
