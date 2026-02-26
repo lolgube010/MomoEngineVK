@@ -18,7 +18,7 @@
 #include <vk_mem_alloc.h>
 
 #include <fmt/core.h>
-#include <fmt/std.h>
+// #include <fmt/std.h>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
@@ -60,7 +60,7 @@ struct GPUMeshBuffers
 	VkDeviceAddress _vertexBufferAddress;
 };
 
-// push constants for our mesh object draws
+// for our mesh object draws
 struct GPUDrawPushConstants
 {
 	glm::mat4 _worldMatrix;

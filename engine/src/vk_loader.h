@@ -3,7 +3,6 @@
 
 #include <vk_types.h>
 #include <unordered_map>
-#include <filesystem>
 
 #include "vk_descriptors.h"
 #include "fastgltf/types.hpp"
@@ -36,7 +35,6 @@ struct MeshAsset
     GPUMeshBuffers meshBuffers;
 };
 
-//forward declaration
 class VulkanEngine;
 
 // NOTE: LEGACY
@@ -44,7 +42,7 @@ class VulkanEngine;
 std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes_Legacy(VulkanEngine* aEngine, const std::filesystem::path& aFilePath);
 
 
-struct LoadedGLTF : public IRenderable 
+struct LoadedGLTF : IRenderable 
 {
     // storage for all the data on a given glTF file
     std::unordered_map<std::string, std::shared_ptr<MeshAsset>> meshes;
@@ -52,7 +50,7 @@ struct LoadedGLTF : public IRenderable
     std::unordered_map<std::string, AllocatedImage> images;
     std::unordered_map<std::string, std::shared_ptr<GLTFMaterial>> materials;
 
-    // nodes that dont have a parent, for iterating through the file in tree order
+    // nodes that don't have a parent, for iterating through the file in tree order
     std::vector<std::shared_ptr<Node>> topNodes;
 
     std::vector<VkSampler> samplers;
@@ -72,9 +70,13 @@ private:
     void ClearAll();
 };
 
-std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::string_view filePath);
+namespace MomoGLTF
+{
+    std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::string_view filePath);
 
-VkFilter extract_filter(fastgltf::Filter aFilter);
-VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter aFilter);
+    VkFilter extract_filter(fastgltf::Filter aFilter);
 
-std::optional<AllocatedImage> load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage);
+    VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter aFilter);
+
+    std::optional<AllocatedImage> load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage);
+}

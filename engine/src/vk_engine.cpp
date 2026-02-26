@@ -1152,7 +1152,7 @@ void VulkanEngine::Init_Default_Data()
 
 
 	const std::string structurePath = { "..\\..\\assets\\structure.glb" };
-	const auto structureFile = LoadGLTF(this, structurePath);
+    const auto structureFile = MomoGLTF::LoadGLTF(this, structurePath);
 	assert(structureFile.has_value());
 
 	_loadedScenes["structure"] = *structureFile;
@@ -1523,23 +1523,23 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 				vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
 
 				//set dynamic viewport and scissor
-				VkViewport viewport;
-				viewport.x = 0;
-				viewport.y = 0;
-				viewport.width = static_cast<float>(_windowExtent.width);
-				viewport.height = static_cast<float>(_windowExtent.height);
-				viewport.minDepth = 0.f;
-				viewport.maxDepth = 1.f;
+                VkViewport viewport2{};
+				viewport2.x = 0;
+				viewport2.y = 0;
+				viewport2.width = static_cast<float>(_windowExtent.width);
+				viewport2.height = static_cast<float>(_windowExtent.height);
+				viewport2.minDepth = 0.f;
+				viewport2.maxDepth = 1.f;
 
-				vkCmdSetViewport(aCmd, 0, 1, &viewport);
+				vkCmdSetViewport(aCmd, 0, 1, &viewport2);
 
-				VkRect2D scissor;
-				scissor.offset.x = 0;
-				scissor.offset.y = 0;
-				scissor.extent.width = _windowExtent.width;
-				scissor.extent.height = _windowExtent.height;
+				VkRect2D scissor2;
+				scissor2.offset.x = 0;
+				scissor2.offset.y = 0;
+				scissor2.extent.width = _windowExtent.width;
+				scissor2.extent.height = _windowExtent.height;
 
-				vkCmdSetScissor(aCmd, 0, 1, &scissor);
+				vkCmdSetScissor(aCmd, 0, 1, &scissor2);
 			}
 			vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->materialSet, 0, nullptr);
 

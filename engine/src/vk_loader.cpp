@@ -4,6 +4,7 @@
 #include "vk_engine.h"
 #include "vk_initializers.h"
 #include "vk_types.h"
+#include <fmt/std.h>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
@@ -195,7 +196,7 @@ void LoadedGLTF::ClearAll()
 
 }
 
-std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::string_view filePath)
+std::optional<std::shared_ptr<LoadedGLTF>> MomoGLTF::LoadGLTF(VulkanEngine* engine, std::string_view filePath)
 {
     fmt::print("Loading GLTF: {}\n", filePath);
 
@@ -537,7 +538,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::s
 
 }
 
-VkFilter extract_filter(const fastgltf::Filter aFilter)
+VkFilter MomoGLTF::extract_filter(const fastgltf::Filter aFilter)
 {
     switch (aFilter)
     {
@@ -557,7 +558,7 @@ VkFilter extract_filter(const fastgltf::Filter aFilter)
 
 }
 
-VkSamplerMipmapMode extract_mipmap_mode(const fastgltf::Filter aFilter)
+VkSamplerMipmapMode MomoGLTF::extract_mipmap_mode(const fastgltf::Filter aFilter)
 {
     switch (aFilter)
     {
@@ -576,7 +577,7 @@ VkSamplerMipmapMode extract_mipmap_mode(const fastgltf::Filter aFilter)
 // TODO:
 // For the textures, we are going to load them using stb_image.This is a single - header library to load png, jpeg, and a few others.Sadly, it does not load KTX or DDS formats, which are much better for graphics usages as they can be uploaded almost directly into the GPU and are a compressed format that the GPU reads directly so it saves VRAM.
 
-std::optional<AllocatedImage> load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage)
+std::optional<AllocatedImage> MomoGLTF::load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage)
 {
     AllocatedImage newImage{};
 

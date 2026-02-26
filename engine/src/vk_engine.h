@@ -52,7 +52,7 @@ struct FrameData
 	VkSemaphore _swapchainSemaphore/*, _renderSemaphore*/; // gpu to gpu sync. 
 	VkFence _renderFence; // gpu to cpu sync
 
-	VkCommandPool _commandPool; // a command pool creates buffers, one pool / thread, even though pools can create multiple buffers
+	VkCommandPool _commandPool; // a command pool creates buffers, one pool / thread, even though pools can create multiple buffers. a memory allocator for our commandBuffers.
 	VkCommandBuffer _mainCommandBuffer; // holds commands, this is mainly just a handle, actual data is being handled by vulkan
 
 	DeletionQueue _deletionQueue;

@@ -20,6 +20,7 @@ public:
 	VkPipelineInputAssemblyStateCreateInfo _inputAssembly;
 	VkPipelineRasterizationStateCreateInfo _rasterizer;
 
+	// TODO - used for deferred 
 	// We only support rendering to one attachment here, so this is fine. 
 	// This can be made into an array of VkPipelineColorBlendAttachmentState if drawing to multiple attachments is needed.
 	VkPipelineColorBlendAttachmentState _colorBlendAttachment;
