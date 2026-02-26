@@ -27,3 +27,7 @@
 cd path/to/tracy/profiler
 cmake -B build -S . -G "Visual Studio 18 2026" -A x64
 cmake --build build --config Release
+
+#dependencies
+* based on vkguide.
+* fastgltf, fmt, glm, imgui, sdl, stb_image, tracy, vkbootstrap, vma, volk.
