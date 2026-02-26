@@ -22,7 +22,7 @@ target_compile_definitions(MomoVK PRIVATE
     TRACY_ENABLE=$<BOOL:${TRACY_ENABLE}>
 )
 
-target_precompile_headers(MomoVK PUBLIC <optional> <vector> <memory> <string> <vector> <unordered_map> <glm/mat4x4.hpp>  <glm/vec4.hpp> <vulkan/vulkan.h>)
+target_precompile_headers(MomoVK PUBLIC <optional> <vector> <memory> <string> <vector> <unordered_map> <glm/mat4x4.hpp>  <glm/vec4.hpp> <vulkan/vulkan.h> <vulkan/vk_enum_string_helper.h> <filesystem> <chrono> <format> <fmt/core.h> <fastgltf/types.hpp>)
 
 if(WIN32)
   add_custom_command(TARGET MomoVK POST_BUILD
