@@ -60,7 +60,7 @@ struct GPUMeshBuffers
 	VkDeviceAddress _vertexBufferAddress;
 };
 
-// for our mesh object draws
+// for our mesh object draws - max size is 128 bytes
 struct GPUDrawPushConstants
 {
 	glm::mat4 _worldMatrix;
@@ -148,7 +148,7 @@ struct GPUSceneData
     glm::vec4 sunlightColor;
 };
 
-struct ComputePushConstants
+struct ComputePushConstants // max size is 128 bytes
 {
     glm::vec4 data1;
     glm::vec4 data2;

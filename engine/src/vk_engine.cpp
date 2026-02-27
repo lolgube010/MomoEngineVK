@@ -73,6 +73,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	pipelineBuilder.Set_Shaders(meshVertexShader.value(), meshFragShader.value());
 	pipelineBuilder.Set_Input_Topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_FILL);
+    // pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_LINE);
 	pipelineBuilder.Set_Cull_Mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
 	pipelineBuilder.Set_Multisampling_None();
 	pipelineBuilder.Disable_Blending();
@@ -99,13 +100,13 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	vkDestroyShaderModule(aEngine->_device, meshVertexShader.value(), nullptr);
 }
 
-void GLTFMetallic_Roughness::clear_resources(VkDevice device) const
+void GLTFMetallic_Roughness::Clear_Resources(VkDevice aDevice) const
 {
-	vkDestroyDescriptorSetLayout(device, materialLayout, nullptr);
-	vkDestroyPipelineLayout(device, transparentPipeline.layout, nullptr);
+	vkDestroyDescriptorSetLayout(aDevice, materialLayout, nullptr);
+	vkDestroyPipelineLayout(aDevice, transparentPipeline.layout, nullptr);
 
-	vkDestroyPipeline(device, transparentPipeline.pipeline, nullptr);
-	vkDestroyPipeline(device, opaquePipeline.pipeline, nullptr);
+	vkDestroyPipeline(aDevice, transparentPipeline.pipeline, nullptr);
+	vkDestroyPipeline(aDevice, opaquePipeline.pipeline, nullptr);
 }
 
 MaterialInstance GLTFMetallic_Roughness::Write_Material(const VkDevice aDevice, const MaterialPass aPass, const MaterialResources& aResources, DescriptorAllocatorGrowable& aDescriptorAllocator)
@@ -389,7 +390,7 @@ void VulkanEngine::Cleanup()
 		// 	Destroy_Buffer(mesh->meshBuffers._vertexBuffer);
 		// }
 
-		metalRoughMaterial.clear_resources(_device);
+		metalRoughMaterial.Clear_Resources(_device);
 		_mainDeletionQueue.Flush();
 
 		Destroy_Swapchain();
@@ -841,7 +842,7 @@ void VulkanEngine::Init_Pipelines()
 	Init_Background_Pipelines();
 
 	// graphics pipelines
-	Init_Mesh_Pipeline();
+	Init_Mesh_Pipeline(); // to comment this out, you also need to comment out @ 
 
 	metalRoughMaterial.Build_Pipelines(this);
 }
@@ -1187,6 +1188,7 @@ void VulkanEngine::Init_Mesh_Pipeline()
 	pipelineBuilder.Set_Input_Topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 	//filled triangles
 	pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_FILL);
+    // pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_LINE);
 	//no backface culling
 	pipelineBuilder.Set_Cull_Mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
 	//no multisampling
@@ -1717,15 +1719,6 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
             {
                 _stop_rendering = false;
             }
-        }
-
-        // putting other input here cuz i'm lazy
-        const auto& key = e.key.keysym.sym;
-        if (e.type == SDL_KEYDOWN && key == SDLK_CAPSLOCK && e.key.repeat == 0)
-        {
-            const auto enabled = SDL_GetRelativeMouseMode();
-            fmt::print("caps locked presssed, window is currently: {}\n", static_cast<bool>(enabled));
-            SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!enabled));
         }
 
         _mainCamera.ProcessSDLEvent(e);

@@ -15,9 +15,6 @@
 #include "MomoTracy.h"
 #include "vk_debug.h"
 
-union SDL_Event;
-
-// todo- move into own file? just away from here
 struct DeletionQueue
 {
 	// Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.For the amount of objects we will use in this tutorial, it's going to be fine.but if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of various types such as VkImage, VkBuffer, and so on.And then delete those from a loop.
@@ -41,7 +38,6 @@ struct DeletionQueue
 	}
 };
 
-// TODO- move to vktypes.h
 struct FrameData
 {
 	//The _swapchainSemaphore is going to be used so that our render commands wait on the swapchain image request. 
@@ -93,7 +89,7 @@ struct GLTFMetallic_Roughness
 	DescriptorWriter writer;
 
 	void Build_Pipelines(VulkanEngine* aEngine);
-	void clear_resources(VkDevice device) const;
+	void Clear_Resources(VkDevice aDevice) const;
 
 	// create the descriptor set and return a fully built MaterialInstance struct
 	MaterialInstance Write_Material(VkDevice aDevice, MaterialPass aPass, const MaterialResources& aResources, DescriptorAllocatorGrowable& aDescriptorAllocator);
@@ -131,6 +127,7 @@ struct EngineStats
 	int drawCall_count;
 	float scene_update_time;
 	float mesh_draw_time;
+    float filler;
     uint64_t frequency;
 };
 
@@ -140,6 +137,7 @@ public:
 	bool _is_initialized{false};
 	bool _stop_rendering{false};
 	bool _resize_requested = false;
+
 	int _frame_number{0};
 	VkExtent2D _windowExtent{ 1700, 900 }; // og was 1700, 900
 
@@ -156,10 +154,8 @@ public:
     // draw loop
 	void Draw();
 
-	
 	// shuts down the engine
 	void Cleanup();
-
 
 	FrameData& Get_Current_Frame()
 	{
@@ -177,33 +173,31 @@ public:
 	VkDebugUtilsMessengerEXT _debug_messenger; // vulkan debug output handle
 	VkPhysicalDevice _chosen_GPU; // GPU chosen as the default device. - "A GPU. Used to query physical GPU details, like features, capabilities, memory size, etc."
 	VkDevice _device; // Vulkan Device for commands - "The “logical” GPU context that you actually execute things on."
-	VkSurfaceKHR _surface; // vulkan window surface
+	VkSurfaceKHR _surface; // vulkan window surface, just sent to sdl/swapchain
 
 	// <swapchain
-	VkSwapchainKHR _swapchain;
 	// Holds the images for the screen. It allows you to render things into a visible window. The KHR suffix shows that it comes from an extension, which in this case is VK_KHR_swapchain
+	VkSwapchainKHR _swapchain;
 	VkFormat _swapchain_image_format;
 	std::vector<VkImage> _swapchain_images; // A VkImage is a handle to the actual image object to use as texture or to render into. -  "A texture you can write to and read from."
 	std::vector<VkImageView> _swapchain_image_views; // A VkImageView is a wrapper for that image. It allows to do things like swap the colors. We will go into detail about it later.
 	VkExtent2D _swapchain_extent;
-	// swapchain>
 
 	// <queues
-
 	FrameData _frames[FRAME_OVERLAP];
 	
-    // momo fix, previously called render_semaphore, also called submit semaphores
     uint32_t _swapchainImageCount{0};
     uint32_t _swapchainImageIndex;
-	std::vector<VkSemaphore> ready_for_present_semaphores; // submit semaphores, bug from vulkan from before.
+	std::vector<VkSemaphore> ready_for_present_semaphores; // previously called render_semaphore, also called submit semaphores.
 
+	// TODO-
+	// It is common to see engines using 3 queue families. One for drawing the frame, other for async compute, and other for data transfer. In this tutorial, we use a single queue that will run all our commands for simplicity.
 	VkQueue _graphicsQueue; // what the command buffers submit into
 	uint32_t _graphicsQueueFamily; // what type of graphics queue we want
-	// queues>
 
 	DeletionQueue _mainDeletionQueue;
 
-	VmaAllocator _allocator;
+	VmaAllocator _allocator; // allocates / deallocates images, buffers
 
 	//draw resources
 	AllocatedImage _drawImage; // our main draw image
@@ -215,7 +209,7 @@ public:
 	DescriptorAllocatorGrowable _globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
-	VkDescriptorSetLayout _drawImageDescriptorLayout;
+	VkDescriptorSetLayout _drawImageDescriptorLayout; // for compute draw
 
 	VkPipeline _gradientPipeline;
 	VkPipelineLayout _gradientPipelineLayout;
@@ -240,7 +234,7 @@ public:
 	std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
 
 	GPUSceneData _sceneData = {};
-	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout; // for draw image
 
 	AllocatedImage Create_Image(VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
 	AllocatedImage Create_Image(const void* aData, VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
@@ -256,7 +250,7 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 
-	VkDescriptorSetLayout _singleImageDescriptorLayout;
+	VkDescriptorSetLayout _singleImageDescriptorLayout; // for textures
 
 	MaterialInstance defaultData;
 	GLTFMetallic_Roughness metalRoughMaterial;

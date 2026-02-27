@@ -141,8 +141,7 @@ void PipelineBuilder::Set_Shaders(const VkShaderModule aVertexShader, const VkSh
 void PipelineBuilder::Set_Input_Topology(const VkPrimitiveTopology aTopology)
 {
 	_inputAssembly.topology = aTopology;
-	// we are not going to use primitive restart on the entire tutorial so leave
-	// it on false
+	// we are not going to use primitive restart on the entire tutorial so leave it on false
 	_inputAssembly.primitiveRestartEnable = VK_FALSE;
 }
 
@@ -334,6 +333,28 @@ void PipelineBuilder::Enable_Blending_Max()
 	_colorBlendAttachment.srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 	_colorBlendAttachment.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE;
 	_colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_MAX;
+}
+
+void PipelineBuilder::Set_Multisampling_MSAA(const VkSampleCountFlagBits aSamples)
+{
+    _multisampling.sampleShadingEnable = VK_FALSE;
+    _multisampling.rasterizationSamples = aSamples; // e.g., VK_SAMPLE_COUNT_4_BIT
+    _multisampling.minSampleShading = 1.0f;
+    _multisampling.pSampleMask = nullptr;
+    _multisampling.alphaToCoverageEnable = VK_FALSE;
+    _multisampling.alphaToOneEnable = VK_FALSE;
+}
+
+void PipelineBuilder::Set_Multisampling_AlphaToCoverage(const VkSampleCountFlagBits aSamples)
+{
+    _multisampling.sampleShadingEnable = VK_FALSE;
+    _multisampling.rasterizationSamples = aSamples;
+    _multisampling.minSampleShading = 1.0f;
+    _multisampling.pSampleMask = nullptr;
+
+    // Enable Alpha to Coverage for smooth texture cutouts
+    _multisampling.alphaToCoverageEnable = VK_TRUE;
+    _multisampling.alphaToOneEnable = VK_FALSE;
 }
 
 std::string momo_util::GetShaderExtension(const ShaderType aType)

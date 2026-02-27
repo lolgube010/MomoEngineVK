@@ -17,6 +17,7 @@ struct Bounds
     glm::vec3 origin;
     float sphereRadius;
     glm::vec3 extents;
+    float padding = 0;
 };
 
 struct GeoSurface 

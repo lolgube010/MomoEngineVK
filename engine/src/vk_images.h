@@ -1,8 +1,6 @@
 #pragma once
 #include <vulkan/vulkan.h>
 
-
-
 // This will contain image related vulkan helpers
 namespace vkUtil
 {

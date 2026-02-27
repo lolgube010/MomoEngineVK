@@ -13,7 +13,6 @@ struct DescriptorLayoutBuilder
 
 struct DescriptorAllocatorGrowable 
 {
-public:
 	struct PoolSizeRatio 
 	{
 		VkDescriptorType _type;

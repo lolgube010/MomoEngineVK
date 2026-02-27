@@ -56,6 +56,10 @@ public:
 	void Enable_Blending_Invert();
 	void Enable_Blending_Min();
 	void Enable_Blending_Max();
+
+	void Set_Multisampling_MSAA(VkSampleCountFlagBits aSamples); // standard msaa
+    // link alpha of texture to msaa sample grid. used for leafs or chainlink fences. any transparent texture on a flat square
+    void Set_Multisampling_AlphaToCoverage(VkSampleCountFlagBits aSamples); 
 };
 
 namespace momo_util
