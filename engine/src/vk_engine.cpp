@@ -28,13 +28,8 @@
 #include <glm/gtx/norm.hpp>
 
 // globals
-namespace
-{
-	VulkanEngine* gl_LoadedEngine = nullptr;
-}
-
-constexpr bool bUseValidationLayers = true;
-constexpr auto AppName = "MomoVK";
+constexpr bool USE_VALIDATION_LAYERS = true;
+constexpr auto APP_NAME = "MomoVK";
 
 void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 {
@@ -169,22 +164,19 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 
 VulkanEngine& VulkanEngine::Get()
 {
-	return *gl_LoadedEngine;
+    static VulkanEngine instance;
+    return instance;
 }
 
 void VulkanEngine::Init()
 {
-	// only one engine initialization is allowed with the application.
-	assert(gl_LoadedEngine == nullptr);
-	gl_LoadedEngine = this;
-
 	// We initialize SDL and create a window with it.
 	SDL_Init(SDL_INIT_VIDEO);
 
 	constexpr auto window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
 
 	_window = SDL_CreateWindow(
-		AppName,
+		APP_NAME,
 		SDL_WINDOWPOS_UNDEFINED,
 		SDL_WINDOWPOS_UNDEFINED,
 		_windowExtent.width,
@@ -403,7 +395,6 @@ void VulkanEngine::Cleanup()
 
 		SDL_DestroyWindow(_window);
 	}
-	gl_LoadedEngine = nullptr;
 }
 
 void VulkanEngine::Draw_Imgui(const VkCommandBuffer aCmd, const VkImageView aTargetImageView) const
@@ -535,8 +526,8 @@ void VulkanEngine::Init_Vulkan()
 	vkb::InstanceBuilder builder;
 
 	//make the vulkan instance, with basic debug features
-	auto inst_ret = builder.set_app_name(AppName)
-	                       .request_validation_layers(bUseValidationLayers)
+	auto inst_ret = builder.set_app_name(APP_NAME)
+	                       .request_validation_layers(USE_VALIDATION_LAYERS)
 	                       .use_default_debug_messenger()
 	                       .require_api_version(1, 3, 0)
 	                       .build();
@@ -1153,7 +1144,7 @@ void VulkanEngine::Init_Default_Data()
 
 
 	const std::string structurePath = { "..\\..\\assets\\structure.glb" };
-    const auto structureFile = MomoGLTF::LoadGLTF(this, structurePath);
+    const auto structureFile = momoGLTF::load_gltf(this, structurePath);
 	assert(structureFile.has_value());
 
 	_loadedScenes["structure"] = *structureFile;
@@ -1381,7 +1372,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	for (uint32_t i = 0; i < _mainDrawContext.opaqueSurfaces.size(); i++) 
 	{
-		if (is_visible(_mainDrawContext.opaqueSurfaces[i], _sceneData.viewProj))
+		if (Is_Visible(_mainDrawContext.opaqueSurfaces[i], _sceneData.viewProj))
 		{
 			opaque_draws.push_back(i);
 		}
@@ -1392,7 +1383,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	
 	for (uint32_t i = 0; i < _mainDrawContext.transparentSurfaces.size(); i++)
 	{
-		if (is_visible(_mainDrawContext.transparentSurfaces[i], _sceneData.viewProj))
+		if (Is_Visible(_mainDrawContext.transparentSurfaces[i], _sceneData.viewProj))
 		{
 			transparent_draws.push_back(i);
 		}
@@ -1747,7 +1738,7 @@ void VulkanEngine::TempRender()
     PROFILE_FRAME;
 }
 
-bool is_visible(const RenderObject& aObj, const glm::mat4& aViewProj)
+bool VulkanEngine::Is_Visible(const RenderObject& aObj, const glm::mat4& aViewProj)
 {
 	// TODO.
 	// This is just one of the multiple possible functions we could be using for frustum culling.The way this works is that we are transforming each of the 8 corners of the mesh - space bounding box into screenspace, using object matrix and view - projection matrix.For those, we find the screen - space box bounds, and we check if that box is inside the clip - space view.This way of calculating bounds is on the slow side compared to other formulas, and can have false - positives where it things objects are visible when they arent. All the functions have different tradeoffs, and this one was selected for code simplicity and parallels with the functions we are doing on the vertex shaders.

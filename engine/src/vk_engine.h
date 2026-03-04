@@ -5,8 +5,6 @@
 
 #include <vk_types.h>
 
-#include <ranges>
-
 #include <vk_descriptors.h>
 
 #include "camera.h"
@@ -14,29 +12,6 @@
 
 #include "MomoTracy.h"
 #include "vk_debug.h"
-
-struct DeletionQueue
-{
-	// Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.For the amount of objects we will use in this tutorial, it's going to be fine.but if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of various types such as VkImage, VkBuffer, and so on.And then delete those from a loop.
-
-	std::deque<std::function<void()>> _deleters;
-
-	void Push_Function(std::function<void()>&& aFunction)
-	{
-		_deleters.push_back(std::move(aFunction));
-	}
-
-	void Flush()
-	{
-		// reverse iterate the deletion queue to execute all the functions
-		for (auto& deleter : std::ranges::reverse_view(_deleters))
-		{
-			deleter(); //call functors
-		}
-
-		_deleters.clear();
-	}
-};
 
 struct FrameData
 {
@@ -144,6 +119,12 @@ public:
 	SDL_Window* _window{nullptr};
 
 	static VulkanEngine& Get();
+
+	// singleton stuff
+	VulkanEngine(const VulkanEngine&) = delete;
+    VulkanEngine& operator=(const VulkanEngine&) = delete;
+    VulkanEngine(VulkanEngine&&) = delete;
+    VulkanEngine& operator=(VulkanEngine&&) = delete;
 
 	// initializes everything in the engine
 	void Init();
@@ -268,6 +249,9 @@ public:
 
 	EngineStats _stats = {};
 private:
+    VulkanEngine() = default;
+    ~VulkanEngine() = default;
+
 	void Init_Vulkan();
 	void Init_Swapchain();
 	void Init_Commands();
@@ -303,6 +287,5 @@ private:
     glm::vec4 tempSunDir = glm::vec4(0, 1, 0.5, 1.f);
 	// int tempBlendModeIndex = 0;
 
+    static bool Is_Visible(const RenderObject& aObj, const glm::mat4& aViewProj);
 };
-
-bool is_visible(const RenderObject& aObj, const glm::mat4& aViewProj);

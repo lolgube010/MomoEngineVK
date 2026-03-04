@@ -60,9 +60,6 @@ struct LoadedGLTF : IRenderable
 
     AllocatedBuffer materialDataBuffer;
 
-    // TODO- We could be using a singleton instead to avoid storing this pointer if we wanted.
-    VulkanEngine* creator;
-
     ~LoadedGLTF() override { ClearAll(); };
 
     void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
@@ -71,9 +68,9 @@ private:
     void ClearAll();
 };
 
-namespace MomoGLTF
+namespace momoGLTF
 {
-    std::optional<std::shared_ptr<LoadedGLTF>> LoadGLTF(VulkanEngine* engine, std::string_view filePath);
+    std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* aEngine, std::string_view aFilePath);
 
     VkFilter extract_filter(fastgltf::Filter aFilter);
 

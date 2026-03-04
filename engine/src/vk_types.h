@@ -12,6 +12,7 @@
 #include <array>
 #include <functional>
 #include <deque>
+#include <ranges>
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vk_enum_string_helper.h>
@@ -163,4 +164,26 @@ struct ComputeEffect
     VkPipelineLayout layout;
 
     ComputePushConstants data;
+};
+
+struct DeletionQueue
+{
+    // Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.For the amount of objects we will
+    // use in this tutorial, it's going to be fine.but if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of
+    // various types such as VkImage, VkBuffer, and so on.And then delete those from a loop.
+
+    std::deque<std::function<void()>> _deleters;
+
+    void Push_Function(std::function<void()>&& aFunction) { _deleters.push_back(std::move(aFunction)); }
+
+    void Flush()
+    {
+        // reverse iterate the deletion queue to execute all the functions
+        for (auto& deleter : std::ranges::reverse_view(_deleters))
+        {
+            deleter(); // call functors
+        }
+
+        _deleters.clear();
+    }
 };
