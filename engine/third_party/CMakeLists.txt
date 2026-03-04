@@ -101,3 +101,34 @@ else()
         IMPORTED_LOCATION "${DXC_LIB}"
     )
 endif()
+
+# doxygen and include graphs:
+# 1. Ask CMake to find Doxygen and Graphviz on your system
+find_package(Doxygen)
+
+if(DOXYGEN_FOUND)
+    message(STATUS "Doxygen found! Setting up include graph generation.")
+
+    # 2. Set your Doxygen settings directly in CMake
+    set(DOXYGEN_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build/doxyGen")
+    
+    # Graphing settings
+    set(DOXYGEN_EXTRACT_ALL YES)
+    set(DOXYGEN_HAVE_DOT YES)
+    set(DOXYGEN_INCLUDE_GRAPH YES)
+    set(DOXYGEN_INCLUDED_BY_GRAPH YES)
+    
+    # Input settings
+    set(DOXYGEN_RECURSIVE YES)
+    # Exclude third party to keep the graphs readable!
+    set(DOXYGEN_EXCLUDE "${PROJECT_SOURCE_DIR}/third_party")
+
+    # 3. Create the command to generate the docs
+    # Notice the 'ALL' keyword: This is what makes it auto-run!
+    doxygen_add_docs(
+        GenerateIncludeGraphs          # The name of the target in Visual Studio
+        ${PROJECT_SOURCE_DIR}/src      # The input folder to scan
+    )
+else()
+    message(WARNING "Doxygen not found. Include graphs will not be generated.")
+endif()
