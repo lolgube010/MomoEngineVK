@@ -4,7 +4,7 @@
 # features
 * hlsl and glsl shader support.
 * Buffer Device Address and Vertex Pulling.
-* dynamic rendering & descriptor indexing. 
+* dynamic rendering & descriptor indexing (bindless textures). 
 * GLTF loading (models & textures).
 * Basic Frustum Culling & Draw Sorting
 * Png Texture Loading & Mipmaps.
