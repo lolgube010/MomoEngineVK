@@ -31,9 +31,9 @@ you might need to enable long paths on your system:
 build the tracyProfiler target. 
 
 # depenency graph / doxygen & graphviz
-install doxygen & graphvis
-build the doxygen target
-open index.html in build/doxygen. 
+* install doxygen & graphvis
+* build the doxygen target
+* open index.html in build/doxygen. 
 
 # dependencies
 * based on vkguide.
