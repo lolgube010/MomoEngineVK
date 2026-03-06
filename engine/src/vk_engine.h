@@ -110,7 +110,7 @@ class VulkanEngine
 {
 public:
 	bool _is_initialized{false};
-	bool _stop_rendering{false};
+	bool _freeze_rendering{false};
 	bool _resize_requested = false;
 
 	int _frame_number{0};

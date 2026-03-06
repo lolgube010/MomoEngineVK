@@ -610,7 +610,7 @@ void VulkanEngine::run()
         ImGui::End();
 
 		if (ImGui::Begin("background")) {
-
+            ImGui::SliderFloat("Render Scale", &renderScale, 0.3f, 1.f);
 			ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
 
 			ImGui::Text("Selected effect: ", selected.name);

@@ -332,7 +332,7 @@ void VulkanEngine::Run()
 		ProcessEvents(bQuit);
 
 		// do not draw if we are minimized
-		if (_stop_rendering)
+		if (_freeze_rendering)
 		{
 			// throttle the speed to avoid the endless spinning
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -1345,7 +1345,7 @@ void VulkanEngine::Imgui_Run()
 
 		ImGui::SliderFloat("camera fov", &tempCameraFOV, 1, 180);
 		// ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
-		ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 1.f);
+		ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 2.f);
 		ImGui::Value("cameraPitchRad", _mainCamera.pitch);
 		ImGui::ColorEdit4("SunColor", reinterpret_cast<float*>(&tempSunColor));
 		ImGui::ColorEdit4("AmbientColor", reinterpret_cast<float*>(&tempAmbientColor));
@@ -1729,11 +1729,11 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
         {
             if (e.window.event == SDL_WINDOWEVENT_MINIMIZED)
             {
-                _stop_rendering = true;
+                _freeze_rendering = true;
             }
             if (e.window.event == SDL_WINDOWEVENT_RESTORED)
             {
-                _stop_rendering = false;
+                _freeze_rendering = false;
             }
         }
 
