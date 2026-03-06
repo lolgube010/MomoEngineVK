@@ -193,8 +193,8 @@ public:
 	VkDescriptorSet _drawImageDescriptors;
 	VkDescriptorSetLayout _drawImageDescriptorLayout; // for compute draw (storage image)
 
-	VkPipeline _gradientPipeline;
-	VkPipelineLayout _gradientPipelineLayout;
+	// VkPipeline _gradientPipeline;
+	VkPipelineLayout _ComputePipelineLayout; // prev: gradientPipelineLayout
 
 	// immediate submit structures
 	VkFence _immFence;
@@ -209,11 +209,11 @@ public:
 	// VkPipelineLayout _trianglePipelineLayout;
 	// VkPipeline _trianglePipeline;
 
-	VkPipelineLayout _meshPipelineLayout; // todo- remove / comment out?
-	VkPipeline _meshPipeline; // todo- remove?
+	// old mesh pipeline. maybe repurpose for test meshes or something. 
+	// VkPipelineLayout _meshPipelineLayout; 
+	// VkPipeline _meshPipeline; 
 	// GPUMeshBuffers _rectangle;
-	
-	// std::vector<std::shared_ptr<MeshAsset>> _testMeshes; // todo- remove / comment out?
+	// std::vector<std::shared_ptr<MeshAsset>> _testMeshes; 
 
 	GPUSceneData _sceneData = {};
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout; // uniform buffer, for draw image. once/frame data (projection matrices etc / struct GPUSceneData in vk_types.h).
@@ -264,7 +264,7 @@ private:
 
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
-	void Init_Mesh_Pipeline(); // todo- remove?
+	// void Init_Mesh_Pipeline(); // todo- remove?
 
 	void Create_Swapchain(uint32_t aWidth, uint32_t aHeight);
 	void Destroy_Swapchain() const;
