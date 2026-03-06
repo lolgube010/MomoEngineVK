@@ -27,6 +27,7 @@
 # tracy how to set up
 you might need to enable long paths on your system:
 * git config --system core.longpaths true
+
 build the tracyProfiler target. 
 
 # depenency graph / doxygen & graphviz
