@@ -11,6 +11,7 @@
 #include "vk_loader.h"
 
 #include "MomoTracy.h"
+#include "RenderDocWrapper.h"
 #include "vk_debug.h"
 
 struct FrameData
@@ -249,6 +250,9 @@ public:
 #endif
 
 	EngineStats _stats = {};
+
+	RenderDocWrapper _render_doc;
+
 private:
     VulkanEngine() = default;
     ~VulkanEngine() = default;

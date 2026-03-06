@@ -12,7 +12,7 @@ target_include_directories(MomoVK PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(MomoVK 
 	PUBLIC 
-		vma glm Vulkan::Vulkan fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf dxcompiler
+		vma glm Vulkan::Vulkan fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf dxcompiler renderdoc_app
 	PRIVATE
 		Tracy::TracyClient
 )

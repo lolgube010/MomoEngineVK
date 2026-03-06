@@ -185,6 +185,7 @@ void VulkanEngine::Init()
 	);
 	
 	Init_Vulkan();
+    _debugInfo.Init(_instance);
 	Init_Swapchain();
 	Init_Commands();
 	Init_Sync_Structures();
@@ -192,6 +193,8 @@ void VulkanEngine::Init()
 	Init_Pipelines();
 	Init_ImGui();
 	Init_Tracy();
+    _render_doc.Init_RenderDoc(&_instance, _window);
+	
 	Init_Default_Data();
 
 	_is_initialized = true;
@@ -641,9 +644,6 @@ void VulkanEngine::Init_Vulkan()
 		vmaDestroyAllocator(_allocator);
 	});
 	//< init vma
-	
-	// momo debug adventure
-    _debugInfo.Init(_instance);
 }
 
 void VulkanEngine::Init_Swapchain()
