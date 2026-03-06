@@ -212,7 +212,7 @@ void VulkanEngine::Draw()
 	//> draw_2
 	// request image from the swapchain
 	if (const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &_swapchainImageIndex); 
-		res == VK_ERROR_OUT_OF_DATE_KHR) 
+		res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) 
 	{
 		_resize_requested = true;
 		return;
@@ -221,7 +221,7 @@ void VulkanEngine::Draw()
 
 	//> draw_3
 	// naming it cmd for shorter writing
-	const VkCommandBuffer cmd = Get_Current_Frame()._mainCommandBuffer;
+	const VkCommandBuffer& cmd = Get_Current_Frame()._mainCommandBuffer;
 
 	// now that we are sure that the commands finished executing, we can safely reset the command buffer to begin recording again.
 	VK_CHECK(vkResetCommandBuffer(cmd, 0));
@@ -308,7 +308,7 @@ void VulkanEngine::Draw()
 	presentInfo.pImageIndices = &_swapchainImageIndex;
 
 	if (const VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo); 
-		presentResult == VK_ERROR_OUT_OF_DATE_KHR) 
+		presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) 
 	{
 		_resize_requested = true;
 	}
@@ -574,8 +574,8 @@ void VulkanEngine::Init_Vulkan()
 		.set_surface(_surface)
 		.select();
 
-	// NOTE FOR FUTURE ME: please check if an extension is actually available. tried adding a debug one only for it to only have drivers on NVIDIA and not AMD. 
-	// make sure to check before adding random extensions!!!
+	// NOTE FOR FUTURE ME: please check if a feature is actually available. tried adding a debug one only for it to only have drivers on NVIDIA and not AMD. 
+	// make sure to check before adding random feature!!!
 
 	if (!phys_ret)
 	{
@@ -613,7 +613,7 @@ void VulkanEngine::Init_Vulkan()
     fmt::print("VK API Version: {}.{}.{}\n", VK_API_VERSION_MAJOR(props2.apiVersion), VK_API_VERSION_MINOR(props2.apiVersion), VK_API_VERSION_PATCH(props2.apiVersion));
     fmt::print("Driver Name: {}\n", driverProps.driverName);
     fmt::print("Driver Info: {}\n", driverProps.driverInfo);
-	fmt::print("----------------------------------\n");
+	fmt::print("-----------------------------------\n");
     //> debug info
 
     //< init device
@@ -818,7 +818,6 @@ void VulkanEngine::Init_Descriptors()
 		DescriptorWriter writer;
 		writer.Write_Image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		writer.Update_Set(_device, _drawImageDescriptors);
-		
 	}
 	
 	//make sure both the descriptor allocator and the new layout get cleaned up properly
@@ -858,7 +857,7 @@ void VulkanEngine::Init_Pipelines()
 	Init_Background_Pipelines();
 
 	// graphics pipelines
-	Init_Mesh_Pipeline(); // to comment this out, you also need to comment out @ 
+	Init_Mesh_Pipeline(); // todo- remove / comment out
 
 	metalRoughMaterial.Build_Pipelines(this);
 }
@@ -1734,6 +1733,10 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
             if (e.window.event == SDL_WINDOWEVENT_RESTORED)
             {
                 _freeze_rendering = false;
+            }
+            if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            {
+                _resize_requested = true;
             }
         }
 

@@ -237,5 +237,4 @@ void DescriptorWriter::Update_Set(const VkDevice aDevice, const VkDescriptorSet 
 	}
 
 	vkUpdateDescriptorSets(aDevice, static_cast<uint32_t>(_writes.size()), _writes.data(), 0, nullptr);
-
 }

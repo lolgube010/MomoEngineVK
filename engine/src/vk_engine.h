@@ -38,7 +38,7 @@ struct GLTFMetallic_Roughness
 	MaterialPipeline opaquePipeline;
 	MaterialPipeline transparentPipeline;
 
-	VkDescriptorSetLayout materialLayout;
+	VkDescriptorSetLayout materialLayout; // UB, image/sampler, image/sampler
 
 	struct MaterialConstants
 	{
@@ -190,7 +190,7 @@ public:
 	DescriptorAllocatorGrowable _globalDescriptorAllocator;
 
 	VkDescriptorSet _drawImageDescriptors;
-	VkDescriptorSetLayout _drawImageDescriptorLayout; // for compute draw
+	VkDescriptorSetLayout _drawImageDescriptorLayout; // for compute draw (storage image)
 
 	VkPipeline _gradientPipeline;
 	VkPipelineLayout _gradientPipelineLayout;
@@ -208,14 +208,14 @@ public:
 	// VkPipelineLayout _trianglePipelineLayout;
 	// VkPipeline _trianglePipeline;
 
-	VkPipelineLayout _meshPipelineLayout;
-	VkPipeline _meshPipeline;
+	VkPipelineLayout _meshPipelineLayout; // todo- remove / comment out?
+	VkPipeline _meshPipeline; // todo- remove?
 	// GPUMeshBuffers _rectangle;
 	
-	std::vector<std::shared_ptr<MeshAsset>> _testMeshes;
+	std::vector<std::shared_ptr<MeshAsset>> _testMeshes; // todo- remove / comment out?
 
 	GPUSceneData _sceneData = {};
-	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout; // for draw image
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout; // uniform buffer, for draw image. once/frame data (projection matrices etc / struct GPUSceneData in vk_types.h).
 
 	AllocatedImage Create_Image(VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
 	AllocatedImage Create_Image(const void* aData, VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, bool aMipmapped = false) const;
@@ -231,7 +231,7 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 
-	VkDescriptorSetLayout _singleImageDescriptorLayout; // for textures
+	VkDescriptorSetLayout _singleImageDescriptorLayout; // for textures, combined image/sampler, used in old mesh pipeline and should TODO: be removed
 
 	MaterialInstance defaultData;
 	GLTFMetallic_Roughness metalRoughMaterial;
@@ -263,7 +263,7 @@ private:
 
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
-	void Init_Mesh_Pipeline();
+	void Init_Mesh_Pipeline(); // todo- remove?
 
 	void Create_Swapchain(uint32_t aWidth, uint32_t aHeight);
 	void Destroy_Swapchain() const;
