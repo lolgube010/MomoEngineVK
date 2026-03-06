@@ -46,7 +46,7 @@ struct GLTFMetallic_Roughness
 		glm::vec4 metal_rough_factors; // metallic and roughness parameters on r and b components, plus two more that are used in other places.
 
 		// We have also a bunch of vec4s for padding. In vulkan, when you want to bind a uniform buffer, it needs to meet a minimum requirement for its alignment. 256 bytes is a good default alignment for this which all the gpus we target meet, so we are adding those vec4s to pad the structure to 256 bytes.
-		glm::vec4 extra[14];
+		glm::vec4 extra[14] = {};
 	};
 
 	// When we create the descriptor set, there are some textures we want to bind, and the uniform buffer with the color factors and other properties. We will hold those in the MaterialResources struct, so that its easy to send them to the write_material function.
@@ -288,4 +288,6 @@ private:
 	// int tempBlendModeIndex = 0;
 
     static bool Is_Visible(const RenderObject& aObj, const glm::mat4& aViewProj);
+
+    static const char* Get_Device_Type_String(VkPhysicalDeviceType aType);
 };

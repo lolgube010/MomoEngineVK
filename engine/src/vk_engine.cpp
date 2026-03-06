@@ -95,7 +95,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	vkDestroyShaderModule(aEngine->_device, meshVertexShader.value(), nullptr);
 }
 
-void GLTFMetallic_Roughness::Clear_Resources(VkDevice aDevice) const
+void GLTFMetallic_Roughness::Clear_Resources(const VkDevice aDevice) const
 {
 	vkDestroyDescriptorSetLayout(aDevice, materialLayout, nullptr);
 	vkDestroyPipelineLayout(aDevice, transparentPipeline.layout, nullptr);
@@ -591,7 +591,32 @@ void VulkanEngine::Init_Vulkan()
 	// Get the VkDevice handle used in the rest of a vulkan application
 	_device = vkbDevice.device;
 	_chosen_GPU = physicalDevice.physical_device;
-	//< init device
+	
+	//< debug info
+    VkPhysicalDeviceDriverProperties driverProps{};
+    driverProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+
+    VkPhysicalDeviceProperties2 deviceProps2{};
+    deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+    deviceProps2.pNext = &driverProps;
+
+    // Assuming 'physicalDevice' is the vkb::PhysicalDevice returned by your vkb::DeviceBuilder
+    vkGetPhysicalDeviceProperties2(_chosen_GPU, &deviceProps2);
+
+	const VkPhysicalDeviceProperties& props2 = deviceProps2.properties;
+
+	fmt::print("--- Physical Device Properties ---\n");
+    fmt::print("Selected GPU: {}\n", props2.deviceName);
+    fmt::print("Device Type: {}\n", Get_Device_Type_String(props2.deviceType));
+    // fmt::print("Vendor ID: {}\n", props2.vendorID);
+    // fmt::print("Device ID: {}\n", props2.deviceID);
+    fmt::print("VK API Version: {}.{}.{}\n", VK_API_VERSION_MAJOR(props2.apiVersion), VK_API_VERSION_MINOR(props2.apiVersion), VK_API_VERSION_PATCH(props2.apiVersion));
+    fmt::print("Driver Name: {}\n", driverProps.driverName);
+    fmt::print("Driver Info: {}\n", driverProps.driverInfo);
+	fmt::print("----------------------------------\n");
+    //> debug info
+
+    //< init device
 
 	//> init_queue
 	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
@@ -1073,7 +1098,8 @@ void VulkanEngine::Init_Default_Data()
 	_errorCheckerboardImage = Create_Image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
 		VK_IMAGE_USAGE_SAMPLED_BIT);
 
-	VkSamplerCreateInfo sampler = { .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
+	VkSamplerCreateInfo sampler = {};
+    sampler.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 
 	// nearest gives pixelated look
 	sampler.magFilter = VK_FILTER_NEAREST;
@@ -1100,19 +1126,18 @@ void VulkanEngine::Init_Default_Data()
 
 	//<materials
 	GLTFMetallic_Roughness::MaterialResources materialResources;
-	//default the material textures
+	// default the material textures
 	materialResources.colorImage = _whiteImage;
 	materialResources.colorSampler = _defaultSamplerLinear;
 	materialResources.metalRoughImage = _whiteImage;
 	materialResources.metalRoughSampler = _defaultSamplerLinear;
 
-	//set the uniform buffer for the material data.
+	// set the uniform buffer for the material data.
 	// was previously VMA_MEMORY_USAGE_CPU_TO_GPU
 	AllocatedBuffer materialConstants = Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO);
 
-	//write the buffer
+	// write the buffer
 	GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(materialConstants.info.pMappedData);
-	// GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(materialConstants.allocation->GetMappedData());
 	sceneUniformData->colorFactors = glm::vec4{ 1,1,1,1 };
 	sceneUniformData->metal_rough_factors = glm::vec4{ 1,0.5,0,0 };
 
@@ -1851,6 +1876,25 @@ bool VulkanEngine::Is_Visible(const RenderObject& aObj, const glm::mat4& aViewPr
 	//
 	// // If not culled by any plane, the object is potentially visible
 	// return true;
+}
+
+const char* VulkanEngine::Get_Device_Type_String(const VkPhysicalDeviceType aType)
+{
+    switch (aType)
+    {
+    case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+        return "Other";
+    case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+        return "Integrated GPU";
+    case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+        return "Discrete GPU";
+    case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+        return "Virtual GPU";
+    case VK_PHYSICAL_DEVICE_TYPE_CPU:
+        return "CPU";
+    default:
+        return "Unknown";
+    }
 }
 
 GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, const std::span<Vertex> aVertices) const
