@@ -25,9 +25,14 @@
 * set 'MomoVK' as startup project, and then compile.
 
 # tracy how to set up
-cd path/to/tracy/profiler
-cmake -B build -S . -G "Visual Studio 18 2026" -A x64
-cmake --build build --config Release
+you might need to enable long paths on your system:
+* git config --system core.longpaths true
+build the tracyProfiler target. 
+
+# depenency graph / doxygen & graphviz
+install doxygen & graphvis
+build the doxygen target
+open index.html in build/doxygen. 
 
 # dependencies
 * based on vkguide.
