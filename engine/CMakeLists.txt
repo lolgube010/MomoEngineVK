@@ -17,3 +17,5 @@ add_subdirectory(src)
 add_subdirectory(shaders)
 
 add_dependencies(MomoVK Shaders)
+
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT MomoVK)

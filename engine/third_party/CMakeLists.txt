@@ -59,6 +59,34 @@ endif()
 
 option(TRACY_HAS_VULKAN "Enable Vulkan support in Tracy" ON)
 
+# Define the paths based on your tracy subdirectory
+set(TRACY_PROFILER_SRC_DIR "${PROJECT_SOURCE_DIR}/third_party/tracy/profiler")
+set(TRACY_PROFILER_BUILD_DIR "${TRACY_PROFILER_SRC_DIR}/build/Release")
+
+# Create a target that essentially runs your manual cmd instructions
+add_custom_target(TracyProfiler
+    # Step 1: Configure
+    # We use ${CMAKE_COMMAND} to call the exact same CMake executable that is currently running.
+    # We also pass your current Generator and Architecture so it matches the main project seamlessly.
+    COMMAND ${CMAKE_COMMAND} 
+            -B "${TRACY_PROFILER_BUILD_DIR}" 
+            -S "${TRACY_PROFILER_SRC_DIR}" 
+            -G "${CMAKE_GENERATOR}" 
+            -A "${CMAKE_GENERATOR_PLATFORM}"
+
+    # Step 2: Build (Always forcing Release mode since it's a heavy UI tool)
+    COMMAND ${CMAKE_COMMAND} 
+            --build "${TRACY_PROFILER_BUILD_DIR}" 
+            --config Release
+
+    WORKING_DIRECTORY "${TRACY_PROFILER_SRC_DIR}"
+    COMMENT "Configuring and building the Tracy Profiler standalone..."
+    VERBATIM
+)
+
+# Optional: Group it nicely in a "Tools" folder in Visual Studio
+set_target_properties(TracyProfiler PROPERTIES FOLDER "Tools")
+
 # --- DXC Runtime Support ---
 
 # 1. Find the header (dxc/dxcapi.h)
