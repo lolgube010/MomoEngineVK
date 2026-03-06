@@ -144,7 +144,8 @@ public:
 	}
     FrameData& Get_Last_Frame() { return _frames[(_frame_number - 1) % FRAME_OVERLAP]; }
 
-	void Immediate_Submit(std::function<void(VkCommandBuffer aCmd)>&& aFunction) const;
+	// Send some commands to the GPU without synchronizing with swapchain or with rendering logic.
+	void Immediate_Submit(const std::function<void(VkCommandBuffer cmd)>& aFunction) const;
 
 	// TODO:
 	// Note that this pattern is not very efficient, as we are waiting for the GPU command to fully execute before continuing with our CPU side logic. This is something people generally put on a background thread, whose sole job is to execute uploads like this one, and deleting/reusing the staging buffers.
@@ -212,7 +213,7 @@ public:
 	VkPipeline _meshPipeline; // todo- remove?
 	// GPUMeshBuffers _rectangle;
 	
-	std::vector<std::shared_ptr<MeshAsset>> _testMeshes; // todo- remove / comment out?
+	// std::vector<std::shared_ptr<MeshAsset>> _testMeshes; // todo- remove / comment out?
 
 	GPUSceneData _sceneData = {};
 	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout; // uniform buffer, for draw image. once/frame data (projection matrices etc / struct GPUSceneData in vk_types.h).
@@ -237,7 +238,7 @@ public:
 	GLTFMetallic_Roughness metalRoughMaterial;
 
 	DrawContext _mainDrawContext;
-	std::unordered_map<std::string, std::shared_ptr<Node>> _loadedNodes;
+	// std::unordered_map<std::string, std::shared_ptr<Node>> _loadedNodes;
 
 	Camera _mainCamera;
 
@@ -257,7 +258,7 @@ private:
 	void Init_Commands();
 	void Init_Sync_Structures();
 	void Init_Descriptors();
-	void Init_Imgui();
+	void Init_ImGui();
 	void Init_Tracy();
 	void Init_Default_Data(); // where we load models.
 
@@ -271,8 +272,8 @@ private:
 	void Draw_Background(VkCommandBuffer aCmd) const;
 	void Draw_Geometry(VkCommandBuffer aCmd);
 
-	void Draw_Imgui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
-	void Imgui_Run();
+	void Draw_ImGui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
+	void ImGui_Run();
 
 	void Resize_Swapchain();
 	void Update_Scene();

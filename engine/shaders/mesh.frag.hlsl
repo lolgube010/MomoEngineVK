@@ -1,6 +1,6 @@
 // input_structures.hlsl
 
-struct SceneDataStr
+struct SceneDataStr // NOTE- THIS MIGHT BE BROKEN! DEBUG!
 {
     float4x4 view;
     float4x4 proj;

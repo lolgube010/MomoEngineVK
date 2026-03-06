@@ -40,7 +40,7 @@ class VulkanEngine;
 
 // NOTE: LEGACY
 // std optional allows our vector to be errored / null. 
-std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes_Legacy(VulkanEngine* aEngine, const std::filesystem::path& aFilePath);
+// std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes_Legacy(VulkanEngine* aEngine, const std::filesystem::path& aFilePath);
 
 
 struct LoadedGLTF : IRenderable 
