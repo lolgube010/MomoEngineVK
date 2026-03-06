@@ -21,8 +21,7 @@
 * Fill in the source code / build location like this, then click configure and then generate.
 <img width="1148" height="392" alt="image" src="https://github.com/user-attachments/assets/87c68351-2c45-4b2e-862e-c9cc5f492be4" />
 
-* open the .slnx in /build
-* set 'MomoVK' as startup project, and then compile.
+* open the .slnx in /build and compile
 
 # tracy how to set up
 you might need to enable long paths on your system:
