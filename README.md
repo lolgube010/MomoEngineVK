@@ -1,21 +1,24 @@
 # what is this?
-* engine built using vkguide as a base. will continue on this and add whatever I find interesting. the idea is to eventually make a low-scope-game with this. (wow!)
+* This is a Vulkan Game Engine built using [vkguide.dev](https://vkguide.dev/) as a base. The primary purpose is for me to continue learning Graphics Programming. I'll be working on this continuously, adding what I find to be interesting, and eventually making a game out of those parts.
 
 # features
-* hlsl and glsl shader support.
+* HLSL and GLSL shader support.
 * Buffer Device Address and Vertex Pulling.
 * dynamic rendering & descriptor indexing (bindless textures). 
 * GLTF loading (models & textures).
 * Basic Frustum Culling & Draw Sorting
 * Png Texture Loading & Mipmaps.
+* renderdoc API.
+* super basic lighting and pbr.
 
 # planned features
-* everything unreal&unity has but better and cooler and faster and more awesomer
-* no but, whatever I fixate on is what I'll implement. we'll see. I have too many features planned to write them down, really. 
+I have a lot of things planned for this engine, but overarching goals are...
+* More modern rendering techniques. (full PBR, support for multiple setups like deferred, forward+, clustered etc). 
+* More recent Vulkan extensions.
+* More "Game-Engine support" (ECS etc).
 
 # How to Build:
 * [Install Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
-* Maybe enable some debug stuff in the config. you can always do this later.
 * [Install CMake](https://cmake.org/)
 * Open CMake-gui
 * Fill in the source code / build location like this, then click configure and then generate.
@@ -28,6 +31,7 @@ you might need to enable long paths on your system:
 * git config --system core.longpaths true
 
 build the tracyProfiler target. 
+run tracy-profiler.exe
 
 # depenency graph / doxygen & graphviz
 * install doxygen & graphvis
@@ -36,4 +40,4 @@ build the tracyProfiler target.
 
 # dependencies
 * based on vkguide.
-* fastgltf, fmt, glm, imgui, sdl, stb_image, tracy, vkbootstrap, vma, volk.
+* fastgltf, fmt, glm, imgui, sdl, stb_image, tracy, vkbootstrap, vma, volk, renderdoc. 
