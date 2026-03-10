@@ -5,8 +5,6 @@ class Vk_Debug_Info
 public:
     void Init(const VkInstance& aVkInstance) 
     { 
-        _vkSetDebugUtilsObjectNameExt = reinterpret_cast<PFN_vkSetDebugUtilsObjectNameEXT>(vkGetInstanceProcAddr(aVkInstance, "vkSetDebugUtilsObjectNameEXT"));
-
         // momo debug stuff
         g_TotalAllocatedBytes = 0;
         g_TotalFreedBytes = 0;
@@ -17,18 +15,15 @@ public:
         _callbacks.pfnFree = MyFreeCallback;
     }
 
-    void SetDebugInfo(const VkDevice* aDevice, const uint64_t aObjectHandle, const VkObjectType aObjectType, const char* a_pObjectName) const
+    static void SetDebugInfo(const VkDevice* aDevice, const uint64_t aObjectHandle, const VkObjectType aObjectType, const char* a_pObjectName)
     {
-        if (_vkSetDebugUtilsObjectNameExt)
-        {
-            VkDebugUtilsObjectNameInfoEXT nameInfo = {};
-            nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
-            nameInfo.objectType = aObjectType;
-            nameInfo.objectHandle = aObjectHandle;
-            nameInfo.pObjectName = a_pObjectName;
+        VkDebugUtilsObjectNameInfoEXT nameInfo = {};
+        nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
+        nameInfo.objectType = aObjectType;
+        nameInfo.objectHandle = aObjectHandle;
+        nameInfo.pObjectName = a_pObjectName;
 
-            _vkSetDebugUtilsObjectNameExt(*aDevice, &nameInfo);
-        }
+        vkSetDebugUtilsObjectNameEXT(*aDevice, &nameInfo);
     }
 
 
@@ -50,7 +45,6 @@ public:
     }
 
 private:
-    PFN_vkSetDebugUtilsObjectNameEXT _vkSetDebugUtilsObjectNameExt = {};
     VmaDeviceMemoryCallbacks _callbacks = {};
     inline static uint64_t g_TotalAllocatedBytes;
     inline static uint64_t g_TotalFreedBytes;
