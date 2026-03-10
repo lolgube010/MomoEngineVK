@@ -9,10 +9,6 @@ file(MAKE_DIRECTORY ${SHADER_DIR_RELEASE})
 set(GLSL_FLAGS_DBG -g -Od)
 set(GLSL_FLAGS_REL) 
 
-find_program(GLSL_VALIDATOR glslangValidator HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
-find_program(DXC_COMPILER dxc HINTS /usr/bin /usr/local/bin $ENV{VULKAN_SDK}/Bin/ $ENV{VULKAN_SDK}/Bin32/)
-message(STATUS "Using DXC Compiler at: ${DXC_COMPILER}")
-
 # Initialize list to hold all compiled SPIR-V files
 set(SPIRV_BINARY_FILES)
 
@@ -45,14 +41,14 @@ foreach(GLSL ${GLSL_SOURCE_FILES})
     # Debug
     add_custom_command(
         OUTPUT ${SPV_DBG}
-        COMMAND ${GLSL_VALIDATOR} -V ${GLSL_FLAGS_DBG} ${GLSL} -o ${SPV_DBG}
+        COMMAND Vulkan::glslangValidator -V ${GLSL_FLAGS_DBG} ${GLSL} -o ${SPV_DBG}
         DEPENDS ${GLSL} ${GLSL_INCLUDE_FILES}
     )
 
     # Release
     add_custom_command(
         OUTPUT ${SPV_REL}
-        COMMAND ${GLSL_VALIDATOR} -V ${GLSL_FLAGS_REL} ${GLSL} -o ${SPV_REL}
+        COMMAND Vulkan::glslangValidator -V ${GLSL_FLAGS_REL} ${GLSL} -o ${SPV_REL}
         DEPENDS ${GLSL} ${GLSL_INCLUDE_FILES}
     )
 
@@ -75,7 +71,7 @@ macro(compile_hlsl FILE_LIST PROFILE ENTRY_POINT)
         # Debug
         add_custom_command(
             OUTPUT ${SPV_DBG}
-            COMMAND ${DXC_COMPILER} -T ${PROFILE} -E ${ENTRY_POINT} ${DXC_BASE_FLAGS} ${DXC_FLAGS_DBG} ${HLSL} -Fo ${SPV_DBG}
+            COMMAND Vulkan::dxc_exe -T ${PROFILE} -E ${ENTRY_POINT} ${DXC_BASE_FLAGS} ${DXC_FLAGS_DBG} ${HLSL} -Fo ${SPV_DBG}
             DEPENDS ${HLSL} ${HLSL_INCLUDE_FILES}
             COMMENT "Compiling ${FILE_NAME} (Debug) [${PROFILE}]"
             VERBATIM
@@ -84,7 +80,7 @@ macro(compile_hlsl FILE_LIST PROFILE ENTRY_POINT)
         # Release
         add_custom_command(
             OUTPUT ${SPV_REL}
-            COMMAND ${DXC_COMPILER} -T ${PROFILE} -E ${ENTRY_POINT} ${DXC_BASE_FLAGS} ${DXC_FLAGS_REL} ${HLSL} -Fo ${SPV_REL}
+            COMMAND Vulkan::dxc_exe -T ${PROFILE} -E ${ENTRY_POINT} ${DXC_BASE_FLAGS} ${DXC_FLAGS_REL} ${HLSL} -Fo ${SPV_REL}
             DEPENDS ${HLSL} ${HLSL_INCLUDE_FILES}
             COMMENT "Compiling ${FILE_NAME} (Release) [${PROFILE}]"
             VERBATIM

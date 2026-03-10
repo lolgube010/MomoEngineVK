@@ -12,7 +12,7 @@ target_include_directories(MomoVK PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 
 target_link_libraries(MomoVK 
 	PUBLIC 
-		vma glm Vulkan::Vulkan fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf dxcompiler renderdoc_app
+		Vulkan::volk Vulkan::dxc_lib vma glm fmt::fmt stb_image SDL2::SDL2 vkbootstrap imgui fastgltf::fastgltf renderdoc_app
 	PRIVATE
 		Tracy::TracyClient
 )
@@ -22,13 +22,15 @@ target_compile_definitions(MomoVK PRIVATE
     TRACY_ENABLE=$<BOOL:${TRACY_ENABLE}>
 )
 
-target_precompile_headers(MomoVK PUBLIC <optional> <vector> <memory> <string> <vector> <unordered_map> <glm/mat4x4.hpp>  <glm/vec4.hpp> <vulkan/vulkan.h> <vulkan/vk_enum_string_helper.h> <filesystem> <chrono> <format> <fmt/core.h> <fastgltf/types.hpp>)
+target_compile_definitions(MomoVK PUBLIC VK_NO_PROTOTYPES)
+
+target_precompile_headers(MomoVK PUBLIC <optional> <vector> <memory> <string> <vector> <unordered_map> <glm/mat4x4.hpp>  <glm/vec4.hpp> <Volk/volk.h> <vulkan/vk_enum_string_helper.h> <filesystem> <chrono> <format> <fmt/core.h> <fastgltf/types.hpp>)
 
 if(WIN32)
   add_custom_command(TARGET MomoVK POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_RUNTIME_DLLS:MomoVK> $<TARGET_FILE_DIR:MomoVK>
-	# 2. Explicitly copy dxcompiler.dll (using the property we set in third_party)
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:dxcompiler,IMPORTED_LOCATION> $<TARGET_FILE_DIR:MomoVK>
+    COMMAND ${CMAKE_COMMAND} -E copy "${DXC_DLL}" $<TARGET_FILE_DIR:MomoVK>
+	COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_PROPERTY:SDL2::SDL2,IMPORTED_LOCATION> $<TARGET_FILE_DIR:MomoVK>
     COMMAND_EXPAND_LISTS
     )
 endif()

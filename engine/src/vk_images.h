@@ -1,5 +1,5 @@
 #pragma once
-#include <vulkan/vulkan.h>
+#include <Volk/volk.h>
 
 // This will contain image related vulkan helpers
 namespace vkUtil

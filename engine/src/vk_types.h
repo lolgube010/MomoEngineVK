@@ -14,9 +14,9 @@
 #include <deque>
 #include <ranges>
 
-#include <vulkan/vulkan.h>
+#include <Volk/volk.h>
 #include <vulkan/vk_enum_string_helper.h>
-#include <vk_mem_alloc.h>
+#include <vma/vk_mem_alloc.h>
 
 #include <fmt/core.h>
 // #include <fmt/std.h>

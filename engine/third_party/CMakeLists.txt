@@ -1,15 +1,39 @@
-find_package(Vulkan REQUIRED)
+find_package(Vulkan REQUIRED COMPONENTS volk dxc)
+
+# --- VMA (Vulkan Memory Allocator) ---
+find_path(VMA_INCLUDE_DIR NAMES vk_mem_alloc.h HINTS "$ENV{VULKAN_SDK}/Include")
+add_library(vma INTERFACE)
+target_include_directories(vma INTERFACE "${VMA_INCLUDE_DIR}")
+
+# --- GLM ---
+find_path(GLM_INCLUDE_DIR NAMES glm/glm.hpp HINTS "$ENV{VULKAN_SDK}/Include")
+add_library(glm INTERFACE)
+target_include_directories(glm INTERFACE "${GLM_INCLUDE_DIR}")
+
+# --- SDL2 ---
+find_path(SDL2_INCLUDE_DIR NAMES SDL.h HINTS "$ENV{VULKAN_SDK}/Include/SDL2" "$ENV{VULKAN_SDK}/Include")
+find_library(SDL2_LIB NAMES SDL2 HINTS "$ENV{VULKAN_SDK}/Lib" "$ENV{VULKAN_SDK}/lib")
+
+add_library(SDL2::SDL2 SHARED IMPORTED GLOBAL)
+target_include_directories(SDL2::SDL2 INTERFACE "${SDL2_INCLUDE_DIR}")
+
+if(WIN32)
+    # On Windows, link the .lib and find the .dll for runtime
+    set_target_properties(SDL2::SDL2 PROPERTIES IMPORTED_IMPLIB "${SDL2_LIB}")
+    
+    find_file(SDL2_DLL NAMES SDL2.dll HINTS "$ENV{VULKAN_SDK}/Bin")
+    set_target_properties(SDL2::SDL2 PROPERTIES IMPORTED_LOCATION "${SDL2_DLL}")
+else()
+    # On Linux/macOS, link against the .so / .dylib
+    set_target_properties(SDL2::SDL2 PROPERTIES IMPORTED_LOCATION "${SDL2_LIB}")
+endif()
 
 add_library(vkbootstrap STATIC)
-add_library(glm INTERFACE)
-add_library(vma INTERFACE)
-
 add_library(stb_image INTERFACE)
 add_library(renderdoc_app INTERFACE)
 
 add_subdirectory(fastgltf)
 add_subdirectory(fmt EXCLUDE_FROM_ALL)
-add_subdirectory(SDL EXCLUDE_FROM_ALL)
 
 target_sources(vkbootstrap PRIVATE 
   vkbootstrap/VkBootstrap.h
@@ -17,20 +41,8 @@ target_sources(vkbootstrap PRIVATE
   )
 
 target_include_directories(vkbootstrap PUBLIC vkbootstrap)
-target_link_libraries(vkbootstrap PUBLIC Vulkan::Vulkan $<$<BOOL:UNIX>:${CMAKE_DL_LIBS}>)
+target_link_libraries(vkbootstrap PUBLIC Vulkan::volk $<$<BOOL:UNIX>:${CMAKE_DL_LIBS}>)
 set_property(TARGET vkbootstrap PROPERTY CXX_STANDARD 20)
-
-#both vma and glm and header only libs so we only need the include path
-target_include_directories(vma INTERFACE vma)
-
-target_include_directories(glm INTERFACE glm)
-
-#add_library(sdl2 INTERFACE)
-
-#target_include_directories(sdl2 INTERFACE $ENV{VULKAN_SDK}/Include/SDL2 )
-#target_link_directories(sdl2 INTERFACE $ENV{VULKAN_SDK}/Lib )
-
-#target_link_libraries(sdl2 INTERFACE SDL2 SDL2main)
 
 add_library(imgui STATIC)
 
@@ -48,7 +60,8 @@ target_sources(imgui PRIVATE
   imgui/imgui_impl_sdl2.cpp
   )
 
-target_link_libraries(imgui PUBLIC Vulkan::Vulkan SDL2::SDL2)
+target_link_libraries(imgui PUBLIC Vulkan::volk SDL2::SDL2)
+target_compile_definitions(imgui PUBLIC IMGUI_IMPL_VULKAN_USE_VOLK "IMGUI_IMPL_VULKAN_VOLK_FILENAME=<Volk/volk.h>")
 
 target_include_directories(stb_image INTERFACE stb_image)
 target_include_directories(renderdoc_app INTERFACE renderdoc_app)
@@ -89,47 +102,9 @@ add_custom_target(TracyProfiler
 # Optional: Group it nicely in a "Tools" folder in Visual Studio
 set_target_properties(TracyProfiler PROPERTIES FOLDER "Tools")
 
-# --- DXC Runtime Support ---
-
-# 1. Find the header (dxc/dxcapi.h)
-find_path(DXC_INCLUDE_DIR 
-    NAMES dxc/dxcapi.h 
-    HINTS "$ENV{VULKAN_SDK}/Include"
-)
-
-# 2. Find the library (.lib on Windows, .so on Linux)
-find_library(DXC_LIB
-    NAMES dxcompiler
-    HINTS "$ENV{VULKAN_SDK}/Lib" "$ENV{VULKAN_SDK}/lib"
-)
-
-# 3. Create the imported target
-add_library(dxcompiler SHARED IMPORTED GLOBAL)
-
-# Set the include headers (so you can do #include <dxc/dxcapi.h>)
-target_include_directories(dxcompiler INTERFACE "${DXC_INCLUDE_DIR}")
-
+# FindVulkan only tracks the .lib, so we still manually find the .dll for copying
 if(WIN32)
-    # On Windows, we link against the .lib but need the .dll at runtime
-    set_target_properties(dxcompiler PROPERTIES
-        IMPORTED_IMPLIB "${DXC_LIB}"
-    )
-
-    # Find the DLL specifically for copying later
-    find_file(DXC_DLL
-        NAMES dxcompiler.dll
-        HINTS "$ENV{VULKAN_SDK}/Bin"
-    )
-    
-    # Associate the DLL with the target
-    set_target_properties(dxcompiler PROPERTIES
-        IMPORTED_LOCATION "${DXC_DLL}"
-    )
-else()
-    # On Linux, the .so file is used for both linking and runtime
-    set_target_properties(dxcompiler PROPERTIES
-        IMPORTED_LOCATION "${DXC_LIB}"
-    )
+    find_file(DXC_DLL NAMES dxcompiler.dll HINTS "$ENV{VULKAN_SDK}/Bin")
 endif()
 
 # doxygen and include graphs:

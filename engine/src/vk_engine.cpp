@@ -14,7 +14,7 @@
 
 #define VMA_IMPLEMENTATION
 
-#include "vk_mem_alloc.h"
+#include <vma/vk_mem_alloc.h>
 #include "vk_pipelines.h"
 
 #include "imgui.h"
@@ -525,6 +525,16 @@ void VulkanEngine::Destroy_Image(const AllocatedImage& aImg) const
 
 void VulkanEngine::Init_Vulkan()
 {
+	{
+        if (auto res = volkInitialize(); 
+			res != VK_SUCCESS)
+        {
+            // Handle error: Vulkan loader wasn't found on the system
+            fmt::print("Failed to initialize volk!\n");
+            return;
+        }
+	}
+
 	//> init_instance
 	vkb::InstanceBuilder builder;
 
@@ -541,6 +551,8 @@ void VulkanEngine::Init_Vulkan()
 	_instance = vkb_inst.instance;
 	_debug_messenger = vkb_inst.debug_messenger;
 	//< init_instance
+
+	volkLoadInstance(_instance);
 
 	//> init_device
 	SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
@@ -596,6 +608,8 @@ void VulkanEngine::Init_Vulkan()
 	_device = vkbDevice.device;
 	_chosen_GPU = physicalDevice.physical_device;
 	
+	volkLoadDevice(_device);
+
 	//< debug info
     VkPhysicalDeviceDriverProperties driverProps{};
     driverProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
@@ -629,11 +643,17 @@ void VulkanEngine::Init_Vulkan()
 
 	//> init vma
 	// initialize the memory allocator
+    VmaVulkanFunctions vulkanFunctions = {};
+    vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
+    vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
+
 	VmaAllocatorCreateInfo allocatorInfo = {};
 	allocatorInfo.physicalDevice = _chosen_GPU;
 	allocatorInfo.device = _device;
 	allocatorInfo.instance = _instance;
 	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; // used for BDA
+    allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+    allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_4;
 
 	// allocatorInfo.pDeviceMemoryCallbacks = &_callbacks; // added by momo
 	

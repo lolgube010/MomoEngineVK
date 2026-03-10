@@ -9,7 +9,7 @@ struct Constants
     float4 data4;
 };
 
-// 2. Declare the global variable with the specific attribute
+// 2. Declare the global variable with the specific attribute - poop
 [[vk::push_constant]] Constants PushConstants;
 
 // 3. Bind the image (Set 0, Binding 0)
