@@ -12,7 +12,6 @@
 void RenderDocWrapper::Init_RenderDoc(const VkInstance* aVkInstance, SDL_Window* aSDLWindow)
 {
     bool succeeded = false;
-#if defined(_WIN32)
     // See if the RenderDoc DLL is currently loaded in our process
     if (HMODULE mod = GetModuleHandleA("renderdoc.dll"))
     {
@@ -45,7 +44,6 @@ void RenderDocWrapper::Init_RenderDoc(const VkInstance* aVkInstance, SDL_Window*
             fmt::print("Couldn't find RenderDoc installation at 'C:/Program Files/RenderDoc/renderdoc.dll' or as an attached DLL. RenderDoc will be unavailable. \n");
         }
     }
-#endif
     if (!succeeded)
     {
         return;
@@ -88,10 +86,25 @@ void RenderDocWrapper::AnnotateObject(const VkInstance aInst, void* aVulkanObj) 
     RENDERDOC_AnnotationType type = eRENDERDOC_String; // what type are we filling this with?
     void* dev = RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE(aInst);
     auto res = _rdoc_api->SetObjectAnnotation(dev, aVulkanObj, key, type, 0, RDAnnotationHelper(value));
-    EvaluateRes(res);
+    EvaluateResult(res);
 }
 
-void RenderDocWrapper::EvaluateRes(const uint32_t aRes)
+void RenderDocWrapper::StartCapture()
+{
+    // _rdoc_api->StartFrameCapture();
+}
+
+void RenderDocWrapper::EndCapture()
+{
+    // _rdoc_api->EndFrameCapture();
+}
+
+void RenderDocWrapper::Capture() const
+{
+    _rdoc_api->TriggerCapture();
+}
+
+void RenderDocWrapper::EvaluateResult(const uint32_t aRes)
 {
     if (aRes == 0)
     {

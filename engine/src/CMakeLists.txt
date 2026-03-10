@@ -34,3 +34,8 @@ if(WIN32)
     COMMAND_EXPAND_LISTS
     )
 endif()
+
+# to fix PDB 'volkd.pdb' was not found with 'volkd.lib(volk.obj)' or at 'C:\git\MomoEngineVK\engine\bin\Debug\volkd.pdb'; linking object as if no debug info
+if(MSVC)
+    target_link_options(MomoVK PRIVATE /IGNORE:4099)
+endif()

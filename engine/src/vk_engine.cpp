@@ -60,8 +60,8 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	transparentPipeline.layout = newLayout;
 
 	constexpr bool useHLSL = false;
-    auto meshFragShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Fragment, useHLSL, aEngine->_device, &aEngine->_debugInfo);
-    auto meshVertexShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Vertex, useHLSL, aEngine->_device, &aEngine->_debugInfo);
+    auto meshFragShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Fragment, useHLSL, aEngine->_device);
+    auto meshVertexShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Vertex, useHLSL, aEngine->_device);
 
 	// build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	PipelineBuilder pipelineBuilder;
@@ -185,7 +185,7 @@ void VulkanEngine::Init()
 	);
 	
 	Init_Vulkan();
-    _debugInfo.Init(_instance);
+    // _debugInfo.Init(_instance);
 	Init_Swapchain();
 	Init_Commands();
 	Init_Sync_Structures();
@@ -193,16 +193,16 @@ void VulkanEngine::Init()
 	Init_Pipelines();
 	Init_ImGui();
 	Init_Tracy();
-    _render_doc.Init_RenderDoc(&_instance, _window);
+    // _render_doc.Init_RenderDoc(&_instance, _window);
 	
 	Init_Default_Data();
-
+	
 	_is_initialized = true;
 }
 
 void VulkanEngine::Draw()
 {
-	Update_Scene();
+	Update_Scene(); // should maybe be moved out of draw. this is preparing buffers / updating matrices. 
 
 	//> draw_1
 	// wait until the gpu has finished rendering the last frame. Timeout of 1 second
@@ -239,16 +239,22 @@ void VulkanEngine::Draw()
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
-	// transition our main draw image into general layout so we can write into it.
-	// we will overwrite it all so we don't care about what was the older layout
-	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-
-	Draw_Background(cmd);
+	{
+        momo_vkDebug::ScopedDebugLabel label(cmd, "transition image");
+	    // transition our main draw image into general layout so we can write into it.
+	    // we will overwrite it all so we don't care about what was the older layout
+	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	}
+	{
+        momo_vkDebug::ScopedDebugLabel label(cmd, "draw background");
+	    Draw_Background(cmd);
+	}
 
 	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	{
+        momo_vkDebug::ScopedDebugLabel label(cmd, "Draw Geometry");
 		PROFILE_SCOPE_N("Draw Geometry")
 		Draw_Geometry(cmd);
 	}
@@ -263,8 +269,11 @@ void VulkanEngine::Draw()
 	// set swapchain image layout to Attachment Optimal so we can draw it
     vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 
-	// draw imgui into the swapchain image
-    Draw_ImGui(cmd, _swapchain_image_views[_swapchainImageIndex]);
+	{
+        momo_vkDebug::ScopedDebugLabel label(cmd, "Draw imGui");
+	    // draw imgui into the swapchain image
+        Draw_ImGui(cmd, _swapchain_image_views[_swapchainImageIndex]);
+	}
 
 	// set swapchain image layout to Present so we can show it on the screen
     vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
@@ -590,9 +599,6 @@ void VulkanEngine::Init_Vulkan()
 		.set_surface(_surface)
 		.select();
 
-	// NOTE FOR FUTURE ME: please check if a feature is actually available. tried adding a debug one only for it to only have drivers on NVIDIA and not AMD. 
-	// make sure to check in vulkan caps viewer before adding random features!!!
-
 	if (!phys_ret)
 	{
 		throw std::runtime_error("failed to find a suitable GPU: " + phys_ret.error().message());
@@ -606,32 +612,60 @@ void VulkanEngine::Init_Vulkan()
 
 	// Get the VkDevice handle used in the rest of a vulkan application
 	_device = vkbDevice.device;
-	_chosen_GPU = physicalDevice.physical_device;
+    _chosen_GPU = physicalDevice.physical_device;
 	
 	volkLoadDevice(_device);
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_DEVICE, _device, "Logical Device MomoVK");
 
 	//< debug info
-    VkPhysicalDeviceDriverProperties driverProps{};
-    driverProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
+	{
+        VkPhysicalDeviceDriverProperties driverProps{};
+        driverProps.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
 
-    VkPhysicalDeviceProperties2 deviceProps2{};
-    deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
-    deviceProps2.pNext = &driverProps;
+        VkPhysicalDeviceProperties2 deviceProps2{};
+        deviceProps2.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2;
+        deviceProps2.pNext = &driverProps;
 
-    // Assuming 'physicalDevice' is the vkb::PhysicalDevice returned by your vkb::DeviceBuilder
-    vkGetPhysicalDeviceProperties2(_chosen_GPU, &deviceProps2);
+        // Assuming 'physicalDevice' is the vkb::PhysicalDevice returned by your vkb::DeviceBuilder
+        vkGetPhysicalDeviceProperties2(_chosen_GPU, &deviceProps2);
 
-	const VkPhysicalDeviceProperties& props2 = deviceProps2.properties;
-    // fmt::print("\x1b[2J\x1b[H"); // NOTE: THIS CLEARS THE CONSOLE! ANY ERROR MESSAGE BEFORE THIS WILL NOT BE SEEN!
-	fmt::print("--- Physical Device Properties ---\n");
-    fmt::print("Selected GPU: {}\n", props2.deviceName);
-    fmt::print("Device Type: {}\n", Get_Device_Type_String(props2.deviceType));
-    // fmt::print("Vendor ID: {}\n", props2.vendorID);
-    // fmt::print("Device ID: {}\n", props2.deviceID);
-    fmt::print("VK API Version: {}.{}.{}\n", VK_API_VERSION_MAJOR(props2.apiVersion), VK_API_VERSION_MINOR(props2.apiVersion), VK_API_VERSION_PATCH(props2.apiVersion));
-    fmt::print("Driver Name: {}\n", driverProps.driverName);
-    fmt::print("Driver Info: {}\n", driverProps.driverInfo);
-	fmt::print("-----------------------------------\n");
+	    const VkPhysicalDeviceProperties& props2 = deviceProps2.properties;
+        // fmt::print("\x1b[2J\x1b[H"); // NOTE: THIS CLEARS THE CONSOLE! ANY ERROR MESSAGE BEFORE THIS WILL NOT BE SEEN!
+	    fmt::print("--- Physical Device Properties ---\n");
+        fmt::print("Selected GPU: {}\n", props2.deviceName);
+        fmt::print("Device Type: {}\n", Get_Device_Type_String(props2.deviceType));
+        // fmt::print("Vendor ID: {}\n", props2.vendorID);
+        // fmt::print("Device ID: {}\n", props2.deviceID);
+        fmt::print("VK API Version: {}.{}.{}\n", VK_API_VERSION_MAJOR(props2.apiVersion), VK_API_VERSION_MINOR(props2.apiVersion), VK_API_VERSION_PATCH(props2.apiVersion));
+        fmt::print("Driver Name: {}\n", driverProps.driverName);
+        fmt::print("Driver Info: {}\n", driverProps.driverInfo);
+	    fmt::print("-----------------------------------\n");
+	}
+    
+	// name both devices in renderdoc as well. idk about calling vkGetPhysicalDeviceProperties twice but whatever.
+	{
+	    // Ask Vulkan how many GPUs are plugged into the motherboard
+	    uint32_t deviceCount = 0;
+        vkEnumeratePhysicalDevices(_instance, &deviceCount, nullptr);
+
+        // Fetch the actual list of handles
+        std::vector<VkPhysicalDevice> allGPUs(deviceCount);
+        vkEnumeratePhysicalDevices(_instance, &deviceCount, allGPUs.data());
+
+	    // NOTE: this might break validation layers because naming a device from a different device is a big no no, but whatever. rn it works!
+        for (uint32_t i = 0; i < deviceCount; ++i)
+        {
+            // Get the hardware properties from the driver
+            VkPhysicalDeviceProperties props;
+            vkGetPhysicalDeviceProperties(allGPUs[i], &props);
+
+            // Format a nice string like "GPU 0: NVIDIA RTX 4090"
+            std::string gpuDebugName = fmt::format("Physical Device/GPU {}: {}", i, props.deviceName);
+
+            // Assign it!
+            momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PHYSICAL_DEVICE, allGPUs[i], gpuDebugName.c_str());
+        }
+	}
     //> debug info
 
     //< init device
@@ -639,6 +673,7 @@ void VulkanEngine::Init_Vulkan()
 	//> init_queue
 	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
 	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_QUEUE, _graphicsQueue, "Main Graphics Queue");
 	//< init_queue
 
 	//> init vma
@@ -703,7 +738,7 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo rview_info = vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
-	_debugInfo.SetDebugInfo(&_device, (uint64_t)_drawImage.image, VK_OBJECT_TYPE_IMAGE, "OOGILI BOOGILI ZOOGILI SHMALOOGILI main draw img");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "OOGILI BOOGILI ZOOGILI SHMALOOGILI main draw img");
 	//< create image
 
 	//> create depth
@@ -721,7 +756,7 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo dview_info = vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
-    _debugInfo.SetDebugInfo(&_device, uint64_t(_depthImage.image), VK_OBJECT_TYPE_IMAGE, "(gabagool) main depth");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "(gabagool) main depth");
 	//< create depth
 
 
@@ -777,18 +812,27 @@ void VulkanEngine::Init_Sync_Structures()
 	const VkFenceCreateInfo fenceCreateInfo = vkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
 	const VkSemaphoreCreateInfo semaphoreCreateInfo = vkInit::semaphore_create_info();
 
-	for (auto& frame : _frames)
-	{
+    for (int i = 0; i < FRAME_OVERLAP; ++i)
+    {
+        auto& frame = _frames[i];
 		VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &frame._renderFence));
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
 		//VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore)); // moved to 2nd for loop
-	}
+		
+		std::string fenceName = fmt::format("RenderFence FIF:{}", i);
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, frame._renderFence, fenceName.c_str());
+        
+        std::string semName = fmt::format("SwapchainSemaphore FIF:{}", i);
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, semName.c_str());
+    }
 	
     ready_for_present_semaphores.resize(_swapchainImageCount);
 	
     for (size_t i = 0; i < _swapchainImageCount; ++i)
 	{
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &ready_for_present_semaphores[i]));
+        std::string semName = fmt::format("Ready For Present Semaphore SwapchainImgCount:{}", i);
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, ready_for_present_semaphores[i], semName.c_str());
         _mainDeletionQueue.Push_Function([this, i]
         {
             vkDestroySemaphore(_device, ready_for_present_semaphores[i], nullptr);
@@ -796,6 +840,7 @@ void VulkanEngine::Init_Sync_Structures()
 	}
     
 	VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, _immFence, "Immediate Fence");
 	_mainDeletionQueue.Push_Function([this] { vkDestroyFence(_device, _immFence, nullptr); });
 }
 
@@ -900,8 +945,8 @@ void VulkanEngine::Init_Background_Pipelines()
 
 	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_ComputePipelineLayout));
 
-    auto gradientShader = momo_util::LoadShader("gradient_color", momo_util::ShaderType::Compute, false, _device, &_debugInfo);
-    auto skyShader = momo_util::LoadShader("sky", momo_util::ShaderType::Compute, false, _device, &_debugInfo);
+    auto gradientShader = momo_util::LoadShader("gradient_color", momo_util::ShaderType::Compute, false, _device);
+    auto skyShader = momo_util::LoadShader("sky", momo_util::ShaderType::Compute, false, _device);
 
 	VkPipelineShaderStageCreateInfo stageInfo{};
 	stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -1188,7 +1233,7 @@ void VulkanEngine::Init_Default_Data()
 	// }
 
 	const std::string structurePath = {R"(..\..\assets\structure.glb)"};
-    const auto structureFile = momoGLTF::load_gltf(this, structurePath);
+    const auto structureFile = momo_GLTF::load_gltf(this, structurePath);
 	assert(structureFile.has_value());
 
 	_loadedScenes["structure"] = *structureFile;
@@ -1281,6 +1326,18 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 	// Set _swapchainImageCount to the amount of swapchain images. 
 	// used to initialize the same amount of _readyForPresentSemaphores in init_sync_structures
     VK_CHECK(vkGetSwapchainImagesKHR(_device, _swapchain, &_swapchainImageCount, nullptr));
+
+	momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, _swapchain, "Main Swapchain");
+
+    // 2. Loop through and name the Images and Image Views!
+    for (size_t i = 0; i < _swapchain_images.size(); ++i)
+    {
+        std::string imageName = fmt::format("Swapchain Image {}", i);
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _swapchain_images[i], imageName.c_str());
+
+        std::string viewName = fmt::format("Swapchain View {}", i);
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchain_image_views[i], viewName.c_str());
+    }
 }
 
 void VulkanEngine::Destroy_Swapchain() const
@@ -1737,6 +1794,7 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
         }
 
         _mainCamera.ProcessSDLEvent(e);
+		
         // send SDL event to imgui for handling
         ImGui_ImplSDL2_ProcessEvent(&e);
         // process_input(e);

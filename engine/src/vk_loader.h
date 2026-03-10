@@ -68,7 +68,7 @@ private:
     void ClearAll();
 };
 
-namespace momoGLTF
+namespace momo_GLTF
 {
     std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* aEngine, std::string_view aFilePath);
 

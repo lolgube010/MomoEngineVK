@@ -159,7 +159,7 @@ void LoadedGLTF::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
     // create renderables from the scene nodes
     for (const auto& n : topNodes)
     {
-        n->Draw(aTopMatrix, aCtx);
+        n->Draw(aTopMatrix, aCtx); // most probably MeshNode::Draw
     }
 }
 
@@ -198,7 +198,7 @@ void LoadedGLTF::ClearAll()
     }
 }
 
-std::optional<std::shared_ptr<LoadedGLTF>> momoGLTF::load_gltf(VulkanEngine* aEngine, std::string_view aFilePath)
+std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aEngine, std::string_view aFilePath)
 {
     fmt::print("Loading GLTF: {}\n", aFilePath);
 
@@ -550,7 +550,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momoGLTF::load_gltf(VulkanEngine* aEn
 
 }
 
-VkFilter momoGLTF::extract_filter(const fastgltf::Filter aFilter)
+VkFilter momo_GLTF::extract_filter(const fastgltf::Filter aFilter)
 {
     switch (aFilter)
     {
@@ -570,7 +570,7 @@ VkFilter momoGLTF::extract_filter(const fastgltf::Filter aFilter)
 
 }
 
-VkSamplerMipmapMode momoGLTF::extract_mipmap_mode(const fastgltf::Filter aFilter)
+VkSamplerMipmapMode momo_GLTF::extract_mipmap_mode(const fastgltf::Filter aFilter)
 {
     switch (aFilter)
     {
@@ -589,7 +589,7 @@ VkSamplerMipmapMode momoGLTF::extract_mipmap_mode(const fastgltf::Filter aFilter
 // TODO:
 // For the textures, we are going to load them using stb_image.This is a single - header library to load png, jpeg, and a few others.Sadly, it does not load KTX or DDS formats, which are much better for graphics usages as they can be uploaded almost directly into the GPU and are a compressed format that the GPU reads directly so it saves VRAM.
 
-std::optional<AllocatedImage> momoGLTF::load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage)
+std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage)
 {
     AllocatedImage newImage{};
 

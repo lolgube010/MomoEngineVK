@@ -205,7 +205,7 @@ public:
 	std::vector<ComputeEffect> backgroundEffects;
 	int currentBackgroundEffect{0};
 
-	Vk_Debug_Info _debugInfo;
+    // momo_vkDebug::Vk_Debug_Info _debugInfo;
 
 	// VkPipelineLayout _trianglePipelineLayout;
 	// VkPipeline _trianglePipeline;

@@ -333,3 +333,18 @@ VkPipelineShaderStageCreateInfo vkInit::pipeline_shader_stage_create_info(VkShad
 	info.pName = entry;
 	return info;
 }
+
+VkDebugUtilsLabelEXT vkInit::debug_label(const char* aPassName, const glm::vec4 aColor)
+{
+    VkDebugUtilsLabelEXT labelInfo = {};
+    labelInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
+    labelInfo.pNext = nullptr;
+    labelInfo.pLabelName = aPassName;
+
+	labelInfo.color[0] = aColor.r;
+	labelInfo.color[1] = aColor.g;
+	labelInfo.color[2] = aColor.b;
+	labelInfo.color[3] = aColor.a;
+
+    return labelInfo;
+}
