@@ -285,7 +285,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
     // load all textures
     for (fastgltf::Image& image : gltf.images)
     {
-        if (std::optional<AllocatedImage> img = load_image(aEngine, gltf, image); 
+        if (std::optional<AllocatedImage> img = load_image(aEngine, gltf, image, aFilePath); 
             img.has_value())
         {
             images.push_back(*img);
@@ -300,9 +300,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
     }
 
     // create buffer to hold the material data.
-    // was previously VMA_MEMORY_USAGE_CPU_TO_GPU
-    file.materialDataBuffer = aEngine->Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(),
-                                                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO);
+    // was previously VMA_MEMORY_USAGE_CPU_TO_GPU 
+    std::string materialDataBufferName = fmt::format("Material Data: {}", aFilePath);
+    file.materialDataBuffer = aEngine->Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, materialDataBufferName.c_str());
     int data_index = 0;
     auto sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
 
@@ -481,7 +481,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
         // TODO: meshopt right here?
         // from legacy ver: if we ever want to do something with the model data while it still lives on the cpu, THIS is that moment. after this they're gpu only.
 
-        newMesh->meshBuffers = aEngine->UploadMesh(indices, vertices);
+        std::string meshName = fmt::format("Name: {} , Path: {}", newMesh->name, aFilePath);
+        newMesh->meshBuffers = aEngine->UploadMesh(indices, vertices, meshName.c_str());
     }
 
     // load all nodes and their meshes
@@ -589,7 +590,7 @@ VkSamplerMipmapMode momo_GLTF::extract_mipmap_mode(const fastgltf::Filter aFilte
 // TODO:
 // For the textures, we are going to load them using stb_image.This is a single - header library to load png, jpeg, and a few others.Sadly, it does not load KTX or DDS formats, which are much better for graphics usages as they can be uploaded almost directly into the GPU and are a compressed format that the GPU reads directly so it saves VRAM.
 
-std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage)
+std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath)
 {
     AllocatedImage newImage{};
 
@@ -616,7 +617,8 @@ std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine,
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+                    std::string imgName = fmt::format("{}, {}", aImage.name.c_str(), aFilePath);
+                    newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName.c_str(), true);
 
                     stbi_image_free(data);
                 }
@@ -632,7 +634,8 @@ std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine,
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, true);
+                    std::string imgName = fmt::format("{}, {}", aImage.name.c_str(), aFilePath);
+                    newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName.c_str(), true);
 
                     stbi_image_free(data);
                 }
@@ -661,8 +664,8 @@ std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine,
                                        imagesize.height = height;
                                        imagesize.depth = 1;
 
-                                       newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM,
-                                                                        VK_IMAGE_USAGE_SAMPLED_BIT, true);
+                                       std::string imgName = fmt::format("{}, {}", aImage.name.c_str(), aFilePath);
+                                       newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName.c_str(), true);
 
                                        stbi_image_free(data);
                                    }

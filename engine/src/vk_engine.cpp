@@ -339,7 +339,7 @@ void VulkanEngine::Run()
 	// main loop
 	while (!bQuit)
 	{
-        uint64_t currentTime = SDL_GetPerformanceCounter();
+        const uint64_t currentTime = SDL_GetPerformanceCounter();
 
 		ProcessEvents(bQuit);
 
@@ -446,7 +446,7 @@ void VulkanEngine::Immediate_Submit(const std::function<void(VkCommandBuffer aCm
 	VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
 }
 
-AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const bool aMipmapped) const
+AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const char* aName, const bool aMipmapped) const
 {
 	AllocatedImage newImage;
 	newImage.imageFormat = aFormat;
@@ -480,19 +480,24 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 
 	VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage.imageView));
 
+	const std::string imageName = fmt::format("_Image {}", aName);
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, newImage.image, imageName.c_str());
+	const std::string imageViewName = fmt::format("_ImageView: {}", aName);
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage.imageView, imageViewName.c_str());
+    vmaSetAllocationName(_allocator, newImage.allocation, aName);
 	return newImage;
-
 }
 
-AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const bool aMipmapped) const
+AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const char* aName, const bool aMipmapped) const
 {
 	const size_t data_Size = static_cast<size_t>(aSize.depth) * aSize.width * aSize.height * 4;
 	// was previously VMA_MEMORY_USAGE_CPU_TO_GPU
-	const AllocatedBuffer uploadBuffer = Create_Buffer(data_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO);
+    std::string uploadBufferName = fmt::format("Upload/Staging: {}", aName);
+    const AllocatedBuffer uploadBuffer = Create_Buffer(data_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, uploadBufferName.c_str());
 
 	memcpy(uploadBuffer.info.pMappedData, aData, data_Size);
 
-	const AllocatedImage new_Image = Create_Image(aSize, aFormat, aUsage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, aMipmapped);
+	const AllocatedImage new_Image = Create_Image(aSize, aFormat, aUsage | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, aName, aMipmapped);
 
 	Immediate_Submit([&](const VkCommandBuffer aCmd) 
     {
@@ -615,7 +620,7 @@ void VulkanEngine::Init_Vulkan()
     _chosen_GPU = physicalDevice.physical_device;
 	
 	volkLoadDevice(_device);
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_DEVICE, _device, "Logical Device MomoVK");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_DEVICE, _device, "_Logical Device");
 
 	//< debug info
 	{
@@ -660,7 +665,7 @@ void VulkanEngine::Init_Vulkan()
             vkGetPhysicalDeviceProperties(allGPUs[i], &props);
 
             // Format a nice string like "GPU 0: NVIDIA RTX 4090"
-            std::string gpuDebugName = fmt::format("Physical Device/GPU {}: {}", i, props.deviceName);
+            std::string gpuDebugName = fmt::format("_Physical Device/GPU {}: {}", i, props.deviceName);
 
             // Assign it!
             momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PHYSICAL_DEVICE, allGPUs[i], gpuDebugName.c_str());
@@ -673,7 +678,7 @@ void VulkanEngine::Init_Vulkan()
 	//> init_queue
 	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
 	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_QUEUE, _graphicsQueue, "Main Graphics Queue");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_QUEUE, _graphicsQueue, "_Main Graphics Queue");
 	//< init_queue
 
 	//> init vma
@@ -738,7 +743,7 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo rview_info = vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "OOGILI BOOGILI ZOOGILI SHMALOOGILI main draw img");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Main Draw Image");
 	//< create image
 
 	//> create depth
@@ -756,7 +761,7 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo dview_info = vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "(gabagool) main depth");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Main Depth");
 	//< create depth
 
 
@@ -819,10 +824,10 @@ void VulkanEngine::Init_Sync_Structures()
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
 		//VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore)); // moved to 2nd for loop
 		
-		std::string fenceName = fmt::format("RenderFence FIF:{}", i);
+		std::string fenceName = fmt::format("_RenderFence FIF:{}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, frame._renderFence, fenceName.c_str());
         
-        std::string semName = fmt::format("SwapchainSemaphore FIF:{}", i);
+        std::string semName = fmt::format("_SwapchainSemaphore FIF:{}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, semName.c_str());
     }
 	
@@ -831,7 +836,7 @@ void VulkanEngine::Init_Sync_Structures()
     for (size_t i = 0; i < _swapchainImageCount; ++i)
 	{
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &ready_for_present_semaphores[i]));
-        std::string semName = fmt::format("Ready For Present Semaphore SwapchainImgCount:{}", i);
+        std::string semName = fmt::format("_Ready For Present Semaphore SwapchainImgCount:{}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, ready_for_present_semaphores[i], semName.c_str());
         _mainDeletionQueue.Push_Function([this, i]
         {
@@ -840,7 +845,7 @@ void VulkanEngine::Init_Sync_Structures()
 	}
     
 	VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, _immFence, "Immediate Fence");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, _immFence, "_Immediate Fence");
 	_mainDeletionQueue.Push_Function([this] { vkDestroyFence(_device, _immFence, nullptr); });
 }
 
@@ -1095,7 +1100,7 @@ void VulkanEngine::Init_Tracy()
 	// init tracy
 #ifdef TRACY_ENABLE
 	_tracyVkCtx = TracyVkContext(_chosen_GPU, _device, _graphicsQueue, Get_Current_Frame()._mainCommandBuffer)
-		TracyVkContextName(_tracyVkCtx, "Main Graphics Queue", sizeof("Main Graphics Queue") - 1)
+		TracyVkContextName(_tracyVkCtx, "_Main Graphics Queue", sizeof("_Main Graphics Queue") - 1)
 #endif
 }
 
@@ -1145,11 +1150,11 @@ void VulkanEngine::Init_Default_Data()
 	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\thejunkshopsplashscreen2.glb)").value();
 
 	const uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-	_whiteImage = Create_Image(&white, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+    _whiteImage = Create_Image(&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_White");
 	const uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-	_greyImage = Create_Image(&grey, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+    _greyImage = Create_Image(&grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_Grey");
 	const uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-	_blackImage = Create_Image(&black, VkExtent3D{1,1,1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT);
+    _blackImage = Create_Image(&black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_Black");
 
 	const uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
 	std::array<uint32_t, 16 * 16 > pixels; //for 16x16 checkerboard texture
@@ -1160,8 +1165,7 @@ void VulkanEngine::Init_Default_Data()
 			pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
 		}
 	}
-	_errorCheckerboardImage = Create_Image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM,
-		VK_IMAGE_USAGE_SAMPLED_BIT);
+	_errorCheckerboardImage = Create_Image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_ErrorCheckerboard");
 
 	VkSamplerCreateInfo sampler = {};
     sampler.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1199,7 +1203,7 @@ void VulkanEngine::Init_Default_Data()
 
 	// set the uniform buffer for the material data.
 	// was previously VMA_MEMORY_USAGE_CPU_TO_GPU
-	AllocatedBuffer materialConstants = Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO);
+    AllocatedBuffer materialConstants = Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, "MaterialConstants");
 
 	// write the buffer
 	GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(materialConstants.info.pMappedData);
@@ -1327,15 +1331,15 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 	// used to initialize the same amount of _readyForPresentSemaphores in init_sync_structures
     VK_CHECK(vkGetSwapchainImagesKHR(_device, _swapchain, &_swapchainImageCount, nullptr));
 
-	momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, _swapchain, "Main Swapchain");
+	momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, _swapchain, "_Main Swapchain");
 
     // 2. Loop through and name the Images and Image Views!
     for (size_t i = 0; i < _swapchain_images.size(); ++i)
     {
-        std::string imageName = fmt::format("Swapchain Image {}", i);
+        std::string imageName = fmt::format("_Swapchain Image {}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _swapchain_images[i], imageName.c_str());
 
-        std::string viewName = fmt::format("Swapchain View {}", i);
+        std::string viewName = fmt::format("_Swapchain View {}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchain_image_views[i], viewName.c_str());
     }
 }
@@ -1553,12 +1557,13 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	 //allocate a new uniform buffer for the scene data.
 	 // was previously VMA_MEMORY_USAGE_CPU_TO_GPU
-	 AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO);
+	
+    AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, fmt::format("GPUSceneData, frame: {}", _frame_number).c_str());
 	
 	 //add it to the deletion queue of this frame so it gets deleted once it's been used
 	 Get_Current_Frame()._deletionQueue.Push_Function([gpuSceneDataBuffer, this]
 	 {
-	 	Destroy_Buffer(gpuSceneDataBuffer);
+	     Destroy_Buffer(gpuSceneDataBuffer);
 	 });
 	
 	 //write the buffer
@@ -1680,7 +1685,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	// vkCmdDrawIndexed(aCmd, mesh->surfaces[0].count, 1, mesh->surfaces[0].startIndex, 0, 0);
 }
 
-AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBufferUsageFlags aUsage, const VmaMemoryUsage aMemoryUsage) const
+AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBufferUsageFlags aUsage, const VmaMemoryUsage aMemoryUsage, const char* aName) const
 {
 	// allocate buffer
 	VkBufferCreateInfo bufferInfo = {.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
@@ -1699,6 +1704,9 @@ AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBu
 	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaAllocInfo, &newBuffer.buffer, &newBuffer.allocation,
 		&newBuffer.info));
 
+	const std::string buffName = fmt::format("_Buffer {}", aName);
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_BUFFER, newBuffer.buffer, buffName.c_str());
+    vmaSetAllocationName(_allocator, newBuffer.allocation, buffName.c_str());
 	return newBuffer;
 }
 
@@ -1954,7 +1962,7 @@ const char* VulkanEngine::Get_Device_Type_String(const VkPhysicalDeviceType aTyp
     }
 }
 
-GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, const std::span<Vertex> aVertices) const
+GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, const std::span<Vertex> aVertices, const char* aMeshName) const
 {
 	const size_t vertexBufferSize = aVertices.size() * sizeof(Vertex);
 	const size_t indexBufferSize = aIndices.size() * sizeof(uint32_t);
@@ -1964,17 +1972,20 @@ GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, cons
 	// create vertex buffer
 	// It's not necessary for meshes to use GPU_ONLY vertex buffers, but it's highly recommended unless it's something like a CPU side particle system or other dynamic effects.
 
-	newSurface._vertexBuffer = Create_Buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_AUTO); // was VMA_MEMORY_USAGE_GPU_ONLY
+	std::string aBufferName = fmt::format("Vertex, {}", aMeshName);
+	newSurface._vertexBuffer = Create_Buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_AUTO, aBufferName.c_str()); // was VMA_MEMORY_USAGE_GPU_ONLY
 
 	//find the address of the vertex buffer
 	const VkBufferDeviceAddressInfo deviceAddressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .pNext = nullptr, .buffer = newSurface._vertexBuffer.buffer};
 	newSurface._vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAddressInfo);
 
+	aBufferName = fmt::format("Index, {}", aMeshName);
 	//create index buffer, was previously VMA_MEMORY_USAGE_CPU_ONLY
-    newSurface._indexBuffer = Create_Buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_AUTO);
+    newSurface._indexBuffer = Create_Buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_AUTO, aBufferName.c_str());
 
+	aBufferName = fmt::format("Staging, {}", aMeshName);
 	// staging buffer is 1 buffer for both copies to index and vertex buffers.
-    const AllocatedBuffer staging = Create_Buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO);
+    const AllocatedBuffer staging = Create_Buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, aBufferName.c_str());
 
 	// Buffer is already mapped. You can access its memory.
 	memcpy(staging.info.pMappedData, aVertices.data(), vertexBufferSize);

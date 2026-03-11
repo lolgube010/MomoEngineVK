@@ -44,7 +44,7 @@ bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkS
 	}
 	*aOutShaderModule = shaderModule;
 
-	const std::string shaderDebugName = fmt::format("ShaderModule: {}", aFilePath);
+	const std::string shaderDebugName = fmt::format("_ShaderModule: {}", aFilePath);
 	momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_SHADER_MODULE, *aOutShaderModule, shaderDebugName.c_str());
 	return true;
 }

@@ -76,5 +76,5 @@ namespace momo_GLTF
 
     VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter aFilter);
 
-    std::optional<AllocatedImage> load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage);
+    std::optional<AllocatedImage> load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath);
 }
