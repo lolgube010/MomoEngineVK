@@ -34,7 +34,7 @@ public:
 
 	void Clear();
 
-	VkPipeline Build_Pipeline(VkDevice aDevice) const;
+	VkPipeline Build_Pipeline(VkDevice aDevice, const char* aName) const;
 	void Set_Shaders(VkShaderModule aVertexShader, VkShaderModule aFragmentShader);
 	void Set_Input_Topology(VkPrimitiveTopology aTopology);
 	void Set_Polygon_Mode(VkPolygonMode aMode);

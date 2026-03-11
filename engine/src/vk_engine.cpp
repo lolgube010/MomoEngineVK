@@ -38,7 +38,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	layoutBuilder.Add_Binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	layoutBuilder.Add_Binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-	materialLayout = layoutBuilder.Build(aEngine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+	materialLayout = layoutBuilder.Build(aEngine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "GLTFMetallic_Roughness Material");
 
 	VkDescriptorSetLayout layouts[] = { aEngine->_gpuSceneDataDescriptorLayout, materialLayout };
 
@@ -55,6 +55,8 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 
 	VkPipelineLayout newLayout;
 	VK_CHECK(vkCreatePipelineLayout(aEngine->_device, &mesh_layout_info, nullptr, &newLayout));
+    // pipeline layout is technically shared between transparent & opaque, and we never bother deleting it so it's not a big deal right now
+    momo_vkDebug::Set_Debug_Name(aEngine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout, "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
 
 	opaquePipeline.layout = newLayout;
 	transparentPipeline.layout = newLayout;
@@ -82,14 +84,14 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	pipelineBuilder._pipelineLayout = newLayout;
 
 	// finally build the pipeline
-	opaquePipeline.pipeline = pipelineBuilder.Build_Pipeline(aEngine->_device);
-
-	// create the transparent variant, enable additive blending!
+    opaquePipeline.pipeline = pipelineBuilder.Build_Pipeline(aEngine->_device, "GLTFMetallic_Roughness Opaque");
+	
+    // create the transparent variant, enable additive blending!
 	pipelineBuilder.Enable_Blending_Additive();
 
 	pipelineBuilder.Enable_DepthTest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
-	transparentPipeline.pipeline = pipelineBuilder.Build_Pipeline(aEngine->_device);
+	transparentPipeline.pipeline = pipelineBuilder.Build_Pipeline(aEngine->_device, "GLTFMetallic_Roughness Transparent");
 
 	vkDestroyShaderModule(aEngine->_device, meshFragShader.value(), nullptr);
 	vkDestroyShaderModule(aEngine->_device, meshVertexShader.value(), nullptr);
@@ -192,7 +194,7 @@ void VulkanEngine::Init()
 	Init_Descriptors();
 	Init_Pipelines();
 	Init_ImGui();
-	Init_Tracy();
+	// Init_Tracy();
     // _render_doc.Init_RenderDoc(&_instance, _window);
 	
 	Init_Default_Data();
@@ -238,92 +240,91 @@ void VulkanEngine::Draw()
 		_renderScale);
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
-
 	{
-        momo_vkDebug::ScopedDebugLabel label(cmd, "transition image");
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition image");
 	    // transition our main draw image into general layout so we can write into it.
 	    // we will overwrite it all so we don't care about what was the older layout
 	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 	}
 	{
-        momo_vkDebug::ScopedDebugLabel label(cmd, "draw background");
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "draw background");
 	    Draw_Background(cmd);
 	}
-
-	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-
+    {
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition img 1");
+	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	    vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+    }
 	{
-        momo_vkDebug::ScopedDebugLabel label(cmd, "Draw Geometry");
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "Draw Geometry");
 		PROFILE_SCOPE_N("Draw Geometry")
 		Draw_Geometry(cmd);
 	}
+    {
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition img 2");
+	    //transition the draw image and the swapchain image into their correct transfer layouts
+	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-	//transition the draw image and the swapchain image into their correct transfer layouts
-	vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-    vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	    // execute a copy from the draw image into the swapchain
+        vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[_swapchainImageIndex], _drawExtent, _swapchain_extent);
 
-	// execute a copy from the draw image into the swapchain
-    vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[_swapchainImageIndex], _drawExtent, _swapchain_extent);
-
-	// set swapchain image layout to Attachment Optimal so we can draw it
-    vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-
+	    // set swapchain image layout to Attachment Optimal so we can draw it
+        vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    }
 	{
-        momo_vkDebug::ScopedDebugLabel label(cmd, "Draw imGui");
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "Draw imGui");
 	    // draw imgui into the swapchain image
         Draw_ImGui(cmd, _swapchain_image_views[_swapchainImageIndex]);
 	}
+    {
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition img 3");
+	    // set swapchain image layout to Present so we can show it on the screen
+        vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    }
+	{
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "end command buffer");
+	    //finalize the command buffer (we can no longer add commands, but it can now be executed)
+	    VK_CHECK(vkEndCommandBuffer(cmd));
+    }
 
-	// set swapchain image layout to Present so we can show it on the screen
-    vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-
-
-	//finalize the command buffer (we can no longer add commands, but it can now be executed)
-	VK_CHECK(vkEndCommandBuffer(cmd));
-
-	//< draw_4
 
 	//> draw_5
-	// prepare the submission to the queue. 
-	// we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
-	// we will signal the _renderSemaphore, to signal that rendering has finished
+    {
+        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "queue submission prep");
+	    // prepare the submission to the queue. 
+	    // we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
+	    // we will signal the _renderSemaphore, to signal that rendering has finished
 
-	const VkCommandBufferSubmitInfo cmdInfo = vkInit::command_buffer_submit_info(cmd);
+	    const VkCommandBufferSubmitInfo cmdInfo = vkInit::command_buffer_submit_info(cmd);
 
-	const VkSemaphoreSubmitInfo waitInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, Get_Current_Frame()._swapchainSemaphore);
-	//VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, Get_Current_Frame()._renderSemaphore);
-    const VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, ready_for_present_semaphores[_swapchainImageIndex]);
+	    const VkSemaphoreSubmitInfo waitInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, Get_Current_Frame()._swapchainSemaphore);
+	    //VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, Get_Current_Frame()._renderSemaphore);
+        const VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, ready_for_present_semaphores[_swapchainImageIndex]);
 
-	const VkSubmitInfo2 submit = vkInit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
+	    const VkSubmitInfo2 submit = vkInit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
 
-	// submit command buffer to the queue and execute it.
-	// _renderFence will now block until the graphic commands finish execution
-	VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, Get_Current_Frame()._renderFence));
+	    // submit command buffer to the queue and execute it.
+	    // _renderFence will now block until the graphic commands finish execution
+	    VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, Get_Current_Frame()._renderFence));
+    }
 	//< draw_5
 
 	//> draw_6
-	// prepare present
-	// this will put the image we just rendered to into the visible window.
-	// we want to wait on the _renderSemaphore for that, 
-	// as its necessary that drawing commands have finished before the image is displayed to the user
-	VkPresentInfoKHR presentInfo = {};
-	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.pNext = nullptr;
-	presentInfo.pSwapchains = &_swapchain;
-	presentInfo.swapchainCount = 1;
+    {
+        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "present");
+	    // prepare present
+	    // this will put the image we just rendered to into the visible window.
+	    // we want to wait on the _renderSemaphore for that, 
+	    // as its necessary that drawing commands have finished before the image is displayed to the user
+        VkPresentInfoKHR presentInfo = vkInit::present_info(&_swapchain, &ready_for_present_semaphores[_swapchainImageIndex], &_swapchainImageIndex);
 
-	//presentInfo.pWaitSemaphores = &Get_Current_Frame()._renderSemaphore;
-    presentInfo.pWaitSemaphores = &ready_for_present_semaphores[_swapchainImageIndex];
-	presentInfo.waitSemaphoreCount = 1;
-
-	presentInfo.pImageIndices = &_swapchainImageIndex;
-
-	if (const VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo); 
-		presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) 
-	{
-		_resize_requested = true;
-	}
+	    if (const VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo); 
+		    presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) 
+	    {
+		    _resize_requested = true;
+	    }
+    }
 
 	//increase the number of frames drawn
 	_frame_number++;
@@ -480,9 +481,9 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 
 	VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage.imageView));
 
-	const std::string imageName = fmt::format("_Image {}", aName);
+	const std::string imageName = fmt::format("_Image Name: {}", aName);
     momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, newImage.image, imageName.c_str());
-	const std::string imageViewName = fmt::format("_ImageView {}", aName);
+	const std::string imageViewName = fmt::format("_ImageView Name: {}", aName);
     momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage.imageView, imageViewName.c_str());
     vmaSetAllocationName(_allocator, newImage.allocation, aName);
 	return newImage;
@@ -743,8 +744,8 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo rview_info = vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Draw Image Main");
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage.imageView, "_Draw Image View Main");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Image Main Draw ");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage.imageView, "_Image View Main Draw");
 	//< create image
 
 	//> create depth
@@ -762,8 +763,8 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo dview_info = vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Depth Image Main");
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage.imageView, "_Depth Image View Main");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Image Main Depth");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage.imageView, "_Image View Main Depth");
 	//< create depth
 
 
@@ -791,13 +792,13 @@ void VulkanEngine::Init_Commands()
 	{
         auto& frame = _frames[i];
 		VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &frame._commandPool));
+        tempName = fmt::format("_Command Pool Main, FIF: {}", i);
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, tempName.c_str());
 		
         // allocate the default command buffer that we will use for rendering
 		VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(frame._commandPool, 1);
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &frame._mainCommandBuffer));
         
-        tempName = fmt::format("_Command Pool Main, FIF: {}", i);
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, tempName.c_str());
         tempName = fmt::format("_Command Buffer Main, FIF: {}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer, tempName.c_str());
 	}
@@ -875,7 +876,7 @@ void VulkanEngine::Init_Descriptors()
 	{
 		DescriptorLayoutBuilder builder;
 		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
-		_drawImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_COMPUTE_BIT);
+        _drawImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_COMPUTE_BIT, "drawImage");
 	}
 	// for textures
 	{
@@ -884,16 +885,16 @@ void VulkanEngine::Init_Descriptors()
 
 		DescriptorLayoutBuilder builder;
 		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-		_singleImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_FRAGMENT_BIT);
+        _singleImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_FRAGMENT_BIT, "singleImage");
 	}
 	// for our draw image
 	{
 		DescriptorLayoutBuilder builder;
 		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-		_gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+        _gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "gpuSceneData");
 	}
 
-	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout, "_drawImageDescriptors");
+	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout, "drawImage");
 	{
 		DescriptorWriter writer;
 		writer.Write_Image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -961,6 +962,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	computeLayout.pushConstantRangeCount = 1;
 
 	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_ComputePipelineLayout));
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _ComputePipelineLayout, "_Pipeline Layout Compute Background");
 
     auto gradientShader = momo_util::LoadShader("gradient_color", momo_util::ShaderType::Compute, false, _device);
     auto skyShader = momo_util::LoadShader("sky", momo_util::ShaderType::Compute, false, _device);
@@ -988,6 +990,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PIPELINE, gradient.pipeline, "_Pipeline Compute Gradient");
 	backgroundEffects.push_back(gradient);
 
 	//change the shader module only to create the sky shader
@@ -1001,8 +1004,9 @@ void VulkanEngine::Init_Background_Pipelines()
 	sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
-
-	//add the 2 background effects into the array
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PIPELINE, sky.pipeline, "_Pipeline Compute Sky");
+	
+    //add the 2 background effects into the array
 	backgroundEffects.push_back(sky);
 
 	//destroy structures properly
@@ -1044,7 +1048,7 @@ void VulkanEngine::Init_ImGui()
 
 	VkDescriptorPool imGuiPool;
 	VK_CHECK(vkCreateDescriptorPool(_device, &pool_info, nullptr, &imGuiPool));
-
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_DESCRIPTOR_POOL, imGuiPool, "_Descriptor Pool imGui");
 	// 2: initialize imgui library
 
 	IMGUI_CHECKVERSION();
@@ -1187,11 +1191,13 @@ void VulkanEngine::Init_Default_Data()
 	sampler.minFilter = VK_FILTER_NEAREST;
 
 	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest);
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerNearest, "_Sampler Default Nearest");
 
 	// linear blurs
 	sampler.magFilter = VK_FILTER_LINEAR;
 	sampler.minFilter = VK_FILTER_LINEAR;
 	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerLinear);
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerLinear, "_Sampler Default Linear");
 	
 
 	_mainDeletionQueue.Push_Function([&]
@@ -1217,7 +1223,7 @@ void VulkanEngine::Init_Default_Data()
 	// was previously VMA_MEMORY_USAGE_CPU_TO_GPU
     AllocatedBuffer materialConstants = Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, "MaterialConstants");
 
-	// write the buffer
+	// cast to struct, ptr on buffer matches the struct data (we assume)
 	GLTFMetallic_Roughness::MaterialConstants* sceneUniformData = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(materialConstants.info.pMappedData);
     sceneUniformData->colorFactors = glm::vec4{1, 1, 1, 1};
     sceneUniformData->metal_rough_factors = glm::vec4{1, 0.5, 0, 0};
@@ -1834,7 +1840,7 @@ void VulkanEngine::TempRender()
 
     ImGui_Run();
 
-    // make imgui calculate internal draw structures
+    // make imgui calculate internal draw structures, doesn't actually render!!! just builds the render data.
     ImGui::Render();
 
     Draw();

@@ -21,24 +21,41 @@ namespace momo_vkDebug
         vkSetDebugUtilsObjectNameEXT(aDevice, &nameInfo);
     }
 
-    struct ScopedDebugLabel
+    struct ScopedDebugLabelCmdBuff
     {
         VkCommandBuffer cmd;
-        ScopedDebugLabel(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f)) : cmd(aCmd)
+        ScopedDebugLabelCmdBuff(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f)) : cmd(aCmd)
         {
-            VkDebugUtilsLabelEXT labelInfo = vkInit::debug_label(aName, aColor);
+            const VkDebugUtilsLabelEXT labelInfo = vkInit::debug_label(aName, aColor);
             vkCmdBeginDebugUtilsLabelEXT(aCmd, &labelInfo);
         }
-        ~ScopedDebugLabel() { vkCmdEndDebugUtilsLabelEXT(cmd); }
+        ~ScopedDebugLabelCmdBuff()
+        {
+            vkCmdEndDebugUtilsLabelEXT(cmd);
+        }
     };
 
-    static void BeginAnnotation(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f))
+    struct ScopedDebugLabelQueue
+    {
+        VkQueue queue;
+        ScopedDebugLabelQueue(const VkQueue aQueue, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f)) : queue(aQueue)
+        {
+            const VkDebugUtilsLabelEXT labelInfo = vkInit::debug_label(aName, aColor);
+            vkQueueBeginDebugUtilsLabelEXT(queue, &labelInfo);
+        }
+        ~ScopedDebugLabelQueue()
+        {
+            vkQueueEndDebugUtilsLabelEXT(queue);
+        }
+    };
+
+    static void BeginAnnotationCmdBuff(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f))
     {
         const VkDebugUtilsLabelEXT labelInfo = vkInit::debug_label(aName, aColor);
         vkCmdBeginDebugUtilsLabelEXT(aCmd, &labelInfo);
     }
 
-    static void EndAnnotation(const VkCommandBuffer aCmd) { vkCmdEndDebugUtilsLabelEXT(aCmd); }
+    static void EndAnnotationCmdBuff(const VkCommandBuffer aCmd) { vkCmdEndDebugUtilsLabelEXT(aCmd); }
 
     class Vk_Debug_Info
     {

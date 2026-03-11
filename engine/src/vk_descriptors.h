@@ -8,7 +8,7 @@ struct DescriptorLayoutBuilder
 
 	void Add_Binding(uint32_t aBinding, VkDescriptorType aType);
 	void Clear();
-	VkDescriptorSetLayout Build(VkDevice aDevice, VkShaderStageFlags aShaderStages, const void* a_pNext = nullptr, VkDescriptorSetLayoutCreateFlags aFlags = 0);
+	VkDescriptorSetLayout Build(VkDevice aDevice, VkShaderStageFlags aShaderStages, const char* aName, const void* a_pNext = nullptr, VkDescriptorSetLayoutCreateFlags aFlags = 0);
 };
 
 struct DescriptorAllocatorGrowable 

@@ -19,7 +19,7 @@ void DescriptorLayoutBuilder::Clear()
 	_bindings.clear();
 }
 
-VkDescriptorSetLayout DescriptorLayoutBuilder::Build(const VkDevice aDevice, const VkShaderStageFlags aShaderStages, const void* a_pNext, const VkDescriptorSetLayoutCreateFlags aFlags)
+VkDescriptorSetLayout DescriptorLayoutBuilder::Build(const VkDevice aDevice, const VkShaderStageFlags aShaderStages, const char* aName, const void* a_pNext, const VkDescriptorSetLayoutCreateFlags aFlags)
 {
 	for (auto& b : _bindings)
 	{
@@ -36,8 +36,9 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::Build(const VkDevice aDevice, con
 	VkDescriptorSetLayout set;
 	VK_CHECK(vkCreateDescriptorSetLayout(aDevice, &info, nullptr, &set));
 
+	std::string tmp = fmt::format("_Descriptor Set Layout {}", aName);
+    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, set, tmp.c_str());
 	return set;
-
 }
 
 void DescriptorAllocatorGrowable::Init(const VkDevice aDevice, const uint32_t aMaxSets, const std::span<PoolSizeRatio> aPoolRatios, const char* aName)
@@ -89,7 +90,7 @@ VkDescriptorSet DescriptorAllocatorGrowable::Allocate(const VkDevice aDevice, co
 	//get or create a pool to allocate from
     VkDescriptorPool poolToUse = Get_Pool(aDevice, aNewName);
 
-	VkDescriptorSetAllocateInfo allocInfo = {};
+	VkDescriptorSetAllocateInfo allocInfo;
 	allocInfo.pNext = a_pNext;
 	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocInfo.descriptorPool = poolToUse;

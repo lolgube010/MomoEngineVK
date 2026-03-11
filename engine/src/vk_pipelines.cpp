@@ -71,7 +71,7 @@ void PipelineBuilder::Clear()
 
 }
 
-VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice) const
+VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, const char* aName) const
 {
 	// make viewport state from our stored viewport and scissor.
 	// at the moment we won't support multiple viewports or scissors
@@ -128,6 +128,8 @@ VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice) const
 		fmt::println("failed to create pipeline");
 		return VK_NULL_HANDLE; // failed to create graphics pipeline
 	}
+    std::string tmp = fmt::format("_Pipeline {}", aName);
+    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_PIPELINE, newPipeline, tmp.c_str());
 	return newPipeline;
 }
 

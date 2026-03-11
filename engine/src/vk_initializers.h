@@ -22,7 +22,7 @@ namespace vkInit
 	VkSemaphoreCreateInfo semaphore_create_info(VkSemaphoreCreateFlags flags = 0);
 
 	VkSubmitInfo2 submit_info(const VkCommandBufferSubmitInfo* cmd, const VkSemaphoreSubmitInfo* signalSemaphoreInfo, const VkSemaphoreSubmitInfo* waitSemaphoreInfo);
-	VkPresentInfoKHR present_info();
+    VkPresentInfoKHR present_info(const VkSwapchainKHR* aSwapchain, const VkSemaphore* aWaitSemaphore, const uint32_t* aSwapchainImageIndex);
 
 	VkRenderingAttachmentInfo attachment_info(VkImageView view, const VkClearValue* clear, VkImageLayout layout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/);
 

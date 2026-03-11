@@ -108,17 +108,16 @@ VkSemaphoreSubmitInfo vkInit::semaphore_submit_info(VkPipelineStageFlags2 stageM
 
 //< init_submit
 
-VkPresentInfoKHR vkInit::present_info()
+VkPresentInfoKHR vkInit::present_info(const VkSwapchainKHR* aSwapchain, const VkSemaphore* aWaitSemaphore, const uint32_t* aSwapchainImageIndex)
 {
 	VkPresentInfoKHR info = {};
 	info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
 	info.pNext = nullptr;
-
-	info.swapchainCount = 0;
-	info.pSwapchains = nullptr;
-	info.pWaitSemaphores = nullptr;
-	info.waitSemaphoreCount = 0;
-	info.pImageIndices = nullptr;
+    info.pSwapchains = aSwapchain;
+	info.swapchainCount = 1; // idk when you'd want more than one
+	info.pWaitSemaphores = aWaitSemaphore;
+	info.waitSemaphoreCount = 1;
+	info.pImageIndices = aSwapchainImageIndex;
 
 	return info;
 }
