@@ -19,14 +19,14 @@ struct DescriptorAllocatorGrowable
 		float _ratio;
 	};
 
-	void Init(VkDevice aDevice, uint32_t aMaxSets, std::span<PoolSizeRatio> aPoolRatios);
+	void Init(VkDevice aDevice, uint32_t aMaxSets, std::span<PoolSizeRatio> aPoolRatios, const char* aName);
 	void Clear_Pools(VkDevice aDevice);
 	void Destroy_Pools(VkDevice aDevice);
 
-	VkDescriptorSet Allocate(VkDevice aDevice, VkDescriptorSetLayout aLayout, const void* a_pNext = nullptr);
+	VkDescriptorSet Allocate(VkDevice aDevice, VkDescriptorSetLayout aLayout, const char* aNewName, const void* a_pNext = nullptr);
 private:
-	VkDescriptorPool Get_Pool(VkDevice aDevice);
-	static VkDescriptorPool Create_Pool(VkDevice aDevice, uint32_t aSetCount, std::span<PoolSizeRatio> aPoolRatios);
+	VkDescriptorPool Get_Pool(VkDevice aDevice, const char* aNewPoolName);
+	static VkDescriptorPool Create_Pool(VkDevice aDevice, uint32_t aSetCount, std::span<PoolSizeRatio> aPoolRatios, const char* aName);
 
 	std::vector<PoolSizeRatio> _ratios;
 	std::vector<VkDescriptorPool> _full_pools;

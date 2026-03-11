@@ -104,7 +104,7 @@ void GLTFMetallic_Roughness::Clear_Resources(const VkDevice aDevice) const
 	vkDestroyPipeline(aDevice, opaquePipeline.pipeline, nullptr);
 }
 
-MaterialInstance GLTFMetallic_Roughness::Write_Material(const VkDevice aDevice, const MaterialPass aPass, const MaterialResources& aResources, DescriptorAllocatorGrowable& aDescriptorAllocator)
+MaterialInstance GLTFMetallic_Roughness::Write_Material(const VkDevice aDevice, const MaterialPass aPass, const MaterialResources& aResources, DescriptorAllocatorGrowable& aDescriptorAllocator, const char* aName)
 {
 	MaterialInstance matData;
 	matData.passType = aPass;
@@ -117,7 +117,7 @@ MaterialInstance GLTFMetallic_Roughness::Write_Material(const VkDevice aDevice, 
 		matData.pipeline = &opaquePipeline;
 	}
 
-	matData.materialSet = aDescriptorAllocator.Allocate(aDevice, materialLayout);
+	matData.materialSet = aDescriptorAllocator.Allocate(aDevice, materialLayout, aName);
 
 
 	writer.Clear();
@@ -482,7 +482,7 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 
 	const std::string imageName = fmt::format("_Image {}", aName);
     momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, newImage.image, imageName.c_str());
-	const std::string imageViewName = fmt::format("_ImageView: {}", aName);
+	const std::string imageViewName = fmt::format("_ImageView {}", aName);
     momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage.imageView, imageViewName.c_str());
     vmaSetAllocationName(_allocator, newImage.allocation, aName);
 	return newImage;
@@ -492,7 +492,7 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 {
 	const size_t data_Size = static_cast<size_t>(aSize.depth) * aSize.width * aSize.height * 4;
 	// was previously VMA_MEMORY_USAGE_CPU_TO_GPU
-    std::string uploadBufferName = fmt::format("Upload/Staging: {}", aName);
+    std::string uploadBufferName = fmt::format("Upload, {}", aName);
     const AllocatedBuffer uploadBuffer = Create_Buffer(data_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, uploadBufferName.c_str());
 
 	memcpy(uploadBuffer.info.pMappedData, aData, data_Size);
@@ -539,15 +539,13 @@ void VulkanEngine::Destroy_Image(const AllocatedImage& aImg) const
 
 void VulkanEngine::Init_Vulkan()
 {
-	{
-        if (auto res = volkInitialize(); 
-			res != VK_SUCCESS)
-        {
-            // Handle error: Vulkan loader wasn't found on the system
-            fmt::print("Failed to initialize volk!\n");
-            return;
-        }
-	}
+    if (auto res = volkInitialize(); 
+		res != VK_SUCCESS)
+    {
+        // Handle error: Vulkan loader wasn't found on the system
+        fmt::print("Failed to initialize volk!\n");
+        return;
+    }
 
 	//> init_instance
 	vkb::InstanceBuilder builder;
@@ -621,6 +619,11 @@ void VulkanEngine::Init_Vulkan()
 	
 	volkLoadDevice(_device);
     momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_DEVICE, _device, "_Logical Device");
+    
+	// set instance name too
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_INSTANCE, _instance, "_Instance");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT, _debug_messenger, "_DebugMessenger");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SURFACE_KHR, _surface, "_Surface");
 
 	//< debug info
 	{
@@ -664,10 +667,7 @@ void VulkanEngine::Init_Vulkan()
             VkPhysicalDeviceProperties props;
             vkGetPhysicalDeviceProperties(allGPUs[i], &props);
 
-            // Format a nice string like "GPU 0: NVIDIA RTX 4090"
             std::string gpuDebugName = fmt::format("_Physical Device/GPU {}: {}", i, props.deviceName);
-
-            // Assign it!
             momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PHYSICAL_DEVICE, allGPUs[i], gpuDebugName.c_str());
         }
 	}
@@ -678,7 +678,7 @@ void VulkanEngine::Init_Vulkan()
 	//> init_queue
 	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
 	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_QUEUE, _graphicsQueue, "_Main Graphics Queue");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_QUEUE, _graphicsQueue, "_Graphics Queue Main");
 	//< init_queue
 
 	//> init vma
@@ -743,7 +743,8 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo rview_info = vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Main Draw Image");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Draw Image Main");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage.imageView, "_Draw Image View Main");
 	//< create image
 
 	//> create depth
@@ -761,7 +762,8 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo dview_info = vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Main Depth");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Depth Image Main");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage.imageView, "_Depth Image View Main");
 	//< create depth
 
 
@@ -784,23 +786,31 @@ void VulkanEngine::Init_Commands()
 	// we also want the pool to allow for resetting of individual command buffers
 	const VkCommandPoolCreateInfo commandPoolInfo = vkInit::command_pool_create_info(_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-	for (auto& frame : _frames)
+	std::string tempName = {};
+    for (unsigned int i = 0; i < FRAME_OVERLAP; ++i)
 	{
+        auto& frame = _frames[i];
 		VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &frame._commandPool));
-
-		// allocate the default command buffer that we will use for rendering
+		
+        // allocate the default command buffer that we will use for rendering
 		VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(frame._commandPool, 1);
-
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &frame._mainCommandBuffer));
+        
+        tempName = fmt::format("_Command Pool Main, FIF: {}", i);
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, tempName.c_str());
+        tempName = fmt::format("_Command Buffer Main, FIF: {}", i);
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer, tempName.c_str());
 	}
 
 	// immediate command pool / buffer.
 	VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_immCommandPool));
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_POOL, _immCommandPool, "_Command Pool Immediate");
 
 	// allocate the command buffer for immediate submits
 	const VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(_immCommandPool, 1);
 
 	VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, _immCommandBuffer, "_Command Buffer Immediate");
 
 	_mainDeletionQueue.Push_Function([this]
 	{
@@ -817,17 +827,17 @@ void VulkanEngine::Init_Sync_Structures()
 	const VkFenceCreateInfo fenceCreateInfo = vkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
 	const VkSemaphoreCreateInfo semaphoreCreateInfo = vkInit::semaphore_create_info();
 
-    for (int i = 0; i < FRAME_OVERLAP; ++i)
+    for (unsigned int i = 0; i < FRAME_OVERLAP; ++i)
     {
         auto& frame = _frames[i];
 		VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &frame._renderFence));
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
 		//VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore)); // moved to 2nd for loop
 		
-		std::string fenceName = fmt::format("_RenderFence FIF:{}", i);
+		std::string fenceName = fmt::format("_RenderFence Frame FIF:{}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, frame._renderFence, fenceName.c_str());
         
-        std::string semName = fmt::format("_SwapchainSemaphore FIF:{}", i);
+        std::string semName = fmt::format("_Semaphore Frame Swapchain, FIF:{}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, semName.c_str());
     }
 	
@@ -836,7 +846,7 @@ void VulkanEngine::Init_Sync_Structures()
     for (size_t i = 0; i < _swapchainImageCount; ++i)
 	{
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &ready_for_present_semaphores[i]));
-        std::string semName = fmt::format("_Ready For Present Semaphore SwapchainImgCount:{}", i);
+        std::string semName = fmt::format("_Semaphore Ready For Present, SwapchainImgCount:{}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, ready_for_present_semaphores[i], semName.c_str());
         _mainDeletionQueue.Push_Function([this, i]
         {
@@ -845,7 +855,7 @@ void VulkanEngine::Init_Sync_Structures()
 	}
     
 	VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, _immFence, "_Immediate Fence");
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, _immFence, "_Fence Immediate");
 	_mainDeletionQueue.Push_Function([this] { vkDestroyFence(_device, _immFence, nullptr); });
 }
 
@@ -859,7 +869,7 @@ void VulkanEngine::Init_Descriptors()
 		{._type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 1 }
 	};
 
-	_globalDescriptorAllocator.Init(_device, 10, sizes);
+	_globalDescriptorAllocator.Init(_device, 10, sizes, "globalDescriptorAllocator");
 
 	// for our compute draw
 	{
@@ -883,7 +893,7 @@ void VulkanEngine::Init_Descriptors()
 		_gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
 	}
 
-	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout);
+	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout, "_drawImageDescriptors");
 	{
 		DescriptorWriter writer;
 		writer.Write_Image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
@@ -900,6 +910,7 @@ void VulkanEngine::Init_Descriptors()
 		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
 	});
 
+	std::string temp = {};
 	for (unsigned int i = 0; i < FRAME_OVERLAP; i++)   // NOLINT(modernize-loop-convert)
 	{
 		// create a descriptor pool
@@ -912,7 +923,8 @@ void VulkanEngine::Init_Descriptors()
 		};
 
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
-		_frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes);
+        temp = fmt::format("Frame, FIF: {}", i);
+        _frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes, temp.c_str());
 
 		_mainDeletionQueue.Push_Function([&, i]
 		{
@@ -1218,7 +1230,7 @@ void VulkanEngine::Init_Default_Data()
 	materialResources.dataBuffer = materialConstants.buffer;
 	materialResources.dataBufferOffset = 0;
 
-	defaultData = metalRoughMaterial.Write_Material(_device, MaterialPass::MainColor, materialResources, _globalDescriptorAllocator);
+	defaultData = metalRoughMaterial.Write_Material(_device, MaterialPass::MainColor, materialResources, _globalDescriptorAllocator, "Default Material");
 
 	// for (auto& m : _testMeshes) 
 	// {
@@ -1331,15 +1343,15 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 	// used to initialize the same amount of _readyForPresentSemaphores in init_sync_structures
     VK_CHECK(vkGetSwapchainImagesKHR(_device, _swapchain, &_swapchainImageCount, nullptr));
 
-	momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, _swapchain, "_Main Swapchain");
+	momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, _swapchain, "_Swapchain");
 
     // 2. Loop through and name the Images and Image Views!
     for (size_t i = 0; i < _swapchain_images.size(); ++i)
     {
-        std::string imageName = fmt::format("_Swapchain Image {}", i);
+        std::string imageName = fmt::format("_Image Swapchain {}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _swapchain_images[i], imageName.c_str());
 
-        std::string viewName = fmt::format("_Swapchain View {}", i);
+        std::string viewName = fmt::format("_Image View Swapchain {}", i);
         momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchain_image_views[i], viewName.c_str());
     }
 }
@@ -1557,8 +1569,8 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	 //allocate a new uniform buffer for the scene data.
 	 // was previously VMA_MEMORY_USAGE_CPU_TO_GPU
-	
-    AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, fmt::format("GPUSceneData, frame: {}", _frame_number).c_str());
+    std::string debugName = fmt::format("GPUSceneData, Frame Num: {}", _frame_number);
+    AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName.c_str());
 	
 	 //add it to the deletion queue of this frame so it gets deleted once it's been used
 	 Get_Current_Frame()._deletionQueue.Push_Function([gpuSceneDataBuffer, this]
@@ -1572,7 +1584,8 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	 *sceneUniformData = _sceneData;
 
 	// create a descriptor set that binds that buffer and update it
-	 VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout);
+     debugName = fmt::format("Global, Frame Num: {}", _frame_number);
+     VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout, debugName.c_str());
 
 	 DescriptorWriter writer;
 	 writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -1704,7 +1717,7 @@ AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBu
 	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaAllocInfo, &newBuffer.buffer, &newBuffer.allocation,
 		&newBuffer.info));
 
-	const std::string buffName = fmt::format("_Buffer {}", aName);
+	const std::string buffName = fmt::format("_Buffer {}, {}", Get_Buffer_Usage_Flag_String(aUsage), aName);
     momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_BUFFER, newBuffer.buffer, buffName.c_str());
     vmaSetAllocationName(_allocator, newBuffer.allocation, buffName.c_str());
 	return newBuffer;
@@ -1962,6 +1975,56 @@ const char* VulkanEngine::Get_Device_Type_String(const VkPhysicalDeviceType aTyp
     }
 }
 
+std::string VulkanEngine::Get_Buffer_Usage_Flag_String(const VkBufferUsageFlags aUsageFlag)
+{
+    std::string typeName = {};
+    
+    // Standard Data Buffers
+    if (aUsageFlag & VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
+        typeName += "Index_";
+    if (aUsageFlag & VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
+        typeName += "Vertex_";
+    if (aUsageFlag & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+        typeName += "Uniform_";
+    if (aUsageFlag & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT)
+        typeName += "Storage_";
+
+    // Transfer Buffers
+    if (aUsageFlag & VK_BUFFER_USAGE_TRANSFER_SRC_BIT)
+        typeName += "TransferSrc(Staging)_";
+    if (aUsageFlag & VK_BUFFER_USAGE_TRANSFER_DST_BIT)
+        typeName += "TransferDst_";
+
+    // Texel Buffers
+    if (aUsageFlag & VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT)
+        typeName += "UniformTexel_";
+    if (aUsageFlag & VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT)
+        typeName += "StorageTexel_";
+
+    // GPU-Driven Rendering
+    if (aUsageFlag & VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT)
+        typeName += "Indirect_";
+
+    // Modern / Bindless / Ray Tracing
+    if (aUsageFlag & VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT)
+        typeName += "DeviceAddress_";
+    if (aUsageFlag & VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR)
+        typeName += "AccelStruct_";
+    if (aUsageFlag & VK_BUFFER_USAGE_SHADER_BINDING_TABLE_BIT_KHR)
+        typeName += "SBT_";
+
+    // Clean up the trailing underscore, or handle the case where no known flags were passed
+    if (!typeName.empty())
+    {
+        typeName.pop_back(); // Removes the last '_'
+    }
+    else
+    {
+        typeName = "Unknown";
+    }
+    return typeName;
+}
+
 GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, const std::span<Vertex> aVertices, const char* aMeshName) const
 {
 	const size_t vertexBufferSize = aVertices.size() * sizeof(Vertex);
@@ -1972,18 +2035,18 @@ GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, cons
 	// create vertex buffer
 	// It's not necessary for meshes to use GPU_ONLY vertex buffers, but it's highly recommended unless it's something like a CPU side particle system or other dynamic effects.
 
-	std::string aBufferName = fmt::format("Vertex, {}", aMeshName);
+	std::string aBufferName = fmt::format("(Vertex, BDA), {}", aMeshName);
 	newSurface._vertexBuffer = Create_Buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_AUTO, aBufferName.c_str()); // was VMA_MEMORY_USAGE_GPU_ONLY
 
 	//find the address of the vertex buffer
 	const VkBufferDeviceAddressInfo deviceAddressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .pNext = nullptr, .buffer = newSurface._vertexBuffer.buffer};
 	newSurface._vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAddressInfo);
 
-	aBufferName = fmt::format("Index, {}", aMeshName);
+	aBufferName = fmt::format("{}", aMeshName);
 	//create index buffer, was previously VMA_MEMORY_USAGE_CPU_ONLY
     newSurface._indexBuffer = Create_Buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_AUTO, aBufferName.c_str());
 
-	aBufferName = fmt::format("Staging, {}", aMeshName);
+	aBufferName = fmt::format("{}", aMeshName);
 	// staging buffer is 1 buffer for both copies to index and vertex buffers.
     const AllocatedBuffer staging = Create_Buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, aBufferName.c_str());
 

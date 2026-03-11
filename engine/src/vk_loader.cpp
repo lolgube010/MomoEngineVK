@@ -256,7 +256,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
         {._type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 1}
     };
 
-    file.descriptorPool.Init(aEngine->_device, static_cast<uint32_t>(gltf.materials.size()), sizes);
+    std::string debugName = fmt::format("glTF Material, Path: {}", aFilePath);
+    file.descriptorPool.Init(aEngine->_device, static_cast<uint32_t>(gltf.materials.size()), sizes, debugName.c_str());
 
     // load samplers
     for (fastgltf::Sampler& sampler : gltf.samplers)
@@ -272,6 +273,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
 
         VkSampler newSampler;
         vkCreateSampler(aEngine->_device, &samplerCreateInfo, nullptr, &newSampler);
+        debugName = fmt::format("_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
+        momo_vkDebug::Set_Debug_Name(aEngine->_device, VK_OBJECT_TYPE_SAMPLER, newSampler, debugName.c_str());
 
         file.samplers.push_back(newSampler);
     }
@@ -301,8 +304,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
 
     // create buffer to hold the material data.
     // was previously VMA_MEMORY_USAGE_CPU_TO_GPU 
-    std::string materialDataBufferName = fmt::format("Material Data: {}", aFilePath);
-    file.materialDataBuffer = aEngine->Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, materialDataBufferName.c_str());
+    debugName = fmt::format("Material Data, Path: {}", aFilePath);
+    file.materialDataBuffer =
+        aEngine->Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName.c_str());
     int data_index = 0;
     auto sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
 
@@ -310,7 +314,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
     {
         auto newMat = std::make_shared<GLTFMaterial>();
         materials.push_back(newMat);
-        file.materials[mat.name.c_str()] = newMat;
+        auto matName = mat.name.c_str();
+        file.materials[matName] = newMat;
 
         GLTFMetallic_Roughness::MaterialConstants constants;
         constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
@@ -349,7 +354,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
             materialResources.colorSampler = file.samplers[sampler];
         }
         // build material
-        newMat->data = aEngine->metalRoughMaterial.Write_Material(aEngine->_device, passType, materialResources, file.descriptorPool);
+        debugName = fmt::format("Name: {}, Path: {}", matName, aFilePath); 
+        newMat->data = aEngine->metalRoughMaterial.Write_Material(aEngine->_device, passType, materialResources, file.descriptorPool, debugName.c_str());
 
         data_index++;
     }
@@ -481,7 +487,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
         // TODO: meshopt right here?
         // from legacy ver: if we ever want to do something with the model data while it still lives on the cpu, THIS is that moment. after this they're gpu only.
 
-        std::string meshName = fmt::format("Name: {} , Path: {}", newMesh->name, aFilePath);
+        std::string meshName = fmt::format("Name: {}, Path: {}", newMesh->name, aFilePath);
         newMesh->meshBuffers = aEngine->UploadMesh(indices, vertices, meshName.c_str());
     }
 
@@ -617,7 +623,7 @@ std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine,
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    std::string imgName = fmt::format("{}, {}", aImage.name.c_str(), aFilePath);
+                    std::string imgName = fmt::format("{}, Path: {}", aImage.name.c_str(), aFilePath);
                     newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName.c_str(), true);
 
                     stbi_image_free(data);
@@ -634,7 +640,7 @@ std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine,
                     imagesize.height = height;
                     imagesize.depth = 1;
 
-                    std::string imgName = fmt::format("{}, {}", aImage.name.c_str(), aFilePath);
+                    std::string imgName = fmt::format("{}, Path: {}", aImage.name.c_str(), aFilePath);
                     newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName.c_str(), true);
 
                     stbi_image_free(data);
@@ -664,7 +670,7 @@ std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine,
                                        imagesize.height = height;
                                        imagesize.depth = 1;
 
-                                       std::string imgName = fmt::format("{}, {}", aImage.name.c_str(), aFilePath);
+                                       std::string imgName = fmt::format("{}, Path: {}", aImage.name.c_str(), aFilePath);
                                        newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName.c_str(), true);
 
                                        stbi_image_free(data);

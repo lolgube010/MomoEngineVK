@@ -68,7 +68,7 @@ struct GLTFMetallic_Roughness
 	void Clear_Resources(VkDevice aDevice) const;
 
 	// create the descriptor set and return a fully built MaterialInstance struct
-	MaterialInstance Write_Material(VkDevice aDevice, MaterialPass aPass, const MaterialResources& aResources, DescriptorAllocatorGrowable& aDescriptorAllocator);
+	MaterialInstance Write_Material(VkDevice aDevice, MaterialPass aPass, const MaterialResources& aResources, DescriptorAllocatorGrowable& aDescriptorAllocator, const char* aName);
 };
 
 struct RenderObject
@@ -299,4 +299,5 @@ private:
     static bool Is_Visible(const RenderObject& aObj, const glm::mat4& aViewProj);
 
     static const char* Get_Device_Type_String(VkPhysicalDeviceType aType);
+    static std::string Get_Buffer_Usage_Flag_String(VkBufferUsageFlags aUsageFlag);
 };

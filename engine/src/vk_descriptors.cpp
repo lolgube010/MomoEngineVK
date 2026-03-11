@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+#include "vk_debug.h"
+
 void DescriptorLayoutBuilder::Add_Binding(const uint32_t aBinding, const VkDescriptorType aType)
 {
 	VkDescriptorSetLayoutBinding newBind{};
@@ -38,7 +40,7 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::Build(const VkDevice aDevice, con
 
 }
 
-void DescriptorAllocatorGrowable::Init(const VkDevice aDevice, const uint32_t aMaxSets, const std::span<PoolSizeRatio> aPoolRatios)
+void DescriptorAllocatorGrowable::Init(const VkDevice aDevice, const uint32_t aMaxSets, const std::span<PoolSizeRatio> aPoolRatios, const char* aName)
 {
 	_ratios.clear();
 
@@ -47,7 +49,7 @@ void DescriptorAllocatorGrowable::Init(const VkDevice aDevice, const uint32_t aM
 		_ratios.push_back(r);
 	}
 
-	const VkDescriptorPool newPool = Create_Pool(aDevice, aMaxSets, aPoolRatios);
+	const VkDescriptorPool newPool = Create_Pool(aDevice, aMaxSets, aPoolRatios, aName);
 
 	_sets_per_pool = static_cast<uint32_t>(static_cast<double>(aMaxSets) * 1.5); //grow it next allocation
 
@@ -82,10 +84,10 @@ void DescriptorAllocatorGrowable::Destroy_Pools(const VkDevice aDevice)
 	_full_pools.clear();
 }
 
-VkDescriptorSet DescriptorAllocatorGrowable::Allocate(const VkDevice aDevice, const VkDescriptorSetLayout aLayout, const void* a_pNext)
+VkDescriptorSet DescriptorAllocatorGrowable::Allocate(const VkDevice aDevice, const VkDescriptorSetLayout aLayout, const char* aNewName, const void* a_pNext)
 {
 	//get or create a pool to allocate from
-	VkDescriptorPool poolToUse = Get_Pool(aDevice);
+    VkDescriptorPool poolToUse = Get_Pool(aDevice, aNewName);
 
 	VkDescriptorSetAllocateInfo allocInfo = {};
 	allocInfo.pNext = a_pNext;
@@ -102,7 +104,7 @@ VkDescriptorSet DescriptorAllocatorGrowable::Allocate(const VkDevice aDevice, co
 	{
 		_full_pools.push_back(poolToUse);
 
-		poolToUse = Get_Pool(aDevice);
+		poolToUse = Get_Pool(aDevice, aNewName);
 		allocInfo.descriptorPool = poolToUse;
 
 		// If the second time fails too, stuff is completely broken so it just asserts and crashes.
@@ -110,10 +112,12 @@ VkDescriptorSet DescriptorAllocatorGrowable::Allocate(const VkDevice aDevice, co
 	}
 
 	_ready_pools.push_back(poolToUse);
+    std::string temp = fmt::format("_Descriptor Set {}", aNewName);
+    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_SET, ds, temp.c_str());
 	return ds;
 }
 
-VkDescriptorPool DescriptorAllocatorGrowable::Get_Pool(const VkDevice aDevice)
+VkDescriptorPool DescriptorAllocatorGrowable::Get_Pool(const VkDevice aDevice, const char* aNewPoolName)
 {
 	VkDescriptorPool newPool;
 	if (!_ready_pools.empty()) 
@@ -125,7 +129,7 @@ VkDescriptorPool DescriptorAllocatorGrowable::Get_Pool(const VkDevice aDevice)
 	else 
 	{
 		//need to create a new pool
-		newPool = Create_Pool(aDevice, _sets_per_pool, _ratios);
+        newPool = Create_Pool(aDevice, _sets_per_pool, _ratios, aNewPoolName);
 
 		_sets_per_pool = static_cast<uint32_t>(static_cast<double>(_sets_per_pool) * 1.5);
 		_sets_per_pool = std::min<uint32_t>(_sets_per_pool, 4092); // can modify 4092 if we want to
@@ -135,7 +139,7 @@ VkDescriptorPool DescriptorAllocatorGrowable::Get_Pool(const VkDevice aDevice)
 
 }
 
-VkDescriptorPool DescriptorAllocatorGrowable::Create_Pool(const VkDevice aDevice, const uint32_t aSetCount, const std::span<PoolSizeRatio> aPoolRatios)
+VkDescriptorPool DescriptorAllocatorGrowable::Create_Pool(const VkDevice aDevice, const uint32_t aSetCount, const std::span<PoolSizeRatio> aPoolRatios, const char* aName)
 {
 	std::vector<VkDescriptorPoolSize> poolSizes;
 	for (const auto [type, ratio] : aPoolRatios) 
@@ -155,6 +159,9 @@ VkDescriptorPool DescriptorAllocatorGrowable::Create_Pool(const VkDevice aDevice
 
 	VkDescriptorPool newPool;
 	vkCreateDescriptorPool(aDevice, &pool_Info, nullptr, &newPool);
+
+    std::string temp = fmt::format("_Descriptor Pool {}", aName);
+    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_POOL, newPool, temp.c_str());
 	return newPool;
 }
 
