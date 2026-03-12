@@ -44,8 +44,7 @@ bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkS
 	}
 	*aOutShaderModule = shaderModule;
 
-	const std::string shaderDebugName = fmt::format("_ShaderModule: {}", aFilePath);
-	momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_SHADER_MODULE, *aOutShaderModule, shaderDebugName.c_str());
+    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_SHADER_MODULE, *aOutShaderModule, "_ShaderModule: {}", aFilePath);
 	return true;
 }
 
@@ -128,8 +127,7 @@ VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, const char* a
 		fmt::println("failed to create pipeline");
 		return VK_NULL_HANDLE; // failed to create graphics pipeline
 	}
-    std::string tmp = fmt::format("_Pipeline {}", aName);
-    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_PIPELINE, newPipeline, tmp.c_str());
+    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_PIPELINE, newPipeline, "_Pipeline {}", aName);
 	return newPipeline;
 }
 

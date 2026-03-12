@@ -273,8 +273,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
 
         VkSampler newSampler;
         vkCreateSampler(aEngine->_device, &samplerCreateInfo, nullptr, &newSampler);
-        debugName = fmt::format("_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
-        momo_vkDebug::Set_Debug_Name(aEngine->_device, VK_OBJECT_TYPE_SAMPLER, newSampler, debugName.c_str());
+        momo_vkDebug::Set_Debug_Name(aEngine->_device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
 
         file.samplers.push_back(newSampler);
     }

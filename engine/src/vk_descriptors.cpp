@@ -36,8 +36,7 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::Build(const VkDevice aDevice, con
 	VkDescriptorSetLayout set;
 	VK_CHECK(vkCreateDescriptorSetLayout(aDevice, &info, nullptr, &set));
 
-	std::string tmp = fmt::format("_Descriptor Set Layout {}", aName);
-    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, set, tmp.c_str());
+    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT, set, "_Descriptor Set Layout {}", aName);
 	return set;
 }
 
@@ -113,8 +112,7 @@ VkDescriptorSet DescriptorAllocatorGrowable::Allocate(const VkDevice aDevice, co
 	}
 
 	_ready_pools.push_back(poolToUse);
-    std::string temp = fmt::format("_Descriptor Set {}", aNewName);
-    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_SET, ds, temp.c_str());
+    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_SET, ds, "_Descriptor Set {}", aNewName);
 	return ds;
 }
 
@@ -161,8 +159,7 @@ VkDescriptorPool DescriptorAllocatorGrowable::Create_Pool(const VkDevice aDevice
 	VkDescriptorPool newPool;
 	vkCreateDescriptorPool(aDevice, &pool_Info, nullptr, &newPool);
 
-    std::string temp = fmt::format("_Descriptor Pool {}", aName);
-    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_POOL, newPool, temp.c_str());
+    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_POOL, newPool, "_Descriptor Pool {}", aName);
 	return newPool;
 }
 

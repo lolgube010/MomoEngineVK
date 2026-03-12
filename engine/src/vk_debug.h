@@ -3,22 +3,27 @@
 
 namespace momo_vkDebug
 {
-    template <typename T>
-    static void Set_Debug_Name(const VkDevice aDevice, const VkObjectType aObjectType, T aHandle, const char* aName)
+    template <typename T, typename... Args>
+    static void Set_Debug_Name(const VkDevice aDevice, const VkObjectType aObjectType, T aHandle, fmt::string_view aFmtString, Args&&... aArgs)
     {
-        // 1. Safety check! If the debug extension wasn't loaded (e.g., in Release mode),
-        // the volk pointer will be null. We just return safely.
+    // Check if we are in a debug build.
+    // MSVC defines _DEBUG by default in Debug, and NDEBUG in Release.
+    #ifndef NDEBUG
+
+        // 1. Safety check! If the debug extension wasn't loaded
         if (!vkSetDebugUtilsObjectNameEXT)
             return;
 
+        std::string finalName = fmt::vformat(aFmtString, fmt::make_format_args(aArgs...));
         VkDebugUtilsObjectNameInfoEXT nameInfo = {};
         nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
         nameInfo.objectType = aObjectType;
 
         nameInfo.objectHandle = reinterpret_cast<uint64_t>(aHandle);
-        nameInfo.pObjectName = aName;
+        nameInfo.pObjectName = finalName.c_str();
 
         vkSetDebugUtilsObjectNameEXT(aDevice, &nameInfo);
+    #endif
     }
 
     struct ScopedDebugLabelCmdBuff

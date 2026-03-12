@@ -483,10 +483,8 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 
 	VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage.imageView));
 
-	const std::string imageName = fmt::format("_Image Name: {}", aName);
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, newImage.image, imageName.c_str());
-	const std::string imageViewName = fmt::format("_ImageView Name: {}", aName);
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage.imageView, imageViewName.c_str());
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, newImage.image, "_Image Name: {}", aName);
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage.imageView, "_ImageView Name: {}", aName);
     vmaSetAllocationName(_allocator, newImage.allocation, aName);
 	return newImage;
 }
@@ -670,8 +668,7 @@ void VulkanEngine::Init_Vulkan()
             VkPhysicalDeviceProperties props;
             vkGetPhysicalDeviceProperties(allGPUs[i], &props);
 
-            std::string gpuDebugName = fmt::format("_Physical Device/GPU {}: {}", i, props.deviceName);
-            momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PHYSICAL_DEVICE, allGPUs[i], gpuDebugName.c_str());
+            momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PHYSICAL_DEVICE, allGPUs[i], "_Physical Device/GPU {}: {}", i, props.deviceName);
         }
 	}
     //> debug info
@@ -788,20 +785,17 @@ void VulkanEngine::Init_Commands()
 	// we also want the pool to allow for resetting of individual command buffers
 	const VkCommandPoolCreateInfo commandPoolInfo = vkInit::command_pool_create_info(_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-	std::string tempName = {};
     for (unsigned int i = 0; i < FRAME_OVERLAP; ++i)
 	{
         auto& frame = _frames[i];
 		VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &frame._commandPool));
-        tempName = fmt::format("_Command Pool Main, FIF: {}", i);
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, tempName.c_str());
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, "_Command Pool Main, FIF: {}", i);
 		
         // allocate the default command buffer that we will use for rendering
 		VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(frame._commandPool, 1);
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &frame._mainCommandBuffer));
         
-        tempName = fmt::format("_Command Buffer Main, FIF: {}", i);
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer, tempName.c_str());
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer, "_Command Buffer Main, FIF: {}", i);
 	}
 
 	// immediate command pool / buffer.
@@ -836,11 +830,9 @@ void VulkanEngine::Init_Sync_Structures()
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
 		//VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore)); // moved to 2nd for loop
 		
-		std::string fenceName = fmt::format("_RenderFence Frame FIF:{}", i);
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, frame._renderFence, fenceName.c_str());
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, frame._renderFence, "_RenderFence Frame FIF:{}", i);
         
-        std::string semName = fmt::format("_Semaphore Frame Swapchain, FIF:{}", i);
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, semName.c_str());
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, "_Semaphore Frame Swapchain, FIF:{}", i);
     }
 	
     ready_for_present_semaphores.resize(_swapchainImageCount);
@@ -848,8 +840,7 @@ void VulkanEngine::Init_Sync_Structures()
     for (size_t i = 0; i < _swapchainImageCount; ++i)
 	{
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &ready_for_present_semaphores[i]));
-        std::string semName = fmt::format("_Semaphore Ready For Present, SwapchainImgCount:{}", i);
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, ready_for_present_semaphores[i], semName.c_str());
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, ready_for_present_semaphores[i], "_Semaphore Ready For Present, SwapchainImgCount:{}", i);
         _mainDeletionQueue.Push_Function([this, i]
         {
             vkDestroySemaphore(_device, ready_for_present_semaphores[i], nullptr);
@@ -1352,14 +1343,10 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 
 	momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, _swapchain, "_Swapchain");
 
-    // 2. Loop through and name the Images and Image Views!
     for (size_t i = 0; i < _swapchain_images.size(); ++i)
     {
-        std::string imageName = fmt::format("_Image Swapchain {}", i);
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _swapchain_images[i], imageName.c_str());
-
-        std::string viewName = fmt::format("_Image View Swapchain {}", i);
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchain_image_views[i], viewName.c_str());
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _swapchain_images[i], "_Image Swapchain {}", i);
+        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchain_image_views[i], "_Image View Swapchain {}", i);
     }
 }
 
@@ -1730,7 +1717,7 @@ AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBu
 		&newBuffer.info));
 
 	const std::string buffName = fmt::format("_Buffer {}, {}", Get_Buffer_Usage_Flag_String(aUsage), aName);
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_BUFFER, newBuffer.buffer, buffName.c_str());
+    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_BUFFER, newBuffer.buffer, buffName);
     vmaSetAllocationName(_allocator, newBuffer.allocation, buffName.c_str());
 	return newBuffer;
 }
