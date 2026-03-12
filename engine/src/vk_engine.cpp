@@ -1594,8 +1594,10 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	
 	auto draw = [&](const RenderObject& r) 
 	{
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(aCmd, "MeshDrawing");
 		if (r.material != lastMaterial)
-		{
+		{	
+		    momo_vkDebug::ScopedDebugLabelCmdBuff label2(aCmd, "Switching Material");
 			lastMaterial = r.material;
 			// rebind pipeline and descriptors if the material changed
 			if (r.material->pipeline != lastPipeline)

@@ -8,7 +8,7 @@
 * GLTF loading (models & textures).
 * Basic Frustum Culling & Draw Sorting
 * Png Texture Loading & Mipmaps.
-* Everything's annotated & support for the renderdoc API.
+* Everything's annotated in debug & support for the renderdoc API.
 * super basic lighting and pbr.
 
 # planned features
