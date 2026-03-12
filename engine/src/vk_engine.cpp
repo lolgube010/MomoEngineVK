@@ -262,7 +262,9 @@ void VulkanEngine::Draw()
 	    vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
     }
 	{
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "Draw Geometry");
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "Draw Geometry CmdBuff");
+        momo_vkDebug::ScopedDebugLabelQueue labelQ(_graphicsQueue, "Draw Geometry Queue");
+
 		PROFILE_SCOPE_N("Draw Geometry")
 		Draw_Geometry(cmd);
 	}
