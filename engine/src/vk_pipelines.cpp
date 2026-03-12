@@ -44,7 +44,7 @@ bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkS
 	}
 	*aOutShaderModule = shaderModule;
 
-    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_SHADER_MODULE, *aOutShaderModule, "_ShaderModule: {}", aFilePath);
+    MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_SHADER_MODULE, *aOutShaderModule, "_ShaderModule: {}", aFilePath);
 	return true;
 }
 
@@ -70,7 +70,7 @@ void PipelineBuilder::Clear()
 
 }
 
-VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, const char* aName) const
+VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, [[maybe_unused]] const char* aName) const
 {
 	// make viewport state from our stored viewport and scissor.
 	// at the moment we won't support multiple viewports or scissors
@@ -127,7 +127,7 @@ VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, const char* a
 		fmt::println("failed to create pipeline");
 		return VK_NULL_HANDLE; // failed to create graphics pipeline
 	}
-    momo_vkDebug::Set_Debug_Name(aDevice, VK_OBJECT_TYPE_PIPELINE, newPipeline, "_Pipeline {}", aName);
+    MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_PIPELINE, newPipeline, "_Pipeline {}", aName);
 	return newPipeline;
 }
 

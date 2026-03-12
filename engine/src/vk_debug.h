@@ -8,16 +8,17 @@
 // 3. Define the scoping macros
 #ifdef _DEBUG
 #define MOMO_VK_SCOPED_CMD_LABEL(cmd, name, ...) momo_vkDebug::ScopedDebugLabelCmdBuff MOMO_MACRO_CONCAT(vk_label_, __LINE__)(cmd, name, ##__VA_ARGS__)
-
 #define MOMO_VK_SCOPED_QUEUE_LABEL(queue, name, ...) momo_vkDebug::ScopedDebugLabelQueue MOMO_MACRO_CONCAT(vk_label_, __LINE__)(queue, name, ##__VA_ARGS__)
+#define MOMO_VK_SET_DEBUG_NAME(device, objType, handle, fmtString, ...) momo_vkDebug::Set_Debug_Name(device, objType, handle, fmtString, ##__VA_ARGS__)
 #else
 // In release, the macro resolves to literal nothing.
 // Arguments are NEVER evaluated.
 #define MOMO_VK_SCOPED_CMD_LABEL(cmd, name, ...)
 #define MOMO_VK_SCOPED_QUEUE_LABEL(queue, name, ...)
+#define MOMO_VK_SET_DEBUG_NAME(device, objType, handle, fmtString, ...)
 #endif
 
-#ifndef NDEBUG
+#ifdef _DEBUG // DON'T USE! USE THE MACROS ABOVE INSTEAD!
 namespace momo_vkDebug
 {
     template <typename T, typename... Args>
@@ -25,7 +26,6 @@ namespace momo_vkDebug
     {
     // Check if we are in a debug build.
     // MSVC defines _DEBUG by default in Debug, and NDEBUG in Release.
-    #ifndef NDEBUG
 
         // 1. Safety check! If the debug extension wasn't loaded
         if (!vkSetDebugUtilsObjectNameEXT)
@@ -41,10 +41,8 @@ namespace momo_vkDebug
         nameInfo.pObjectName = finalName.c_str();
 
         vkSetDebugUtilsObjectNameEXT(aDevice, &nameInfo);
-    #endif
     }
 
-#ifdef _DEBUG // DON'T USE! USE THE MACROS ABOVE INSTEAD!
     struct ScopedDebugLabelCmdBuff
     {
         VkCommandBuffer cmd;
@@ -72,7 +70,6 @@ namespace momo_vkDebug
             vkQueueEndDebugUtilsLabelEXT(queue);
         }
     };
-#endif
 
     static void BeginAnnotationCmdBuff(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f))
     {
@@ -120,5 +117,4 @@ namespace momo_vkDebug
         inline static uint32_t g_AllocationCount;
     };
 }
-
 #endif

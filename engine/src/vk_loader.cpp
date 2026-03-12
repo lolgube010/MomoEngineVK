@@ -273,7 +273,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
 
         VkSampler newSampler;
         vkCreateSampler(aEngine->_device, &samplerCreateInfo, nullptr, &newSampler);
-        momo_vkDebug::Set_Debug_Name(aEngine->_device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
+        MOMO_VK_SET_DEBUG_NAME(aEngine->_device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", newSampler.name, aFilePath);
 
         file.samplers.push_back(newSampler);
     }
@@ -624,7 +624,7 @@ std::optional<AllocatedImage> momo_GLTF::load_image(const VulkanEngine* aEngine,
 
                     std::string imgName = fmt::format("{}, Path: {}", aImage.name.c_str(), aFilePath);
                     newImage = aEngine->Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName.c_str(), true);
-
+                    
                     stbi_image_free(data);
                 }
             },

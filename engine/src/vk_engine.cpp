@@ -56,7 +56,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	VkPipelineLayout newLayout;
 	VK_CHECK(vkCreatePipelineLayout(aEngine->_device, &mesh_layout_info, nullptr, &newLayout));
     // pipeline layout is technically shared between transparent & opaque, and we never bother deleting it so it's not a big deal right now
-    momo_vkDebug::Set_Debug_Name(aEngine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout, "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
+    MOMO_VK_SET_DEBUG_NAME(aEngine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout, "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
 
 	opaquePipeline.layout = newLayout;
 	transparentPipeline.layout = newLayout;
@@ -485,8 +485,8 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 
 	VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage.imageView));
 
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, newImage.image, "_Image Name: {}", aName);
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage.imageView, "_ImageView Name: {}", aName);
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, newImage.image, "_Image Name: {}", aName);
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage.imageView, "_ImageView Name: {}", aName);
     vmaSetAllocationName(_allocator, newImage.allocation, aName);
 	return newImage;
 }
@@ -621,12 +621,12 @@ void VulkanEngine::Init_Vulkan()
     _chosen_GPU = physicalDevice.physical_device;
 	
 	volkLoadDevice(_device);
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_DEVICE, _device, "_Logical Device");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_DEVICE, _device, "_Logical Device");
     
 	// set instance name too
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_INSTANCE, _instance, "_Instance");
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT, _debug_messenger, "_DebugMessenger");
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SURFACE_KHR, _surface, "_Surface");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_INSTANCE, _instance, "_Instance");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT, _debug_messenger, "_DebugMessenger");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SURFACE_KHR, _surface, "_Surface");
 
 	//< debug info
 	{
@@ -670,7 +670,7 @@ void VulkanEngine::Init_Vulkan()
             VkPhysicalDeviceProperties props;
             vkGetPhysicalDeviceProperties(allGPUs[i], &props);
 
-            momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PHYSICAL_DEVICE, allGPUs[i], "_Physical Device/GPU {}: {}", i, props.deviceName);
+            MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PHYSICAL_DEVICE, allGPUs[i], "_Physical Device/GPU {}: {}", i, props.deviceName);
         }
 	}
     //> debug info
@@ -680,7 +680,7 @@ void VulkanEngine::Init_Vulkan()
 	//> init_queue
 	_graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
 	_graphicsQueueFamily = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_QUEUE, _graphicsQueue, "_Graphics Queue Main");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_QUEUE, _graphicsQueue, "_Graphics Queue Main");
 	//< init_queue
 
 	//> init vma
@@ -744,8 +744,8 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo rview_info = vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Image Main Draw ");
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage.imageView, "_Image View Main Draw");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Image Main Draw ");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage.imageView, "_Image View Main Draw");
 	//< create image
 
 	//> create depth
@@ -763,8 +763,8 @@ void VulkanEngine::Init_Swapchain()
 	const VkImageViewCreateInfo dview_info = vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Image Main Depth");
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage.imageView, "_Image View Main Depth");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Image Main Depth");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage.imageView, "_Image View Main Depth");
 	//< create depth
 
 
@@ -791,24 +791,24 @@ void VulkanEngine::Init_Commands()
 	{
         auto& frame = _frames[i];
 		VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &frame._commandPool));
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, "_Command Pool Main, FIF: {}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, "_Command Pool Main, FIF: {}", i);
 		
         // allocate the default command buffer that we will use for rendering
 		VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(frame._commandPool, 1);
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &frame._mainCommandBuffer));
         
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer, "_Command Buffer Main, FIF: {}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer, "_Command Buffer Main, FIF: {}", i);
 	}
 
 	// immediate command pool / buffer.
 	VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_immCommandPool));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_POOL, _immCommandPool, "_Command Pool Immediate");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, _immCommandPool, "_Command Pool Immediate");
 
 	// allocate the command buffer for immediate submits
 	const VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(_immCommandPool, 1);
 
 	VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, _immCommandBuffer, "_Command Buffer Immediate");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, _immCommandBuffer, "_Command Buffer Immediate");
 
 	_mainDeletionQueue.Push_Function([this]
 	{
@@ -832,9 +832,9 @@ void VulkanEngine::Init_Sync_Structures()
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
 		//VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore)); // moved to 2nd for loop
 		
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, frame._renderFence, "_RenderFence Frame FIF:{}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_FENCE, frame._renderFence, "_RenderFence Frame FIF:{}", i);
         
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, "_Semaphore Frame Swapchain, FIF:{}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, "_Semaphore Frame Swapchain, FIF:{}", i);
     }
 	
     ready_for_present_semaphores.resize(_swapchainImageCount);
@@ -842,7 +842,7 @@ void VulkanEngine::Init_Sync_Structures()
     for (size_t i = 0; i < _swapchainImageCount; ++i)
 	{
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &ready_for_present_semaphores[i]));
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SEMAPHORE, ready_for_present_semaphores[i], "_Semaphore Ready For Present, SwapchainImgCount:{}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, ready_for_present_semaphores[i], "_Semaphore Ready For Present, SwapchainImgCount:{}", i);
         _mainDeletionQueue.Push_Function([this, i]
         {
             vkDestroySemaphore(_device, ready_for_present_semaphores[i], nullptr);
@@ -850,7 +850,7 @@ void VulkanEngine::Init_Sync_Structures()
 	}
     
 	VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_FENCE, _immFence, "_Fence Immediate");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_FENCE, _immFence, "_Fence Immediate");
 	_mainDeletionQueue.Push_Function([this] { vkDestroyFence(_device, _immFence, nullptr); });
 }
 
@@ -956,7 +956,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	computeLayout.pushConstantRangeCount = 1;
 
 	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_ComputePipelineLayout));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _ComputePipelineLayout, "_Pipeline Layout Compute Background");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _ComputePipelineLayout, "_Pipeline Layout Compute Background");
 
     auto gradientShader = momo_util::LoadShader("gradient_color", momo_util::ShaderType::Compute, false, _device);
     auto skyShader = momo_util::LoadShader("sky", momo_util::ShaderType::Compute, false, _device);
@@ -984,7 +984,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	gradient.data.data2 = glm::vec4(0, 0, 1, 1);
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PIPELINE, gradient.pipeline, "_Pipeline Compute Gradient");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE, gradient.pipeline, "_Pipeline Compute Gradient");
 	backgroundEffects.push_back(gradient);
 
 	//change the shader module only to create the sky shader
@@ -998,7 +998,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	sky.data.data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky.pipeline));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_PIPELINE, sky.pipeline, "_Pipeline Compute Sky");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE, sky.pipeline, "_Pipeline Compute Sky");
 	
     //add the 2 background effects into the array
 	backgroundEffects.push_back(sky);
@@ -1042,7 +1042,7 @@ void VulkanEngine::Init_ImGui()
 
 	VkDescriptorPool imGuiPool;
 	VK_CHECK(vkCreateDescriptorPool(_device, &pool_info, nullptr, &imGuiPool));
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_DESCRIPTOR_POOL, imGuiPool, "_Descriptor Pool imGui");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_DESCRIPTOR_POOL, imGuiPool, "_Descriptor Pool imGui");
 	// 2: initialize imgui library
 
 	IMGUI_CHECKVERSION();
@@ -1185,13 +1185,13 @@ void VulkanEngine::Init_Default_Data()
 	sampler.minFilter = VK_FILTER_NEAREST;
 
 	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest);
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerNearest, "_Sampler Default Nearest");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerNearest, "_Sampler Default Nearest");
 
 	// linear blurs
 	sampler.magFilter = VK_FILTER_LINEAR;
 	sampler.minFilter = VK_FILTER_LINEAR;
 	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerLinear);
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerLinear, "_Sampler Default Linear");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerLinear, "_Sampler Default Linear");
 	
 
 	_mainDeletionQueue.Push_Function([&]
@@ -1343,12 +1343,12 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 	// used to initialize the same amount of _readyForPresentSemaphores in init_sync_structures
     VK_CHECK(vkGetSwapchainImagesKHR(_device, _swapchain, &_swapchainImageCount, nullptr));
 
-	momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, _swapchain, "_Swapchain");
+	MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, _swapchain, "_Swapchain");
 
     for (size_t i = 0; i < _swapchain_images.size(); ++i)
     {
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE, _swapchain_images[i], "_Image Swapchain {}", i);
-        momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchain_image_views[i], "_Image View Swapchain {}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _swapchain_images[i], "_Image Swapchain {}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchain_image_views[i], "_Image View Swapchain {}", i);
     }
 }
 
@@ -1722,7 +1722,7 @@ AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBu
 		&newBuffer.info));
 
 	const std::string buffName = fmt::format("_Buffer {}, {}", Get_Buffer_Usage_Flag_String(aUsage), aName);
-    momo_vkDebug::Set_Debug_Name(_device, VK_OBJECT_TYPE_BUFFER, newBuffer.buffer, buffName);
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_BUFFER, newBuffer.buffer, buffName);
     vmaSetAllocationName(_allocator, newBuffer.allocation, buffName.c_str());
 	return newBuffer;
 }
