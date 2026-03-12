@@ -207,7 +207,7 @@ void VulkanEngine::Draw()
 	Update_Scene(); // should maybe be moved out of draw. this is preparing buffers / updating matrices. 
 
 	{
-        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "wait for fences");
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "wait for fences");
 	    //> draw_1
 	    // wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	    VK_CHECK(vkWaitForFences(_device, 1, &Get_Current_Frame()._renderFence, true, 1000000000));
@@ -236,7 +236,7 @@ void VulkanEngine::Draw()
 	VK_CHECK(vkResetCommandBuffer(cmd, 0));
 
 	{
-        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "begin command buffer");
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "begin command buffer");
 	    //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
 	    const VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
@@ -247,29 +247,29 @@ void VulkanEngine::Draw()
 	    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 	}
 	{
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition draw img 1");
+        MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
 	    // transition our main draw image into general layout so we can write into it.
 	    // we will overwrite it all so we don't care about what was the older layout
 	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 	}
 	{
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "draw background");
+        MOMO_VK_SCOPED_CMD_LABEL(cmd, "draw background");
 	    Draw_Background(cmd);
 	}
     {
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition draw & depth img 2");
+        MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & depth img 2");
 	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	    vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
     }
 	{
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "Draw Geometry CmdBuff");
-        momo_vkDebug::ScopedDebugLabelQueue labelQ(_graphicsQueue, "Draw Geometry Queue");
+        MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw Geometry CmdBuff");
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw Geometry Queue");
 
 		PROFILE_SCOPE_N("Draw Geometry")
 		Draw_Geometry(cmd);
 	}
     {
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition draw & swapchain img 3");
+        MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & swapchain img 3");
 	    //transition the draw image and the swapchain image into their correct transfer layouts
 	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -281,23 +281,23 @@ void VulkanEngine::Draw()
         vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
 	{
-        momo_vkDebug::ScopedDebugLabelCmdBuff labelC(cmd, "Draw imGui Cmd Buffer");
-        momo_vkDebug::ScopedDebugLabelQueue labelQ(_graphicsQueue, "Draw imGui Graphics Queue");
+        MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw imGui Cmd Buffer");
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw imGui Graphics Queue");
 	    // draw imgui into the swapchain image
         Draw_ImGui(cmd, _swapchain_image_views[_swapchainImageIndex]);
 	}
     {
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition swapchain img 4");
+        MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition swapchain img 4");
 	    // set swapchain image layout to Present so we can show it on the screen
         vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     }
 	{
-        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "end command buffer");
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "end command buffer");
 	    //finalize the command buffer (we can no longer add commands, but it can now be executed)
 	    VK_CHECK(vkEndCommandBuffer(cmd));
 	}
     {
-        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "submit command buffer to queue");
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "submit command buffer to queue");
 	    //> draw_5
 	    // prepare the submission to the queue. 
 	    // we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
@@ -318,7 +318,7 @@ void VulkanEngine::Draw()
     }
     {
 	    //> draw_6
-        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "present");
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "present");
 	    // prepare present
 	    // this will put the image we just rendered to into the visible window.
 	    // we want to wait on the _renderSemaphore for that, 
@@ -1594,10 +1594,10 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	
 	auto draw = [&](const RenderObject& r) 
 	{
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(aCmd, "MeshDrawing");
+        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "MeshDrawing");
 		if (r.material != lastMaterial)
 		{	
-		    momo_vkDebug::ScopedDebugLabelCmdBuff label2(aCmd, "Switching Material");
+		    MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Switching Material");
 			lastMaterial = r.material;
 			// rebind pipeline and descriptors if the material changed
 			if (r.material->pipeline != lastPipeline)
@@ -1647,7 +1647,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	};
 
 	{
-	    momo_vkDebug::ScopedDebugLabelCmdBuff label(aCmd, "Draw Opaque");
+        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Opaque");
 	    for (auto& r : opaque_draws) 
 	    {
 	        draw(_mainDrawContext.opaqueSurfaces[r]);
@@ -1655,7 +1655,8 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	    
 	}
 	{
-	    momo_vkDebug::ScopedDebugLabelCmdBuff label(aCmd, "Draw Transparent");
+        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Transparent");
+        // momo_vkDebug::VK_SCOPED_CMD_LABEL label(aCmd, "Draw Transparent");
 	    for (auto& r : transparent_draws) 
 	    {
 	        draw(_mainDrawContext.transparentSurfaces[r]);

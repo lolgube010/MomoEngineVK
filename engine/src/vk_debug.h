@@ -1,6 +1,23 @@
 #pragma once
 #include "vk_initializers.h"
 
+// 2. Add these helper macros to generate unique variable names
+#define MOMO_CONCAT_IMPL(x, y) x##y
+#define MOMO_MACRO_CONCAT(x, y) MOMO_CONCAT_IMPL(x, y)
+
+// 3. Define the scoping macros
+#ifdef _DEBUG
+#define MOMO_VK_SCOPED_CMD_LABEL(cmd, name, ...) momo_vkDebug::ScopedDebugLabelCmdBuff MOMO_MACRO_CONCAT(vk_label_, __LINE__)(cmd, name, ##__VA_ARGS__)
+
+#define MOMO_VK_SCOPED_QUEUE_LABEL(queue, name, ...) momo_vkDebug::ScopedDebugLabelQueue MOMO_MACRO_CONCAT(vk_label_, __LINE__)(queue, name, ##__VA_ARGS__)
+#else
+// In release, the macro resolves to literal nothing.
+// Arguments are NEVER evaluated.
+#define MOMO_VK_SCOPED_CMD_LABEL(cmd, name, ...)
+#define MOMO_VK_SCOPED_QUEUE_LABEL(queue, name, ...)
+#endif
+
+#ifndef NDEBUG
 namespace momo_vkDebug
 {
     template <typename T, typename... Args>
@@ -19,13 +36,15 @@ namespace momo_vkDebug
         nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
         nameInfo.objectType = aObjectType;
 
-        nameInfo.objectHandle = reinterpret_cast<uint64_t>(aHandle);
+        // ReSharper disable once CppCStyleCast
+        nameInfo.objectHandle = (uint64_t)(aHandle);
         nameInfo.pObjectName = finalName.c_str();
 
         vkSetDebugUtilsObjectNameEXT(aDevice, &nameInfo);
     #endif
     }
 
+#ifdef _DEBUG // DON'T USE! USE THE MACROS ABOVE INSTEAD!
     struct ScopedDebugLabelCmdBuff
     {
         VkCommandBuffer cmd;
@@ -53,6 +72,7 @@ namespace momo_vkDebug
             vkQueueEndDebugUtilsLabelEXT(queue);
         }
     };
+#endif
 
     static void BeginAnnotationCmdBuff(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f))
     {
@@ -100,3 +120,5 @@ namespace momo_vkDebug
         inline static uint32_t g_AllocationCount;
     };
 }
+
+#endif
