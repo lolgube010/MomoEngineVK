@@ -151,10 +151,10 @@ struct GPUSceneData
 
 struct ComputePushConstants // max size is 128 bytes
 {
-    glm::vec4 data1;
-    glm::vec4 data2;
-    glm::vec4 data3;
-    glm::vec4 data4;
+    glm::vec4 data1 = {};
+    glm::vec4 data2 = {};
+    glm::vec4 data3 = {};
+    glm::vec4 data4 = {};
 };
 
 struct ComputeEffect
@@ -163,7 +163,7 @@ struct ComputeEffect
     VkPipeline pipeline;
     VkPipelineLayout layout;
 
-    ComputePushConstants data;
+    ComputePushConstants data = {};
 };
 
 struct DeletionQueue

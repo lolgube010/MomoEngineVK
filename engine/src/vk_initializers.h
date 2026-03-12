@@ -10,39 +10,41 @@
 namespace vkInit
 {
 	//> init_cmd
-	VkCommandPoolCreateInfo command_pool_create_info(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0);
-	VkCommandBufferAllocateInfo command_buffer_allocate_info(VkCommandPool pool, uint32_t count = 1);
+	VkCommandPoolCreateInfo command_pool_create_info(uint32_t aQueueFamilyIndex, VkCommandPoolCreateFlags aFlags = 0);
+	VkCommandBufferAllocateInfo command_buffer_allocate_info(VkCommandPool aPool, uint32_t aCount = 1);
 	//< init_cmd
 
-	VkCommandBufferBeginInfo command_buffer_begin_info(VkCommandBufferUsageFlags flags = 0);
-	VkCommandBufferSubmitInfo command_buffer_submit_info(VkCommandBuffer cmd);
+	VkCommandBufferBeginInfo command_buffer_begin_info(VkCommandBufferUsageFlags aFlags = 0);
+	VkCommandBufferSubmitInfo command_buffer_submit_info(VkCommandBuffer aCmd);
 
-	VkFenceCreateInfo fence_create_info(VkFenceCreateFlags flags = 0);
+	VkFenceCreateInfo fence_create_info(VkFenceCreateFlags aFlags = 0);
 
-	VkSemaphoreCreateInfo semaphore_create_info(VkSemaphoreCreateFlags flags = 0);
+	VkSemaphoreCreateInfo semaphore_create_info(VkSemaphoreCreateFlags aFlags = 0);
 
-	VkSubmitInfo2 submit_info(const VkCommandBufferSubmitInfo* cmd, const VkSemaphoreSubmitInfo* signalSemaphoreInfo, const VkSemaphoreSubmitInfo* waitSemaphoreInfo);
+	VkSubmitInfo2 submit_info(const VkCommandBufferSubmitInfo* aCmd, const VkSemaphoreSubmitInfo* aSignalSemaphoreInfo, const VkSemaphoreSubmitInfo* aWaitSemaphoreInfo);
     VkPresentInfoKHR present_info(const VkSwapchainKHR* aSwapchain, const VkSemaphore* aWaitSemaphore, const uint32_t* aSwapchainImageIndex);
 
-	VkRenderingAttachmentInfo attachment_info(VkImageView view, const VkClearValue* clear, VkImageLayout layout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/);
+	VkRenderingAttachmentInfo attachment_info(VkImageView aView, const VkClearValue* aClear, VkImageLayout aLayout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/);
 
-	VkRenderingAttachmentInfo depth_attachment_info(VkImageView view, VkImageLayout layout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/);
+	VkRenderingAttachmentInfo depth_attachment_info(VkImageView aView, VkImageLayout aLayout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/);
 
-	VkRenderingInfo rendering_info(VkExtent2D renderExtent, const VkRenderingAttachmentInfo* colorAttachment, const VkRenderingAttachmentInfo* depthAttachment);
+	VkRenderingInfo rendering_info(VkExtent2D aRenderExtent, const VkRenderingAttachmentInfo* aColorAttachment, const VkRenderingAttachmentInfo* aDepthAttachment);
 
-	VkImageSubresourceRange image_subresource_range(VkImageAspectFlags aspectMask);
+	VkImageSubresourceRange image_subresource_range(VkImageAspectFlags anAspectMask);
 
-	VkSemaphoreSubmitInfo semaphore_submit_info(VkPipelineStageFlags2 stageMask, VkSemaphore semaphore);
-	VkDescriptorSetLayoutBinding descriptorset_layout_binding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding);
-	VkDescriptorSetLayoutCreateInfo descriptorset_layout_create_info(const VkDescriptorSetLayoutBinding* bindings, uint32_t bindingCount);
-	VkWriteDescriptorSet write_descriptor_image(VkDescriptorType type, VkDescriptorSet dstSet, const VkDescriptorImageInfo* imageInfo, uint32_t binding);
-	VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType type, VkDescriptorSet dstSet, const VkDescriptorBufferInfo* bufferInfo, uint32_t binding);
-	VkDescriptorBufferInfo buffer_info(VkBuffer buffer, VkDeviceSize offset, VkDeviceSize range);
+	VkSemaphoreSubmitInfo semaphore_submit_info(VkPipelineStageFlags2 aStageMask, VkSemaphore aSemaphore);
+	VkDescriptorSetLayoutBinding descriptor_set_layout_binding(VkDescriptorType aType, VkShaderStageFlags aStageFlags, uint32_t aBinding);
+	VkDescriptorSetLayoutCreateInfo descriptor_set_layout_create_info(const VkDescriptorSetLayoutBinding* aBindings, uint32_t aBindingCount);
+	VkWriteDescriptorSet write_descriptor_image(VkDescriptorType aType, VkDescriptorSet aDstSet, const VkDescriptorImageInfo* aImageInfo, uint32_t aBinding);
+	VkWriteDescriptorSet write_descriptor_buffer(VkDescriptorType aType, VkDescriptorSet aDstSet, const VkDescriptorBufferInfo* aBufferInfo, uint32_t aBinding);
+	VkDescriptorBufferInfo buffer_info(VkBuffer aBuffer, VkDeviceSize aOffset, VkDeviceSize aRange);
 
-	VkImageCreateInfo image_create_info(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent);
-	VkImageViewCreateInfo imageview_create_info(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags);
+	VkImageCreateInfo image_create_info(VkFormat aFormat, VkImageUsageFlags aUsageFlags, VkExtent3D aExtent);
+	VkImageViewCreateInfo imageview_create_info(VkFormat aFormat, VkImage aImage, VkImageAspectFlags aSpectFlags);
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info();
-	VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shaderModule, const char* entry = "main");
+	VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits aStage, VkShaderModule aShaderModule, const char* aEntry = "main");
 
 	VkDebugUtilsLabelEXT debug_label(const char* aPassName, glm::vec4 aColor = glm::vec4(1.f,1.f,1.f,1.f));
-} // namespace vkinit
+
+	VkComputePipelineCreateInfo compute_pipeline_create_info(VkPipelineLayout aLayout, const VkPipelineShaderStageCreateInfo& aStageInfo);
+} // namespace vkInit

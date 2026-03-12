@@ -941,17 +941,14 @@ void VulkanEngine::Init_Pipelines()
 
 void VulkanEngine::Init_Background_Pipelines()
 {
-	VkPipelineLayoutCreateInfo computeLayout{};
-	computeLayout.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-	computeLayout.pNext = nullptr;
-	computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
-	computeLayout.setLayoutCount = 1;
-
 	VkPushConstantRange pushConstant{};
 	pushConstant.offset = 0;
 	pushConstant.size = sizeof(ComputePushConstants);
 	pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
+	
+    VkPipelineLayoutCreateInfo computeLayout = vkInit::pipeline_layout_create_info();
+	computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
+	computeLayout.setLayoutCount = 1;
 	computeLayout.pPushConstantRanges = &pushConstant;
 	computeLayout.pushConstantRangeCount = 1;
 
@@ -961,18 +958,9 @@ void VulkanEngine::Init_Background_Pipelines()
     auto gradientShader = momo_util::LoadShader("gradient_color", momo_util::ShaderType::Compute, false, _device);
     auto skyShader = momo_util::LoadShader("sky", momo_util::ShaderType::Compute, false, _device);
 
-	VkPipelineShaderStageCreateInfo stageInfo{};
-	stageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-	stageInfo.pNext = nullptr;
-	stageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	stageInfo.module = gradientShader.value();
-	stageInfo.pName = "main"; // this option gives you the ability to have multiple shaders in the same file, having different entry points.
+	VkPipelineShaderStageCreateInfo stageInfo = vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, gradientShader.value());
 
-	VkComputePipelineCreateInfo computePipelineCreateInfo{};
-	computePipelineCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-	computePipelineCreateInfo.pNext = nullptr;
-	computePipelineCreateInfo.layout = _ComputePipelineLayout;
-	computePipelineCreateInfo.stage = stageInfo;
+	VkComputePipelineCreateInfo computePipelineCreateInfo = vkInit::compute_pipeline_create_info(_ComputePipelineLayout, stageInfo);
 
 	ComputeEffect gradient{};
 	gradient.layout = _ComputePipelineLayout;
