@@ -206,23 +206,27 @@ void VulkanEngine::Draw()
 {
 	Update_Scene(); // should maybe be moved out of draw. this is preparing buffers / updating matrices. 
 
-	//> draw_1
-	// wait until the gpu has finished rendering the last frame. Timeout of 1 second
-	VK_CHECK(vkWaitForFences(_device, 1, &Get_Current_Frame()._renderFence, true, 1000000000));
-	Get_Current_Frame()._deletionQueue.Flush();
-	Get_Current_Frame()._frameDescriptors.Clear_Pools(_device);
-	VK_CHECK(vkResetFences(_device, 1, &Get_Current_Frame()._renderFence));
-	//< draw_1
-
-	//> draw_2
-	// request image from the swapchain
-	if (const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &_swapchainImageIndex); 
-		res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) 
 	{
-		_resize_requested = true;
-		return;
+        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "wait for fences");
+	    //> draw_1
+	    // wait until the gpu has finished rendering the last frame. Timeout of 1 second
+	    VK_CHECK(vkWaitForFences(_device, 1, &Get_Current_Frame()._renderFence, true, 1000000000));
+	    Get_Current_Frame()._deletionQueue.Flush();
+	    Get_Current_Frame()._frameDescriptors.Clear_Pools(_device);
+	    VK_CHECK(vkResetFences(_device, 1, &Get_Current_Frame()._renderFence));
+	    //< draw_1
 	}
-	//< draw_2
+    {
+	    //> draw_2
+	    // request image from the swapchain
+	    if (const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &_swapchainImageIndex); 
+		    res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) 
+	    {
+		    _resize_requested = true;
+		    return;
+	    }
+	    //< draw_2
+    }
 
 	//> draw_3
 	// naming it cmd for shorter writing
@@ -231,17 +235,19 @@ void VulkanEngine::Draw()
 	// now that we are sure that the commands finished executing, we can safely reset the command buffer to begin recording again.
 	VK_CHECK(vkResetCommandBuffer(cmd, 0));
 
-	//begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
-	const VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
-
-	_drawExtent.height = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.height, _drawImage.imageExtent.height)) *
-		_renderScale);
-	_drawExtent.width = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.width, _drawImage.imageExtent.width)) *
-		_renderScale);
-
-	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 	{
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition image");
+        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "begin command buffer");
+	    //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
+	    const VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+
+	    _drawExtent.height = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.height, _drawImage.imageExtent.height)) *
+		    _renderScale);
+	    _drawExtent.width = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.width, _drawImage.imageExtent.width)) *
+		    _renderScale);
+	    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+	}
+	{
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition draw img 1");
 	    // transition our main draw image into general layout so we can write into it.
 	    // we will overwrite it all so we don't care about what was the older layout
 	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
@@ -251,7 +257,7 @@ void VulkanEngine::Draw()
 	    Draw_Background(cmd);
 	}
     {
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition img 1");
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition draw & depth img 2");
 	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
 	    vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
     }
@@ -261,7 +267,7 @@ void VulkanEngine::Draw()
 		Draw_Geometry(cmd);
 	}
     {
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition img 2");
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition draw & swapchain img 3");
 	    //transition the draw image and the swapchain image into their correct transfer layouts
 	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -273,25 +279,24 @@ void VulkanEngine::Draw()
         vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
 	{
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "Draw imGui");
+        momo_vkDebug::ScopedDebugLabelCmdBuff labelC(cmd, "Draw imGui Cmd Buffer");
+        momo_vkDebug::ScopedDebugLabelQueue labelQ(_graphicsQueue, "Draw imGui Graphics Queue");
 	    // draw imgui into the swapchain image
         Draw_ImGui(cmd, _swapchain_image_views[_swapchainImageIndex]);
 	}
     {
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition img 3");
+        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "transition swapchain img 4");
 	    // set swapchain image layout to Present so we can show it on the screen
         vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     }
 	{
-        momo_vkDebug::ScopedDebugLabelCmdBuff label(cmd, "end command buffer");
+        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "end command buffer");
 	    //finalize the command buffer (we can no longer add commands, but it can now be executed)
 	    VK_CHECK(vkEndCommandBuffer(cmd));
-    }
-
-
-	//> draw_5
+	}
     {
-        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "queue submission prep");
+        momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "submit command buffer to queue");
+	    //> draw_5
 	    // prepare the submission to the queue. 
 	    // we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
 	    // we will signal the _renderSemaphore, to signal that rendering has finished
@@ -307,11 +312,10 @@ void VulkanEngine::Draw()
 	    // submit command buffer to the queue and execute it.
 	    // _renderFence will now block until the graphic commands finish execution
 	    VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, Get_Current_Frame()._renderFence));
+	    //< draw_5
     }
-	//< draw_5
-
-	//> draw_6
     {
+	    //> draw_6
         momo_vkDebug::ScopedDebugLabelQueue label(_graphicsQueue, "present");
 	    // prepare present
 	    // this will put the image we just rendered to into the visible window.
@@ -324,12 +328,10 @@ void VulkanEngine::Draw()
 	    {
 		    _resize_requested = true;
 	    }
+	    //increase the number of frames drawn
+	    _frame_number++;
+	    //< draw_6
     }
-
-	//increase the number of frames drawn
-	_frame_number++;
-	//< draw_6
-
 }
 
 void VulkanEngine::Run()
@@ -684,21 +686,20 @@ void VulkanEngine::Init_Vulkan()
 
 	//> init vma
 	// initialize the memory allocator
-    VmaVulkanFunctions vulkanFunctions = {};
-    vulkanFunctions.vkGetInstanceProcAddr = vkGetInstanceProcAddr;
-    vulkanFunctions.vkGetDeviceProcAddr = vkGetDeviceProcAddr;
 
 	VmaAllocatorCreateInfo allocatorInfo = {};
 	allocatorInfo.physicalDevice = _chosen_GPU;
 	allocatorInfo.device = _device;
 	allocatorInfo.instance = _instance;
 	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; // used for BDA
-    allocatorInfo.pVulkanFunctions = &vulkanFunctions;
     allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_4;
-
 	// allocatorInfo.pDeviceMemoryCallbacks = &_callbacks; // added by momo
-	
-	vmaCreateAllocator(&allocatorInfo, &_allocator);
+    
+    VmaVulkanFunctions vulkanFunctions = {};
+    vmaImportVulkanFunctionsFromVolk(&allocatorInfo, &vulkanFunctions);
+    
+    allocatorInfo.pVulkanFunctions = &vulkanFunctions;
+    vmaCreateAllocator(&allocatorInfo, &_allocator);
 
 	_mainDeletionQueue.Push_Function([&]
 	{
@@ -1573,44 +1574,44 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	vkCmdSetScissor(aCmd, 0, 1, &scissor);
 
-	 //allocate a new uniform buffer for the scene data.
-	 // was previously VMA_MEMORY_USAGE_CPU_TO_GPU
+    //allocate a new uniform buffer for the scene data.
+    // was previously VMA_MEMORY_USAGE_CPU_TO_GPU
     std::string debugName = fmt::format("GPUSceneData, Frame Num: {}", _frame_number);
     AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName.c_str());
-	
-	 //add it to the deletion queue of this frame so it gets deleted once it's been used
-	 Get_Current_Frame()._deletionQueue.Push_Function([gpuSceneDataBuffer, this]
-	 {
-	     Destroy_Buffer(gpuSceneDataBuffer);
-	 });
+    
+    //add it to the deletion queue of this frame so it gets deleted once it's been used
+    Get_Current_Frame()._deletionQueue.Push_Function([gpuSceneDataBuffer, this]
+    {
+        Destroy_Buffer(gpuSceneDataBuffer);
+    });
 	
 	 //write the buffer
 	 GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.info.pMappedData);
 	 // GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
 	 *sceneUniformData = _sceneData;
-
-	// create a descriptor set that binds that buffer and update it
-     debugName = fmt::format("Global, Frame Num: {}", _frame_number);
-     VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout, debugName.c_str());
-
-	 DescriptorWriter writer;
-	 writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	 writer.Update_Set(_device, globalDescriptor);
+    
+    // create a descriptor set that binds that buffer and update it
+    debugName = fmt::format("Global, Frame Num: {}", _frame_number);
+    VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout, debugName.c_str());
 	
-	 //defined outside the draw function, this is the state we will try to skip
-	 MaterialPipeline* lastPipeline = nullptr;
-	 MaterialInstance* lastMaterial = nullptr;
-	 VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-
-	 auto draw = [&](const RenderObject& r) 
-	 {
+	DescriptorWriter writer;
+	writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+	writer.Update_Set(_device, globalDescriptor);
+	
+	//defined outside the draw function, this is the state we will try to skip
+	MaterialPipeline* lastPipeline = nullptr;
+	MaterialInstance* lastMaterial = nullptr;
+	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
+	
+	auto draw = [&](const RenderObject& r) 
+	{
 		if (r.material != lastMaterial)
 		{
 			lastMaterial = r.material;
 			// rebind pipeline and descriptors if the material changed
 			if (r.material->pipeline != lastPipeline)
 			{
-				lastPipeline = r.material->pipeline;
+			    lastPipeline = r.material->pipeline;
 
 				vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
 				vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
@@ -1637,13 +1638,13 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 			vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->materialSet, 0, nullptr);
 
 		}
-	 	
-		if (r.indexBuffer != lastIndexBuffer)
+	    
+	    if (r.indexBuffer != lastIndexBuffer)
 		{
 			lastIndexBuffer = r.indexBuffer;
 			vkCmdBindIndexBuffer(aCmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 		}
-
+		
 	 	GPUDrawPushConstants pushConstants;
 	 	pushConstants._worldMatrix = r.transform;
 	 	pushConstants._vertexBuffer = r.vertexBufferAddress;
@@ -1652,22 +1653,27 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	 	vkCmdDrawIndexed(aCmd, r.indexCount, 1, r.firstIndex, 0, 0);
 	 	_stats.drawCall_count++;
 	 	_stats.tri_count += r.indexCount / 3;
-	 };
+	};
 
-	 for (auto& r : opaque_draws) 
-	 {
-		 draw(_mainDrawContext.opaqueSurfaces[r]);
-	 }
-
-	 for (auto& r : transparent_draws) 
-	 {
-		 draw(_mainDrawContext.transparentSurfaces[r]);
-	 }
-
-	 // we delete the draw commands now that we processed them
-	 _mainDrawContext.opaqueSurfaces.clear();
-	 _mainDrawContext.transparentSurfaces.clear();
-
+	{
+	    momo_vkDebug::ScopedDebugLabelCmdBuff label(aCmd, "Draw Opaque");
+	    for (auto& r : opaque_draws) 
+	    {
+	        draw(_mainDrawContext.opaqueSurfaces[r]);
+	    }
+	    
+	}
+	{
+	    momo_vkDebug::ScopedDebugLabelCmdBuff label(aCmd, "Draw Transparent");
+	    for (auto& r : transparent_draws) 
+	    {
+	        draw(_mainDrawContext.transparentSurfaces[r]);
+	    }
+	}
+    
+    // we delete the draw commands now that we processed them
+    // _mainDrawContext.opaqueSurfaces.clear();
+    _mainDrawContext.transparentSurfaces.clear();
 
 	vkCmdEndRendering(aCmd);
 	
