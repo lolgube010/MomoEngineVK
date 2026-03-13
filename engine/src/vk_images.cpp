@@ -10,6 +10,21 @@ void vkUtil::Transition_Image(const VkCommandBuffer aCmd, const VkImage aImg, co
 	VkImageMemoryBarrier2 imageBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
 	imageBarrier.pNext = nullptr;
 
+	// TODO:
+    // In the StageMask, we are doing ALL_COMMANDS.
+    // This is inefficient, as it will stall the GPU pipeline a bit.
+    // For our needs, it's going to be fine as we are only going to do a few transitions per frame.
+    // If you are doing many transitions per frame as part of a post - process chain, you want to avoid doing this, and instead use StageMasks more accurate to what you are doing
+    
+    // AllCommands stage mask on the barrier means that the barrier will stop the gpu commands completely when it arrives at the barrier. 
+    // By using more fine-grained stage masks, it's possible to overlap the GPU pipeline across the barrier a bit. 
+    // AccessMask is similar, it controls how the barrier stops different parts of the GPU. 
+    // We are going to use VK_ACCESS_2_MEMORY_WRITE_BIT for our source, and add VK_ACCESS_2_MEMORY_READ_BIT to our destination. 
+    // Those are generic options that will be fine.
+    
+    // If you want to read about what would be the optimal way of using pipeline barriers for different use cases, you can find a great reference in here 
+    // Khronos Vulkan Documentation: Syncronization examples [https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples]
+    // This layout transition is going to work just fine for the whole tutorial, but if you want, you can add more complicated transition functions that are more accurate/lightweight.
 	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 	imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
 	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;

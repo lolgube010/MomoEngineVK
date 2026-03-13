@@ -39,3 +39,12 @@ endif()
 if(MSVC)
     target_link_options(MomoVK PRIVATE /IGNORE:4099)
 endif()
+
+option(MOMOVK_ENABLE_DEBUG_NAMES "Enable MomoVK debug names in Debug builds" OFF)
+
+if(MOMOVK_ENABLE_DEBUG_NAMES)
+    # Apply it to your target, still restricting it to Debug builds
+    target_compile_definitions(MomoVK PRIVATE 
+        $<$<CONFIG:Debug>:MOMOVK_ENABLE_DEBUG_NAMES>
+    )
+endif()

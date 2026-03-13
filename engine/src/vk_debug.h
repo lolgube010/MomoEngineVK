@@ -1,12 +1,17 @@
 #pragma once
 #include "vk_initializers.h"
 
-// 2. Add these helper macros to generate unique variable names
+// #ifdef _DEBUG
+// #ifndef MOMOVK_ENABLE_DEBUG_NAMES
+// #define MOMOVK_ENABLE_DEBUG_NAMES // uncomment this to remove strings in debug
+// #endif
+// #endif
+
+// helper macros to generate unique variable names
 #define MOMO_CONCAT_IMPL(x, y) x##y
 #define MOMO_MACRO_CONCAT(x, y) MOMO_CONCAT_IMPL(x, y)
-
-// 3. Define the scoping macros
-#ifdef _DEBUG
+// scoping macros
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
 #define MOMO_VK_SCOPED_CMD_LABEL(cmd, name, ...) momo_vkDebug::ScopedDebugLabelCmdBuff MOMO_MACRO_CONCAT(vk_label_, __LINE__)(cmd, name, ##__VA_ARGS__)
 #define MOMO_VK_SCOPED_QUEUE_LABEL(queue, name, ...) momo_vkDebug::ScopedDebugLabelQueue MOMO_MACRO_CONCAT(vk_label_, __LINE__)(queue, name, ##__VA_ARGS__)
 #define MOMO_VK_SET_DEBUG_NAME(device, objType, handle, fmtString, ...) momo_vkDebug::Set_Debug_Name(device, objType, handle, fmtString, ##__VA_ARGS__)
@@ -18,16 +23,12 @@
 #define MOMO_VK_SET_DEBUG_NAME(device, objType, handle, fmtString, ...)
 #endif
 
-#ifdef _DEBUG // DON'T USE! USE THE MACROS ABOVE INSTEAD!
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES // DON'T USE! USE THE MACROS ABOVE INSTEAD!
 namespace momo_vkDebug
 {
     template <typename T, typename... Args>
     static void Set_Debug_Name(const VkDevice aDevice, const VkObjectType aObjectType, T aHandle, fmt::string_view aFmtString, Args&&... aArgs)
     {
-    // Check if we are in a debug build.
-    // MSVC defines _DEBUG by default in Debug, and NDEBUG in Release.
-
-        // 1. Safety check! If the debug extension wasn't loaded
         if (!vkSetDebugUtilsObjectNameEXT)
             return;
 

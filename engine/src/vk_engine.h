@@ -81,6 +81,11 @@ struct RenderObject
 	Bounds bounds;
 	glm::mat4 transform;
 	VkDeviceAddress vertexBufferAddress;
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+    std::string matDebugName = "Unnamed Material";
+    std::string meshDebugName = "Unnamed Mesh";
+    // int padding[29];
+#endif
 };
 
 struct DrawContext
@@ -300,4 +305,22 @@ private:
 
     static const char* Get_Device_Type_String(VkPhysicalDeviceType aType);
     static std::string Get_Buffer_Usage_Flag_String(VkBufferUsageFlags aUsageFlag);
+    
+    template <typename T>
+    std::string FormatWithCommas(T aValue)
+    {
+        std::string str = std::to_string(aValue);
+
+        // If the number is negative, we don't want to insert a comma after the minus sign
+        int limit = (aValue < 0) ? 1 : 0;
+        int insert_idx = str.length() - 3;
+
+        while (insert_idx > limit)
+        {
+            str.insert(insert_idx, ",");
+            insert_idx -= 3;
+        }
+
+        return str;
+    }
 };

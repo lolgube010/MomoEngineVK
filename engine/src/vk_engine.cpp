@@ -146,7 +146,10 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 		def.bounds = s.bounds;
 		def.transform = nodeMatrix;
 		def.vertexBufferAddress = mesh->meshBuffers._vertexBufferAddress;
-
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+        def.matDebugName = s.material->debugName;
+        def.meshDebugName = mesh->name.c_str();
+#endif
 		switch (s.material->data.passType)
 		{
 		case MaterialPass::MainColor:
@@ -495,8 +498,13 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 {
 	const size_t data_Size = static_cast<size_t>(aSize.depth) * aSize.width * aSize.height * 4;
 	// was previously VMA_MEMORY_USAGE_CPU_TO_GPU
-    std::string uploadBufferName = fmt::format("Upload, {}", aName);
-    const AllocatedBuffer uploadBuffer = Create_Buffer(data_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, uploadBufferName.c_str());
+
+	const char* uploadBufferName = nullptr;
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+    std::string temp = fmt::format("Upload, {}", aName).c_str();
+    uploadBufferName = temp.c_str();
+#endif
+    const AllocatedBuffer uploadBuffer = Create_Buffer(data_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, uploadBufferName);
 
 	memcpy(uploadBuffer.info.pMappedData, aData, data_Size);
 
@@ -905,8 +913,11 @@ void VulkanEngine::Init_Descriptors()
 		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
 	});
 
-	std::string temp = {};
-	for (unsigned int i = 0; i < FRAME_OVERLAP; i++)   // NOLINT(modernize-loop-convert)
+	const char* temp = nullptr;
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+	std::string temp2 = {};
+#endif
+    for (unsigned int i = 0; i < FRAME_OVERLAP; i++)   // NOLINT(modernize-loop-convert)
 	{
 		// create a descriptor pool
 		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_Sizes = 
@@ -918,8 +929,11 @@ void VulkanEngine::Init_Descriptors()
 		};
 
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
-        temp = fmt::format("Frame, FIF: {}", i);
-        _frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes, temp.c_str());
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+        temp2 = fmt::format("Frame, FIF: {}", i);
+        temp = temp2.c_str();
+#endif
+        _frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes, temp);
 
 		_mainDeletionQueue.Push_Function([&, i]
 		{
@@ -1406,9 +1420,14 @@ void VulkanEngine::ImGui_Run()
 		ImGui::Text("frame time %f ms", _stats.frameTime);
 		ImGui::Text("draw time %f ms", _stats.mesh_draw_time);
 		ImGui::Text("update time %f ms", _stats.scene_update_time);
-		ImGui::Text("triangles %u", _stats.tri_count);
-		ImGui::Text("draws %i", _stats.drawCall_count);
-		ImGui::End();
+#ifdef _DEBUG
+        ImGui::Text("triangles %s", FormatWithCommas(_stats.tri_count).c_str());
+        ImGui::Text("draws %s", FormatWithCommas(_stats.drawCall_count).c_str());
+#else
+        ImGui::Text("triangles %u", _stats.tri_count);
+        ImGui::Text("draws %i", _stats.drawCall_count);
+#endif
+	    ImGui::End();
 
 		//
 		// // The list of names matching your functions
@@ -1553,8 +1572,12 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
     //allocate a new uniform buffer for the scene data.
     // was previously VMA_MEMORY_USAGE_CPU_TO_GPU
-    std::string debugName = fmt::format("GPUSceneData, Frame Num: {}", _frame_number);
-    AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName.c_str());
+    const char* debugName = nullptr;
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+    std::string debugNameString = fmt::format("GPUSceneData, Frame Num: {}", _frame_number);
+    debugName = debugNameString.c_str();
+#endif
+    AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
     
     //add it to the deletion queue of this frame so it gets deleted once it's been used
     Get_Current_Frame()._deletionQueue.Push_Function([gpuSceneDataBuffer, this]
@@ -1568,8 +1591,11 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	 *sceneUniformData = _sceneData;
     
     // create a descriptor set that binds that buffer and update it
-    debugName = fmt::format("Global, Frame Num: {}", _frame_number);
-    VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout, debugName.c_str());
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES 
+    debugNameString = fmt::format("Global, Frame Num: {}", _frame_number);
+    debugName = debugNameString.c_str();
+#endif
+    VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout, debugName);
 	
 	DescriptorWriter writer;
 	writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
@@ -1579,77 +1605,86 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	MaterialPipeline* lastPipeline = nullptr;
 	MaterialInstance* lastMaterial = nullptr;
 	VkBuffer lastIndexBuffer = VK_NULL_HANDLE;
-	
-	auto draw = [&](const RenderObject& r) 
-	{
-        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "MeshDrawing");
-		if (r.material != lastMaterial)
-		{	
-		    MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Switching Material");
-			lastMaterial = r.material;
-			// rebind pipeline and descriptors if the material changed
-			if (r.material->pipeline != lastPipeline)
-			{
-			    lastPipeline = r.material->pipeline;
 
-				vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
-				vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
+    {
+        auto draw = [&](const RenderObject& r) 
+        {
+            if (r.material != lastMaterial)
+            {	
+                MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Switching Material");
+                lastMaterial = r.material;
+                // rebind pipeline and descriptors if the material changed
+                if (r.material->pipeline != lastPipeline)
+                {
+                    lastPipeline = r.material->pipeline;
 
-				//set dynamic viewport and scissor
-                VkViewport viewport2;
-				viewport2.x = 0;
-				viewport2.y = 0;
-				viewport2.width = static_cast<float>(_windowExtent.width);
-				viewport2.height = static_cast<float>(_windowExtent.height);
-				viewport2.minDepth = 0.f;
-				viewport2.maxDepth = 1.f;
+                    vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
+                    vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
 
-				vkCmdSetViewport(aCmd, 0, 1, &viewport2);
+                    //set dynamic viewport and scissor
+                    VkViewport viewport2;
+                    viewport2.x = 0;
+                    viewport2.y = 0;
+                    viewport2.width = static_cast<float>(_windowExtent.width);
+                    viewport2.height = static_cast<float>(_windowExtent.height);
+                    viewport2.minDepth = 0.f;
+                    viewport2.maxDepth = 1.f;
 
-				VkRect2D scissor2;
-				scissor2.offset.x = 0;
-				scissor2.offset.y = 0;
-				scissor2.extent.width = _windowExtent.width;
-				scissor2.extent.height = _windowExtent.height;
+                    vkCmdSetViewport(aCmd, 0, 1, &viewport2);
 
-				vkCmdSetScissor(aCmd, 0, 1, &scissor2);
-			}
-			vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->materialSet, 0, nullptr);
+                    VkRect2D scissor2;
+                    scissor2.offset.x = 0;
+                    scissor2.offset.y = 0;
+                    scissor2.extent.width = _windowExtent.width;
+                    scissor2.extent.height = _windowExtent.height;
 
-		}
+                    vkCmdSetScissor(aCmd, 0, 1, &scissor2);
+                }
+                vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->materialSet, 0, nullptr);
+
+            }
 	    
-	    if (r.indexBuffer != lastIndexBuffer)
-		{
-			lastIndexBuffer = r.indexBuffer;
-			vkCmdBindIndexBuffer(aCmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
-		}
+            if (r.indexBuffer != lastIndexBuffer)
+            {
+                lastIndexBuffer = r.indexBuffer;
+                vkCmdBindIndexBuffer(aCmd, r.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+            }
 		
-	 	GPUDrawPushConstants pushConstants;
-	 	pushConstants._worldMatrix = r.transform;
-	 	pushConstants._vertexBuffer = r.vertexBufferAddress;
-	 	vkCmdPushConstants(aCmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
+            GPUDrawPushConstants pushConstants;
+            pushConstants._worldMatrix = r.transform;
+            pushConstants._vertexBuffer = r.vertexBufferAddress;
+            vkCmdPushConstants(aCmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
-	 	vkCmdDrawIndexed(aCmd, r.indexCount, 1, r.firstIndex, 0, 0);
-	 	_stats.drawCall_count++;
-	 	_stats.tri_count += r.indexCount / 3;
-	};
-
-	{
-        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Opaque");
-	    for (auto& r : opaque_draws) 
+            vkCmdDrawIndexed(aCmd, r.indexCount, 1, r.firstIndex, 0, 0);
+            _stats.drawCall_count++;
+            _stats.tri_count += r.indexCount / 3;
+        };
 	    {
-	        draw(_mainDrawContext.opaqueSurfaces[r]);
+            MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Opaque");
+	        for (auto& r : opaque_draws) 
+	        {
+                const auto& mesh = _mainDrawContext.opaqueSurfaces[r];
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+                debugNameString = fmt::format("Mesh: {}, {}", mesh.meshDebugName, mesh.matDebugName);
+                MOMO_VK_SCOPED_CMD_LABEL(aCmd, debugNameString.c_str());
+    #endif
+                draw(mesh);
+	        }
 	    }
-	    
-	}
-	{
-        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Transparent");
-        // momo_vkDebug::VK_SCOPED_CMD_LABEL label(aCmd, "Draw Transparent");
-	    for (auto& r : transparent_draws) 
 	    {
-	        draw(_mainDrawContext.transparentSurfaces[r]);
+            MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Transparent");
+            // momo_vkDebug::VK_SCOPED_CMD_LABEL label(aCmd, "Draw Transparent");
+	        for (auto& r : transparent_draws) 
+	        {
+                const auto& mesh = _mainDrawContext.transparentSurfaces[r];
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+                debugNameString = fmt::format("Mesh: {}, {}", mesh.meshDebugName, mesh.matDebugName);
+                MOMO_VK_SCOPED_CMD_LABEL(aCmd, debugNameString.c_str());
+    #endif
+	            draw(mesh);
+	        }
 	    }
-	}
+    }
     
     // we delete the draw commands now that we processed them
     // _mainDrawContext.opaqueSurfaces.clear();
@@ -1709,10 +1744,12 @@ AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBu
 	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaAllocInfo, &newBuffer.buffer, &newBuffer.allocation,
 		&newBuffer.info));
 
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
 	const std::string buffName = fmt::format("_Buffer {}, {}", Get_Buffer_Usage_Flag_String(aUsage), aName);
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_BUFFER, newBuffer.buffer, buffName);
     vmaSetAllocationName(_allocator, newBuffer.allocation, buffName.c_str());
-	return newBuffer;
+#endif
+    return newBuffer;
 }
 
 void VulkanEngine::Destroy_Buffer(const AllocatedBuffer& aBuffer) const
@@ -2027,20 +2064,30 @@ GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, cons
 	// create vertex buffer
 	// It's not necessary for meshes to use GPU_ONLY vertex buffers, but it's highly recommended unless it's something like a CPU side particle system or other dynamic effects.
 
-	std::string aBufferName = fmt::format("(Vertex, BDA), {}", aMeshName);
-	newSurface._vertexBuffer = Create_Buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_AUTO, aBufferName.c_str()); // was VMA_MEMORY_USAGE_GPU_ONLY
+	const char* bufferName = nullptr;
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+    std::string bufferNameString = fmt::format("(Vertex, BDA), {}", aMeshName);
+    bufferName = bufferNameString.c_str();
+#endif
+    newSurface._vertexBuffer = Create_Buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_AUTO, bufferName); // was VMA_MEMORY_USAGE_GPU_ONLY
 
 	//find the address of the vertex buffer
 	const VkBufferDeviceAddressInfo deviceAddressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .pNext = nullptr, .buffer = newSurface._vertexBuffer.buffer};
 	newSurface._vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAddressInfo);
 
-	aBufferName = fmt::format("{}", aMeshName);
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+    bufferNameString = fmt::format("{}", aMeshName).c_str();
+    bufferName = bufferNameString.c_str();
+#endif
 	//create index buffer, was previously VMA_MEMORY_USAGE_CPU_ONLY
-    newSurface._indexBuffer = Create_Buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_AUTO, aBufferName.c_str());
+    newSurface._indexBuffer = Create_Buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_AUTO, bufferName);
 
-	aBufferName = fmt::format("{}", aMeshName);
-	// staging buffer is 1 buffer for both copies to index and vertex buffers.
-    const AllocatedBuffer staging = Create_Buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, aBufferName.c_str());
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+    bufferNameString = fmt::format("{}", aMeshName).c_str();
+    bufferName = bufferNameString.c_str();
+#endif
+    // staging buffer is 1 buffer for both copies to index and vertex buffers.
+    const AllocatedBuffer staging = Create_Buffer(vertexBufferSize + indexBufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, bufferName);
 
 	// Buffer is already mapped. You can access its memory.
 	memcpy(staging.info.pMappedData, aVertices.data(), vertexBufferSize);

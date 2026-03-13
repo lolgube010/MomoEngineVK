@@ -10,6 +10,9 @@
 struct GLTFMaterial
 {
     MaterialInstance data;
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+    std::string debugName = "No Material Name";
+#endif
 };
 
 struct Bounds 
