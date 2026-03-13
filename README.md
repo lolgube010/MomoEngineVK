@@ -34,7 +34,7 @@ build the tracyProfiler target.
 run tracy-profiler.exe
 
 # depenency graph / doxygen & graphviz
-* install doxygen & graphvis
+* install [doxygen](https://doxygen.nl/download.html) & [graphvis](https://graphviz.org/download/)
 * build the doxygen target
 * open index.html in build/doxygen. 
 
