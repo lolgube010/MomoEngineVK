@@ -21,7 +21,7 @@ I have a lot of things planned for this engine, but overarching goals are...
 * [Install Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 * [Install CMake](https://cmake.org/)
 * Open CMake-gui
-* Fill in the source code / build location like this, then click configure and then generate.
+* Fill in the source code / build location like this, then click configure and then generate. you can also check some custom debug params here if you want. my options are prefixed with MOMOVK_
 <img width="1148" height="392" alt="image" src="https://github.com/user-attachments/assets/87c68351-2c45-4b2e-862e-c9cc5f492be4" />
 
 * open the .slnx in /build and compile
