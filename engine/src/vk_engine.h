@@ -39,7 +39,7 @@ struct GLTFMetallic_Roughness
 	MaterialPipeline opaquePipeline;
 	MaterialPipeline transparentPipeline;
 
-	VkDescriptorSetLayout materialLayout; // UB, image/sampler, image/sampler
+	VkDescriptorSetLayout materialLayout; // [0] Uniform Buffer, [1] image/sampler, [2] image/sampler
 
 	struct MaterialConstants
 	{

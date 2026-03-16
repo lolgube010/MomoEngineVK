@@ -1417,11 +1417,11 @@ void VulkanEngine::ImGui_Run()
 
 		if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
         {
-		    ImGui::Text("frame time %f ms", _stats.frameTime);
+            ImGui::Text("Frame Time: %.3f ms (%.1f FPS)", _stats.frameTime, 1000.0f / _stats.frameTime);
 		    ImGui::Text("draw time %f ms", _stats.mesh_draw_time);
 		    ImGui::Text("update time %f ms", _stats.scene_update_time);
-    #ifdef _DEBUG
             ImGui::Separator();
+    #ifdef _DEBUG
             ImGui::Text("triangles %s", FormatWithCommas(_stats.tri_count).c_str());
             ImGui::Text("draws %s", FormatWithCommas(_stats.drawCall_count).c_str());
     #else
@@ -1900,7 +1900,7 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
             }
         }
 
-        _mainCamera.ProcessSDLEvent(e);
+        _mainCamera.Process_SDL_Event(e);
 		
         // send SDL event to imgui for handling
         ImGui_ImplSDL2_ProcessEvent(&e);
@@ -1932,114 +1932,68 @@ bool VulkanEngine::Is_Visible(const RenderObject& aObj, const glm::mat4& aViewPr
 	// TODO.
 	// This is just one of the multiple possible functions we could be using for frustum culling.The way this works is that we are transforming each of the 8 corners of the mesh - space bounding box into screenspace, using object matrix and view - projection matrix.For those, we find the screen - space box bounds, and we check if that box is inside the clip - space view.This way of calculating bounds is on the slow side compared to other formulas, and can have false - positives where it things objects are visible when they arent. All the functions have different tradeoffs, and this one was selected for code simplicity and parallels with the functions we are doing on the vertex shaders.
 
-	constexpr std::array corners
-	{
-		glm::vec3 { 1, 1, 1 },
-		glm::vec3 { 1, 1, -1 },
-		glm::vec3 { 1, -1, 1 },
-		glm::vec3 { 1, -1, -1 },
-		glm::vec3 { -1, 1, 1 },
-		glm::vec3 { -1, 1, -1 },
-		glm::vec3 { -1, -1, 1 },
-		glm::vec3 { -1, -1, -1 },
-	};
-
 	const glm::mat4 matrix = aViewProj * aObj.transform;
+ 
+    const glm::vec4 row0 = {matrix[0][0], matrix[1][0], matrix[2][0], matrix[3][0]};
+    const glm::vec4 row1 = {matrix[0][1], matrix[1][1], matrix[2][1], matrix[3][1]};
+    const glm::vec4 row2 = {matrix[0][2], matrix[1][2], matrix[2][2], matrix[3][2]};
+    const glm::vec4 row3 = {matrix[0][3], matrix[1][3], matrix[2][3], matrix[3][3]};
+ 
+    const std::array planes = {
+        row3 + row0, // Left
+        row3 - row0, // Right
+        row3 + row1, // Bottom
+        row3 - row1, // Top
+        row2, // Near
+        row3 - row2 // Far (reversed Z, so far is where Z=0 in clip space)
+    };
+ 
+    for (int i = 0; i < 6; i++)
+    {
+        const float d = glm::dot(glm::vec3(planes[i]), aObj.bounds.origin) + planes[i].w;
+        const float r = glm::dot(glm::abs(glm::vec3(planes[i])), aObj.bounds.extents);
+ 
+        if (d < -r)
+        {
+            return false;
+        }
+    }
+ 
+    return true;
 
-	glm::vec3 min = { 1.5, 1.5, 1.5 };
-	glm::vec3 max = { -1.5, -1.5, -1.5 };
-	
-	for (int c = 0; c < 8; c++) 
-	{
-		// project each corner into clip space
-		glm::vec4 v = matrix * glm::vec4(aObj.bounds.origin + (corners[c] * aObj.bounds.extents), 1.f);
-		
-		// perspective correction
-		v.x = v.x / v.w;
-		v.y = v.y / v.w;
-		v.z = v.z / v.w;
-	
-		min = glm::min(glm::vec3{ v.x, v.y, v.z }, min);
-		max = glm::max(glm::vec3{ v.x, v.y, v.z }, max);
-	}
-	
-	// check the clip space box is within the view
-	return min.z <= 1.f && max.z >= 0.f && min.x <= 1.f && max.x >= -1.f && min.y <= 1.f && max.y >= -1.f;
 
-	// slop
-	// // Compute clip space positions for all 8 corners
-	// std::array<glm::vec4, 8> clip_verts;
-	// for (int c = 0; c < 8; c++) {
-	// 	glm::vec3 corner_pos = aObj.bounds.origin + (corners[c] * aObj.bounds.extents);
-	// 	clip_verts[c] = matrix * glm::vec4(corner_pos, 1.f);
-	// }
-	//
-	// // Define the 6 frustum planes' outside conditions
-	// // For each plane, check if ALL vertices are on the outside
-	// // If yes for any plane, the object is not visible
-	//
-	// // Left plane: x < -w
-	// bool all_outside = true;
-	// for (const auto& v : clip_verts) {
-	// 	if (!(v.x < -v.w)) {
-	// 		all_outside = false;
-	// 		break;
-	// 	}
-	// }
-	// if (all_outside) return false;
-	//
-	// // Right plane: x > w
-	// all_outside = true;
-	// for (const auto& v : clip_verts) {
-	// 	if (!(v.x > v.w)) {
-	// 		all_outside = false;
-	// 		break;
-	// 	}
-	// }
-	// if (all_outside) return false;
-	//
-	// // Bottom plane: y < -w
-	// all_outside = true;
-	// for (const auto& v : clip_verts) {
-	// 	if (!(v.y < -v.w)) {
-	// 		all_outside = false;
-	// 		break;
-	// 	}
-	// }
-	// if (all_outside) return false;
-	//
-	// // Top plane: y > w
-	// all_outside = true;
-	// for (const auto& v : clip_verts) {
-	// 	if (!(v.y > v.w)) {
-	// 		all_outside = false;
-	// 		break;
-	// 	}
-	// }
-	// if (all_outside) return false;
-	//
-	// // Near plane: z < 0
-	// all_outside = true;
-	// for (const auto& v : clip_verts) {
-	// 	if (!(v.z < 0.f)) {
-	// 		all_outside = false;
-	// 		break;
-	// 	}
-	// }
-	// if (all_outside) return false;
-	//
-	// // Far plane: z > w
-	// all_outside = true;
-	// for (const auto& v : clip_verts) {
-	// 	if (!(v.z > v.w)) {
-	// 		all_outside = false;
-	// 		break;
-	// 	}
-	// }
-	// if (all_outside) return false;
-	//
-	// // If not culled by any plane, the object is potentially visible
-	// return true;
+    // constexpr std::array corners{
+    //     glm::vec3{1, 1, 1}, glm::vec3{1, 1, -1}, glm::vec3{1, -1, 1}, glm::vec3{1, -1, -1}, glm::vec3{-1, 1, 1}, glm::vec3{-1, 1, -1}, glm::vec3{-1, -1, 1}, glm::vec3{-1, -1, -1},
+    // };
+    //
+    // glm::mat4 matrix = aViewProj * aObj.transform;
+    //
+    // glm::vec3 min = {1.5, 1.5, 1.5};
+    // glm::vec3 max = {-1.5, -1.5, -1.5};
+    //
+    // for (int c = 0; c < 8; c++)
+    // {
+    //     // project each corner into clip space
+    //     glm::vec4 v = matrix * glm::vec4(aObj.bounds.origin + (corners[c] * aObj.bounds.extents), 1.f);
+    //
+    //     // perspective correction
+    //     v.x = v.x / v.w;
+    //     v.y = v.y / v.w;
+    //     v.z = v.z / v.w;
+    //
+    //     min = glm::min(glm::vec3{v.x, v.y, v.z}, min);
+    //     max = glm::max(glm::vec3{v.x, v.y, v.z}, max);
+    // }
+    //
+    // // check the clip space box is within the view
+    // if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
+    // {
+    //     return false;
+    // }
+    // else
+    // {
+    //     return true;
+    // }
 }
 
 const char* VulkanEngine::Get_Device_Type_String(const VkPhysicalDeviceType aType)

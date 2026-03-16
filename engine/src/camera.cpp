@@ -19,7 +19,7 @@ glm::mat4 Camera::GetRotationMatrix() const
     return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 }
 
-void Camera::ProcessSDLEvent(const SDL_Event& aE)
+void Camera::Process_SDL_Event(const SDL_Event& aE)
 {
     const auto& key = aE.key.keysym.sym;
     if (aE.type == SDL_KEYDOWN && aE.key.repeat == 0) 

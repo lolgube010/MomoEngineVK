@@ -15,7 +15,7 @@ public:
     glm::mat4 GetViewMatrix() const;
     glm::mat4 GetRotationMatrix() const;
 
-    void ProcessSDLEvent(const SDL_Event& aE);
+    void Process_SDL_Event(const SDL_Event& aE);
 
     void Update();
     bool isLocked = false;

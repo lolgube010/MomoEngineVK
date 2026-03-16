@@ -519,7 +519,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(VulkanEngine* aE
         }
 
         nodes.push_back(newNode);
-        file.nodes[node.name.c_str()];
+        file.nodes[node.name.c_str()] = newNode; // NOTE: not in og vkguide, probably a bug.
+        // file.nodes[node.name.c_str()];
 
         std::visit(fastgltf::visitor{[&](const fastgltf::Node::TransformMatrix& matrix)
                                      {
