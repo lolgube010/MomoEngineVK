@@ -1405,28 +1405,86 @@ void VulkanEngine::ImGui_Run()
 		ImGui::ColorEdit4("data2", reinterpret_cast<float*>(&selected.data.data2));
 		ImGui::ColorEdit4("data3", reinterpret_cast<float*>(&selected.data.data3));
 		ImGui::ColorEdit4("data4", reinterpret_cast<float*>(&selected.data.data4));
-		
 		ImGui::Separator();
-
 		ImGui::SliderFloat("camera fov", &tempCameraFOV, 1, 180);
 		// ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
 		ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 2.f);
 		ImGui::Value("cameraPitchRad", _mainCamera.pitch);
+        ImGui::Separator();
 		ImGui::ColorEdit4("SunColor", reinterpret_cast<float*>(&tempSunColor));
 		ImGui::ColorEdit4("AmbientColor", reinterpret_cast<float*>(&tempAmbientColor));
 		ImGui::DragFloat4("SunDir1", reinterpret_cast<float*>(&tempSunDir), 0.1f);
 
-		ImGui::Begin("Stats");
-		ImGui::Text("frame time %f ms", _stats.frameTime);
-		ImGui::Text("draw time %f ms", _stats.mesh_draw_time);
-		ImGui::Text("update time %f ms", _stats.scene_update_time);
-#ifdef _DEBUG
-        ImGui::Text("triangles %s", FormatWithCommas(_stats.tri_count).c_str());
-        ImGui::Text("draws %s", FormatWithCommas(_stats.drawCall_count).c_str());
-#else
-        ImGui::Text("triangles %u", _stats.tri_count);
-        ImGui::Text("draws %i", _stats.drawCall_count);
-#endif
+		if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+		    ImGui::Text("frame time %f ms", _stats.frameTime);
+		    ImGui::Text("draw time %f ms", _stats.mesh_draw_time);
+		    ImGui::Text("update time %f ms", _stats.scene_update_time);
+    #ifdef _DEBUG
+            ImGui::Separator();
+            ImGui::Text("triangles %s", FormatWithCommas(_stats.tri_count).c_str());
+            ImGui::Text("draws %s", FormatWithCommas(_stats.drawCall_count).c_str());
+    #else
+            ImGui::Text("triangles %u", _stats.tri_count);
+            ImGui::Text("draws %i", _stats.drawCall_count);
+    #endif
+            if (ImGui::CollapsingHeader("VMA", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                // WARNING: This is slow to call every frame!
+                VmaTotalStatistics stats;
+                vmaCalculateStatistics(_allocator, &stats);
+
+                // Cast to double for accurate MB calculations
+                double allocatedMB = static_cast<double>(stats.total.statistics.allocationBytes) / (1024.0 * 1024.0);
+                double blockMB = static_cast<double>(stats.total.statistics.blockBytes) / (1024.0 * 1024.0);
+                double allocationSizeMaxMB = static_cast<double>(stats.total.allocationSizeMax) / (1024.0 * 1024.0);
+
+                // Handle the case where min size defaults to UINT64_MAX when there are 0 allocations
+                uint64_t minSize = (stats.total.statistics.allocationCount == 0) ? 0 : stats.total.allocationSizeMin;
+
+                ImGui::Text("Total Memory Allocated: %.2f MB", allocatedMB); // Changed "VRAM" to "Total Memory"
+                ImGui::Text("Total Allocations: %u", stats.total.statistics.allocationCount);
+                ImGui::Text("Total Blocks: %u", stats.total.statistics.blockCount);
+                ImGui::Text("BlockBytes: %.2f MB", blockMB);
+                ImGui::Text("AllocationSize Max: %.2f MB", allocationSizeMaxMB);
+                ImGui::Text("AllocationSize Min: %llu Bytes", minSize);
+			}
+            if (ImGui::CollapsingHeader("VRAM Usage", ImGuiTreeNodeFlags_DefaultOpen))
+            {
+                // Get memory properties to figure out which heaps are VRAM
+                const VkPhysicalDeviceMemoryProperties* memProps;
+                vmaGetMemoryProperties(_allocator, &memProps);
+
+                // Fetch budget (Fast, safe to call every frame)
+                VmaBudget budgets[VK_MAX_MEMORY_HEAPS];
+                vmaGetHeapBudgets(_allocator, budgets);
+
+                VkDeviceSize totalVramUsage = 0;
+                VkDeviceSize totalVramBudget = 0;
+
+                // Loop through heaps and only add up the Device Local (VRAM) heaps
+                for (uint32_t i = 0; i < memProps->memoryHeapCount; ++i)
+                {
+                    if (memProps->memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+                    {
+                        totalVramUsage += budgets[i].usage;
+                        totalVramBudget += budgets[i].budget;
+                    }
+                }
+
+                double usageMB = static_cast<double>(totalVramUsage) / (1024.0 * 1024.0);
+                double budgetMB = static_cast<double>(totalVramBudget) / (1024.0 * 1024.0);
+
+                ImGui::Text("VRAM Usage: %.2f MB / %.2f MB", usageMB, budgetMB);
+
+                // Optional: Progress bar for visual representation
+                if (totalVramBudget > 0)
+                {
+                    float fraction = static_cast<float>(totalVramUsage) / static_cast<float>(totalVramBudget);
+                    ImGui::ProgressBar(fraction, ImVec2(-1.f, 0.f));
+                }
+            }
+        }
 	    ImGui::End();
 
 		//
@@ -1452,7 +1510,6 @@ void VulkanEngine::ImGui_Run()
 		// 	printf("Blend mode changed to: %s\n", blendNames[tempBlendModeIndex]);
 		// }
 	}
-	ImGui::End();
 }
 
 void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)

@@ -313,7 +313,7 @@ private:
 
         // If the number is negative, we don't want to insert a comma after the minus sign
         int limit = (aValue < 0) ? 1 : 0;
-        int insert_idx = str.length() - 3;
+        int insert_idx = static_cast<int>(str.length()) - 3;
 
         while (insert_idx > limit)
         {
