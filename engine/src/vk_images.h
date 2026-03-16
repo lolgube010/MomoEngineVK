@@ -2,7 +2,7 @@
 #include <Volk/volk.h>
 
 // This will contain image related vulkan helpers
-namespace vkUtil
+namespace momo_vkUtil
 {
     // For Shader read: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL. For Compute R/W: VK_IMAGE_LAYOUT_GENERAL
 	void Transition_Image(VkCommandBuffer aCmd, VkImage aImg, VkImageLayout aCurrentLayout, VkImageLayout aNewLayout);

@@ -6,7 +6,7 @@
 
 class VulkanEngine;
 
-namespace vkUtil
+namespace momo_vkUtil
 {
 	// TODO- simplify usage of, right now is way too spammy with the checking things we do and I don't really like that. todo fix. 
 	bool LoadShaderModule(const char* aFilePath, VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
@@ -62,7 +62,7 @@ public:
     void Set_Multisampling_AlphaToCoverage(VkSampleCountFlagBits aSamples); 
 };
 
-namespace momo_util
+namespace momo_ShaderUtil
 {
 	enum class ShaderType
 	{
@@ -73,5 +73,5 @@ namespace momo_util
 
 	std::string GetShaderExtension(ShaderType aType);
 	std::string BuildShaderPath(const std::string& aFileName, ShaderType aType, bool aIsHlsl);
-    std::optional<VkShaderModule> LoadShader(const std::string& aName, momo_util::ShaderType aType, bool aIsHLSL, VkDevice aDevice);
+    std::optional<VkShaderModule> LoadShader(const std::string& aName, momo_ShaderUtil::ShaderType aType, bool aIsHLSL, VkDevice aDevice);
 }

@@ -49,7 +49,7 @@ namespace momo_vkDebug
         VkCommandBuffer cmd;
         ScopedDebugLabelCmdBuff(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f)) : cmd(aCmd)
         {
-            const VkDebugUtilsLabelEXT labelInfo = vkInit::debug_label(aName, aColor);
+            const VkDebugUtilsLabelEXT labelInfo = momo_vkInit::debug_label(aName, aColor);
             vkCmdBeginDebugUtilsLabelEXT(aCmd, &labelInfo);
         }
         ~ScopedDebugLabelCmdBuff()
@@ -63,7 +63,7 @@ namespace momo_vkDebug
         VkQueue queue;
         ScopedDebugLabelQueue(const VkQueue aQueue, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f)) : queue(aQueue)
         {
-            const VkDebugUtilsLabelEXT labelInfo = vkInit::debug_label(aName, aColor);
+            const VkDebugUtilsLabelEXT labelInfo = momo_vkInit::debug_label(aName, aColor);
             vkQueueBeginDebugUtilsLabelEXT(queue, &labelInfo);
         }
         ~ScopedDebugLabelQueue()
@@ -74,7 +74,7 @@ namespace momo_vkDebug
 
     static void BeginAnnotationCmdBuff(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f))
     {
-        const VkDebugUtilsLabelEXT labelInfo = vkInit::debug_label(aName, aColor);
+        const VkDebugUtilsLabelEXT labelInfo = momo_vkInit::debug_label(aName, aColor);
         vkCmdBeginDebugUtilsLabelEXT(aCmd, &labelInfo);
     }
 

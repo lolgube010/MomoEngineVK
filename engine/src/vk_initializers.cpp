@@ -1,7 +1,7 @@
 ﻿#include <vk_initializers.h>
 
 //> init_cmd
-VkCommandPoolCreateInfo vkInit::command_pool_create_info(const uint32_t aQueueFamilyIndex, const VkCommandPoolCreateFlags aFlags /*= 0*/)
+VkCommandPoolCreateInfo momo_vkInit::command_pool_create_info(const uint32_t aQueueFamilyIndex, const VkCommandPoolCreateFlags aFlags /*= 0*/)
 {
 	VkCommandPoolCreateInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
@@ -12,7 +12,7 @@ VkCommandPoolCreateInfo vkInit::command_pool_create_info(const uint32_t aQueueFa
 }
 
 
-VkCommandBufferAllocateInfo vkInit::command_buffer_allocate_info(const VkCommandPool aPool, const uint32_t aCount /*= 1*/)
+VkCommandBufferAllocateInfo momo_vkInit::command_buffer_allocate_info(const VkCommandPool aPool, const uint32_t aCount /*= 1*/)
 {
 	VkCommandBufferAllocateInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -27,7 +27,7 @@ VkCommandBufferAllocateInfo vkInit::command_buffer_allocate_info(const VkCommand
 //< init_cmd
 // 
 //> init_cmd_draw
-VkCommandBufferBeginInfo vkInit::command_buffer_begin_info(const VkCommandBufferUsageFlags aFlags /*= 0*/)
+VkCommandBufferBeginInfo momo_vkInit::command_buffer_begin_info(const VkCommandBufferUsageFlags aFlags /*= 0*/)
 {
 	VkCommandBufferBeginInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -41,7 +41,7 @@ VkCommandBufferBeginInfo vkInit::command_buffer_begin_info(const VkCommandBuffer
 //< init_cmd_draw
 
 //> init_sync
-VkFenceCreateInfo vkInit::fence_create_info(const VkFenceCreateFlags aFlags /*= 0*/)
+VkFenceCreateInfo momo_vkInit::fence_create_info(const VkFenceCreateFlags aFlags /*= 0*/)
 {
 	VkFenceCreateInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -52,7 +52,7 @@ VkFenceCreateInfo vkInit::fence_create_info(const VkFenceCreateFlags aFlags /*= 
 	return info;
 }
 
-VkSemaphoreCreateInfo vkInit::semaphore_create_info(const VkSemaphoreCreateFlags aFlags /*= 0*/)
+VkSemaphoreCreateInfo momo_vkInit::semaphore_create_info(const VkSemaphoreCreateFlags aFlags /*= 0*/)
 {
 	VkSemaphoreCreateInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -63,7 +63,7 @@ VkSemaphoreCreateInfo vkInit::semaphore_create_info(const VkSemaphoreCreateFlags
 
 //< init_sync
 
-VkCommandBufferSubmitInfo vkInit::command_buffer_submit_info(const VkCommandBuffer aCmd)
+VkCommandBufferSubmitInfo momo_vkInit::command_buffer_submit_info(const VkCommandBuffer aCmd)
 {
 	VkCommandBufferSubmitInfo info{};
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
@@ -74,7 +74,7 @@ VkCommandBufferSubmitInfo vkInit::command_buffer_submit_info(const VkCommandBuff
 	return info;
 }
 
-VkSubmitInfo2 vkInit::submit_info(const VkCommandBufferSubmitInfo* aCmd, const VkSemaphoreSubmitInfo* aSignalSemaphoreInfo, const VkSemaphoreSubmitInfo* aWaitSemaphoreInfo)
+VkSubmitInfo2 momo_vkInit::submit_info(const VkCommandBufferSubmitInfo* aCmd, const VkSemaphoreSubmitInfo* aSignalSemaphoreInfo, const VkSemaphoreSubmitInfo* aWaitSemaphoreInfo)
 {
 	VkSubmitInfo2 info = {};
 	info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2;
@@ -93,7 +93,7 @@ VkSubmitInfo2 vkInit::submit_info(const VkCommandBufferSubmitInfo* aCmd, const V
 }
 
 //> init_submit
-VkSemaphoreSubmitInfo vkInit::semaphore_submit_info(const VkPipelineStageFlags2 aStageMask, const VkSemaphore aSemaphore)
+VkSemaphoreSubmitInfo momo_vkInit::semaphore_submit_info(const VkPipelineStageFlags2 aStageMask, const VkSemaphore aSemaphore)
 {
 	VkSemaphoreSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
@@ -108,7 +108,7 @@ VkSemaphoreSubmitInfo vkInit::semaphore_submit_info(const VkPipelineStageFlags2 
 
 //< init_submit
 
-VkPresentInfoKHR vkInit::present_info(const VkSwapchainKHR* aSwapchain, const VkSemaphore* aWaitSemaphore, const uint32_t* aSwapchainImageIndex)
+VkPresentInfoKHR momo_vkInit::present_info(const VkSwapchainKHR* aSwapchain, const VkSemaphore* aWaitSemaphore, const uint32_t* aSwapchainImageIndex)
 {
 	VkPresentInfoKHR info = {};
 	info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -123,7 +123,7 @@ VkPresentInfoKHR vkInit::present_info(const VkSwapchainKHR* aSwapchain, const Vk
 }
 
 //> color_info
-VkRenderingAttachmentInfo vkInit::attachment_info(
+VkRenderingAttachmentInfo momo_vkInit::attachment_info(
 	const VkImageView aView, const VkClearValue* aClear, const VkImageLayout aLayout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/)
 {
 	VkRenderingAttachmentInfo colorAttachment{};
@@ -144,7 +144,7 @@ VkRenderingAttachmentInfo vkInit::attachment_info(
 
 //< color_info
 //> depth_info
-VkRenderingAttachmentInfo vkInit::depth_attachment_info(const VkImageView aView, const VkImageLayout aLayout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/)
+VkRenderingAttachmentInfo momo_vkInit::depth_attachment_info(const VkImageView aView, const VkImageLayout aLayout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/)
 {
 	VkRenderingAttachmentInfo depthAttachment{};
 	depthAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
@@ -161,7 +161,7 @@ VkRenderingAttachmentInfo vkInit::depth_attachment_info(const VkImageView aView,
 
 //< depth_info
 //> render_info
-VkRenderingInfo vkInit::rendering_info(const VkExtent2D aRenderExtent, const VkRenderingAttachmentInfo* aColorAttachment, const VkRenderingAttachmentInfo* aDepthAttachment)
+VkRenderingInfo momo_vkInit::rendering_info(const VkExtent2D aRenderExtent, const VkRenderingAttachmentInfo* aColorAttachment, const VkRenderingAttachmentInfo* aDepthAttachment)
 {
 	VkRenderingInfo renderInfo{};
 	renderInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
@@ -179,7 +179,7 @@ VkRenderingInfo vkInit::rendering_info(const VkExtent2D aRenderExtent, const VkR
 
 //< render_info
 //> subresource
-VkImageSubresourceRange vkInit::image_subresource_range(const VkImageAspectFlags anAspectMask)
+VkImageSubresourceRange momo_vkInit::image_subresource_range(const VkImageAspectFlags anAspectMask)
 {
 	VkImageSubresourceRange subImage{};
 	subImage.aspectMask = anAspectMask;
@@ -194,7 +194,7 @@ VkImageSubresourceRange vkInit::image_subresource_range(const VkImageAspectFlags
 //< subresource
 
 
-VkDescriptorSetLayoutBinding vkInit::descriptor_set_layout_binding(const VkDescriptorType aType, const VkShaderStageFlags aStageFlags, const uint32_t aBinding)
+VkDescriptorSetLayoutBinding momo_vkInit::descriptor_set_layout_binding(const VkDescriptorType aType, const VkShaderStageFlags aStageFlags, const uint32_t aBinding)
 {
 	VkDescriptorSetLayoutBinding setbind = {};
 	setbind.binding = aBinding;
@@ -206,7 +206,7 @@ VkDescriptorSetLayoutBinding vkInit::descriptor_set_layout_binding(const VkDescr
 	return setbind;
 }
 
-VkDescriptorSetLayoutCreateInfo vkInit::descriptor_set_layout_create_info(const VkDescriptorSetLayoutBinding* aBindings, const uint32_t aBindingCount)
+VkDescriptorSetLayoutCreateInfo momo_vkInit::descriptor_set_layout_create_info(const VkDescriptorSetLayoutBinding* aBindings, const uint32_t aBindingCount)
 {
 	VkDescriptorSetLayoutCreateInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -219,7 +219,7 @@ VkDescriptorSetLayoutCreateInfo vkInit::descriptor_set_layout_create_info(const 
 	return info;
 }
 
-VkWriteDescriptorSet vkInit::write_descriptor_image(const VkDescriptorType aType, const VkDescriptorSet aDstSet, const VkDescriptorImageInfo* aImageInfo, const uint32_t aBinding)
+VkWriteDescriptorSet momo_vkInit::write_descriptor_image(const VkDescriptorType aType, const VkDescriptorSet aDstSet, const VkDescriptorImageInfo* aImageInfo, const uint32_t aBinding)
 {
 	VkWriteDescriptorSet write = {};
 	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -234,7 +234,7 @@ VkWriteDescriptorSet vkInit::write_descriptor_image(const VkDescriptorType aType
 	return write;
 }
 
-VkWriteDescriptorSet vkInit::write_descriptor_buffer(const VkDescriptorType aType, const VkDescriptorSet aDstSet, const VkDescriptorBufferInfo* aBufferInfo, const uint32_t aBinding)
+VkWriteDescriptorSet momo_vkInit::write_descriptor_buffer(const VkDescriptorType aType, const VkDescriptorSet aDstSet, const VkDescriptorBufferInfo* aBufferInfo, const uint32_t aBinding)
 {
 	VkWriteDescriptorSet write = {};
 	write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
@@ -249,7 +249,7 @@ VkWriteDescriptorSet vkInit::write_descriptor_buffer(const VkDescriptorType aTyp
 	return write;
 }
 
-VkDescriptorBufferInfo vkInit::buffer_info(const VkBuffer aBuffer, const VkDeviceSize aOffset, const VkDeviceSize aRange)
+VkDescriptorBufferInfo momo_vkInit::buffer_info(const VkBuffer aBuffer, const VkDeviceSize aOffset, const VkDeviceSize aRange)
 {
 	VkDescriptorBufferInfo binfo{};
 	binfo.buffer = aBuffer;
@@ -259,7 +259,7 @@ VkDescriptorBufferInfo vkInit::buffer_info(const VkBuffer aBuffer, const VkDevic
 }
 
 //> image_set
-VkImageCreateInfo vkInit::image_create_info(const VkFormat aFormat, const VkImageUsageFlags aUsageFlags, const VkExtent3D aExtent)
+VkImageCreateInfo momo_vkInit::image_create_info(const VkFormat aFormat, const VkImageUsageFlags aUsageFlags, const VkExtent3D aExtent)
 {
 	VkImageCreateInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -283,7 +283,7 @@ VkImageCreateInfo vkInit::image_create_info(const VkFormat aFormat, const VkImag
 	return info;
 }
 
-VkImageViewCreateInfo vkInit::imageview_create_info(const VkFormat aFormat, const VkImage aImage, const VkImageAspectFlags aSpectFlags)
+VkImageViewCreateInfo momo_vkInit::imageview_create_info(const VkFormat aFormat, const VkImage aImage, const VkImageAspectFlags aSpectFlags)
 {
 	// build a image-view for the depth image to use for rendering
 	VkImageViewCreateInfo info = {};
@@ -303,7 +303,7 @@ VkImageViewCreateInfo vkInit::imageview_create_info(const VkFormat aFormat, cons
 }
 
 //< image_set
-VkPipelineLayoutCreateInfo vkInit::pipeline_layout_create_info()
+VkPipelineLayoutCreateInfo momo_vkInit::pipeline_layout_create_info()
 {
 	VkPipelineLayoutCreateInfo info{};
 	info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -318,7 +318,7 @@ VkPipelineLayoutCreateInfo vkInit::pipeline_layout_create_info()
 	return info;
 }
 
-VkPipelineShaderStageCreateInfo vkInit::pipeline_shader_stage_create_info(const VkShaderStageFlagBits aStage, const VkShaderModule aShaderModule, const char* aEntry)
+VkPipelineShaderStageCreateInfo momo_vkInit::pipeline_shader_stage_create_info(const VkShaderStageFlagBits aStage, const VkShaderModule aShaderModule, const char* aEntry)
 {
 	VkPipelineShaderStageCreateInfo info{};
 	info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -333,7 +333,7 @@ VkPipelineShaderStageCreateInfo vkInit::pipeline_shader_stage_create_info(const 
 	return info;
 }
 
-VkDebugUtilsLabelEXT vkInit::debug_label(const char* aPassName, const glm::vec4 aColor)
+VkDebugUtilsLabelEXT momo_vkInit::debug_label(const char* aPassName, const glm::vec4 aColor)
 {
     VkDebugUtilsLabelEXT labelInfo = {};
     labelInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT;
@@ -348,7 +348,7 @@ VkDebugUtilsLabelEXT vkInit::debug_label(const char* aPassName, const glm::vec4 
     return labelInfo;
 }
 
-VkComputePipelineCreateInfo vkInit::compute_pipeline_create_info(const VkPipelineLayout aLayout, const VkPipelineShaderStageCreateInfo& aStageInfo)
+VkComputePipelineCreateInfo momo_vkInit::compute_pipeline_create_info(const VkPipelineLayout aLayout, const VkPipelineShaderStageCreateInfo& aStageInfo)
 { 
     VkComputePipelineCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;

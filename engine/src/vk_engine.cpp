@@ -47,7 +47,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
     matrixRange.size = sizeof(GPUDrawPushConstants);
     matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-	VkPipelineLayoutCreateInfo mesh_layout_info = vkInit::pipeline_layout_create_info();
+	VkPipelineLayoutCreateInfo mesh_layout_info = momo_vkInit::pipeline_layout_create_info();
 	mesh_layout_info.setLayoutCount = 2;
 	mesh_layout_info.pSetLayouts = layouts;
 	mesh_layout_info.pPushConstantRanges = &matrixRange;
@@ -62,8 +62,8 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	transparentPipeline.layout = newLayout;
 
 	constexpr bool useHLSL = false;
-    auto meshFragShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Fragment, useHLSL, aEngine->_device);
-    auto meshVertexShader = momo_util::LoadShader("mesh", momo_util::ShaderType::Vertex, useHLSL, aEngine->_device);
+    auto meshFragShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Fragment, useHLSL, aEngine->_device);
+    auto meshVertexShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Vertex, useHLSL, aEngine->_device);
 
 	// build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	PipelineBuilder pipelineBuilder;
@@ -241,7 +241,7 @@ void VulkanEngine::Draw()
 	{
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "begin command buffer");
 	    //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
-	    const VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	    const VkCommandBufferBeginInfo cmdBeginInfo = momo_vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 	    _drawExtent.height = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.height, _drawImage.imageExtent.height)) *
 		    _renderScale);
@@ -253,7 +253,7 @@ void VulkanEngine::Draw()
         MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
 	    // transition our main draw image into general layout so we can write into it.
 	    // we will overwrite it all so we don't care about what was the older layout
-	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+	    momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
 	}
 	{
         MOMO_VK_SCOPED_CMD_LABEL(cmd, "draw background");
@@ -261,8 +261,8 @@ void VulkanEngine::Draw()
 	}
     {
         MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & depth img 2");
-	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	    vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	    momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	    momo_vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
     }
 	{
         MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw Geometry CmdBuff");
@@ -274,14 +274,14 @@ void VulkanEngine::Draw()
     {
         MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & swapchain img 3");
 	    //transition the draw image and the swapchain image into their correct transfer layouts
-	    vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-        vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+	    momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
 	    // execute a copy from the draw image into the swapchain
-        vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[_swapchainImageIndex], _drawExtent, _swapchain_extent);
+        momo_vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[_swapchainImageIndex], _drawExtent, _swapchain_extent);
 
 	    // set swapchain image layout to Attachment Optimal so we can draw it
-        vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     }
 	{
         MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw imGui Cmd Buffer");
@@ -292,7 +292,7 @@ void VulkanEngine::Draw()
     {
         MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition swapchain img 4");
 	    // set swapchain image layout to Present so we can show it on the screen
-        vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     }
 	{
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "end command buffer");
@@ -306,13 +306,13 @@ void VulkanEngine::Draw()
 	    // we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
 	    // we will signal the _renderSemaphore, to signal that rendering has finished
 
-	    const VkCommandBufferSubmitInfo cmdInfo = vkInit::command_buffer_submit_info(cmd);
+	    const VkCommandBufferSubmitInfo cmdInfo = momo_vkInit::command_buffer_submit_info(cmd);
 
-	    const VkSemaphoreSubmitInfo waitInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, Get_Current_Frame()._swapchainSemaphore);
+	    const VkSemaphoreSubmitInfo waitInfo = momo_vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, Get_Current_Frame()._swapchainSemaphore);
 	    //VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, Get_Current_Frame()._renderSemaphore);
-        const VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, ready_for_present_semaphores[_swapchainImageIndex]);
+        const VkSemaphoreSubmitInfo signalInfo = momo_vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, ready_for_present_semaphores[_swapchainImageIndex]);
 
-	    const VkSubmitInfo2 submit = vkInit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
+	    const VkSubmitInfo2 submit = momo_vkInit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
 
 	    // submit command buffer to the queue and execute it.
 	    // _renderFence will now block until the graphic commands finish execution
@@ -326,7 +326,7 @@ void VulkanEngine::Draw()
 	    // this will put the image we just rendered to into the visible window.
 	    // we want to wait on the _renderSemaphore for that, 
 	    // as its necessary that drawing commands have finished before the image is displayed to the user
-        VkPresentInfoKHR presentInfo = vkInit::present_info(&_swapchain, &ready_for_present_semaphores[_swapchainImageIndex], &_swapchainImageIndex);
+        VkPresentInfoKHR presentInfo = momo_vkInit::present_info(&_swapchain, &ready_for_present_semaphores[_swapchainImageIndex], &_swapchainImageIndex);
 
 	    if (const VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo); 
 		    presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) 
@@ -419,8 +419,8 @@ void VulkanEngine::Cleanup()
 
 void VulkanEngine::Draw_ImGui(const VkCommandBuffer aCmd, const VkImageView aTargetImageView) const
 {
-	const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(aTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	const VkRenderingInfo renderInfo = vkInit::rendering_info(_swapchain_extent, &colorAttachment, nullptr);
+	const VkRenderingAttachmentInfo colorAttachment = momo_vkInit::attachment_info(aTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	const VkRenderingInfo renderInfo = momo_vkInit::rendering_info(_swapchain_extent, &colorAttachment, nullptr);
 
 	vkCmdBeginRendering(aCmd, &renderInfo);
 
@@ -436,7 +436,7 @@ void VulkanEngine::Immediate_Submit(const std::function<void(VkCommandBuffer aCm
 
 	const VkCommandBuffer cmd = _immCommandBuffer;
 
-	const VkCommandBufferBeginInfo cmdBeginInfo = vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
+	const VkCommandBufferBeginInfo cmdBeginInfo = momo_vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 	VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 
@@ -444,8 +444,8 @@ void VulkanEngine::Immediate_Submit(const std::function<void(VkCommandBuffer aCm
 
 	VK_CHECK(vkEndCommandBuffer(cmd));
 
-	const VkCommandBufferSubmitInfo cmdInfo = vkInit::command_buffer_submit_info(cmd);
-	const VkSubmitInfo2 submit = vkInit::submit_info(&cmdInfo, nullptr, nullptr);
+	const VkCommandBufferSubmitInfo cmdInfo = momo_vkInit::command_buffer_submit_info(cmd);
+	const VkSubmitInfo2 submit = momo_vkInit::submit_info(&cmdInfo, nullptr, nullptr);
 
 	// submit command buffer to the queue and execute it.
 	// _renderFence will now block until the graphic commands finish execution
@@ -460,7 +460,7 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 	newImage.imageFormat = aFormat;
 	newImage.imageExtent = aSize;
 
-	VkImageCreateInfo img_Info = vkInit::image_create_info(aFormat, aUsage, aSize);
+	VkImageCreateInfo img_Info = momo_vkInit::image_create_info(aFormat, aUsage, aSize);
 	if (aMipmapped) 
 	{
 		img_Info.mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(aSize.width, aSize.height)))) + 1;
@@ -483,7 +483,7 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 	}
 
 	// build an image-view for the image
-	VkImageViewCreateInfo view_Info = vkInit::imageview_create_info(aFormat, newImage.image, aspectFlag);
+	VkImageViewCreateInfo view_Info = momo_vkInit::imageview_create_info(aFormat, newImage.image, aspectFlag);
 	view_Info.subresourceRange.levelCount = img_Info.mipLevels;
 
 	VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage.imageView));
@@ -512,7 +512,7 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 
 	Immediate_Submit([&](const VkCommandBuffer aCmd) 
     {
-        vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        momo_vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
         VkBufferImageCopy copyRegion = {};
         copyRegion.bufferOffset = 0;
@@ -530,11 +530,11 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 
         if (aMipmapped)
         {
-            vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{ new_Image.imageExtent.width,new_Image.imageExtent.height });
+            momo_vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{ new_Image.imageExtent.width,new_Image.imageExtent.height });
         }
         else
         {
-            vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
+            momo_vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
         }
     });
 
@@ -738,7 +738,7 @@ void VulkanEngine::Init_Swapchain()
 	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	const VkImageCreateInfo rimg_info = vkInit::image_create_info(_drawImage.imageFormat, drawImageUsages, drawImageExtent);
+	const VkImageCreateInfo rimg_info = momo_vkInit::image_create_info(_drawImage.imageFormat, drawImageUsages, drawImageExtent);
 
 	//for the draw image, we want to allocate it from gpu local memory
 	VmaAllocationCreateInfo rimg_allocinfo = {};
@@ -749,7 +749,7 @@ void VulkanEngine::Init_Swapchain()
 	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
 
 	// build an image-view for the draw image to use for rendering
-	const VkImageViewCreateInfo rview_info = vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
+	const VkImageViewCreateInfo rview_info = momo_vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Image Main Draw ");
@@ -762,13 +762,13 @@ void VulkanEngine::Init_Swapchain()
 	VkImageUsageFlags depthImageUsages{};
 	depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-	const VkImageCreateInfo dimg_info = vkInit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent);
+	const VkImageCreateInfo dimg_info = momo_vkInit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent);
 
 	//allocate and create the image
 	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
 
 	//build an image-view for the draw image to use for rendering
-	const VkImageViewCreateInfo dview_info = vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+	const VkImageViewCreateInfo dview_info = momo_vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Image Main Depth");
@@ -793,7 +793,7 @@ void VulkanEngine::Init_Commands()
 {
 	// create a command pool for commands submitted to the graphics queue. 
 	// we also want the pool to allow for resetting of individual command buffers
-	const VkCommandPoolCreateInfo commandPoolInfo = vkInit::command_pool_create_info(_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+	const VkCommandPoolCreateInfo commandPoolInfo = momo_vkInit::command_pool_create_info(_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     for (unsigned int i = 0; i < FRAME_OVERLAP; ++i)
 	{
@@ -802,7 +802,7 @@ void VulkanEngine::Init_Commands()
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, "_Command Pool Main, FIF: {}", i);
 		
         // allocate the default command buffer that we will use for rendering
-		VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(frame._commandPool, 1);
+		VkCommandBufferAllocateInfo cmdAllocInfo = momo_vkInit::command_buffer_allocate_info(frame._commandPool, 1);
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &frame._mainCommandBuffer));
         
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer, "_Command Buffer Main, FIF: {}", i);
@@ -813,7 +813,7 @@ void VulkanEngine::Init_Commands()
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, _immCommandPool, "_Command Pool Immediate");
 
 	// allocate the command buffer for immediate submits
-	const VkCommandBufferAllocateInfo cmdAllocInfo = vkInit::command_buffer_allocate_info(_immCommandPool, 1);
+	const VkCommandBufferAllocateInfo cmdAllocInfo = momo_vkInit::command_buffer_allocate_info(_immCommandPool, 1);
 
 	VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, _immCommandBuffer, "_Command Buffer Immediate");
@@ -830,8 +830,8 @@ void VulkanEngine::Init_Sync_Structures()
 	// one fence to control when the gpu has finished rendering the frame, and 2 semaphores to synchronize rendering with swapchain
 	// we want the fence to start signalled so we can wait on it on the first frame
 
-	const VkFenceCreateInfo fenceCreateInfo = vkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
-	const VkSemaphoreCreateInfo semaphoreCreateInfo = vkInit::semaphore_create_info();
+	const VkFenceCreateInfo fenceCreateInfo = momo_vkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+	const VkSemaphoreCreateInfo semaphoreCreateInfo = momo_vkInit::semaphore_create_info();
 
     for (unsigned int i = 0; i < FRAME_OVERLAP; ++i)
     {
@@ -960,7 +960,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	pushConstant.size = sizeof(ComputePushConstants);
 	pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 	
-    VkPipelineLayoutCreateInfo computeLayout = vkInit::pipeline_layout_create_info();
+    VkPipelineLayoutCreateInfo computeLayout = momo_vkInit::pipeline_layout_create_info();
 	computeLayout.pSetLayouts = &_drawImageDescriptorLayout;
 	computeLayout.setLayoutCount = 1;
 	computeLayout.pPushConstantRanges = &pushConstant;
@@ -969,12 +969,12 @@ void VulkanEngine::Init_Background_Pipelines()
 	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_ComputePipelineLayout));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _ComputePipelineLayout, "_Pipeline Layout Compute Background");
 
-    auto gradientShader = momo_util::LoadShader("gradient_color", momo_util::ShaderType::Compute, false, _device);
-    auto skyShader = momo_util::LoadShader("sky", momo_util::ShaderType::Compute, false, _device);
+    auto gradientShader = momo_ShaderUtil::LoadShader("gradient_color", momo_ShaderUtil::ShaderType::Compute, false, _device);
+    auto skyShader = momo_ShaderUtil::LoadShader("sky", momo_ShaderUtil::ShaderType::Compute, false, _device);
 
-	VkPipelineShaderStageCreateInfo stageInfo = vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, gradientShader.value());
+	VkPipelineShaderStageCreateInfo stageInfo = momo_vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, gradientShader.value());
 
-	VkComputePipelineCreateInfo computePipelineCreateInfo = vkInit::compute_pipeline_create_info(_ComputePipelineLayout, stageInfo);
+	VkComputePipelineCreateInfo computePipelineCreateInfo = momo_vkInit::compute_pipeline_create_info(_ComputePipelineLayout, stageInfo);
 
 	ComputeEffect gradient{};
 	gradient.layout = _ComputePipelineLayout;
@@ -1543,10 +1543,10 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	});
 
 	//begin a render pass  connected to our draw image
-	const VkRenderingAttachmentInfo colorAttachment = vkInit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	const VkRenderingAttachmentInfo depthAttachment = vkInit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	const VkRenderingAttachmentInfo colorAttachment = momo_vkInit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	const VkRenderingAttachmentInfo depthAttachment = momo_vkInit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
-	const VkRenderingInfo renderInfo = vkInit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
+	const VkRenderingInfo renderInfo = momo_vkInit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
 	vkCmdBeginRendering(aCmd, &renderInfo);
 
 	// vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipeline);

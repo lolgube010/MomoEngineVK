@@ -2,7 +2,7 @@
 #include <fstream>
 #include <vk_initializers.h>
 
-bool vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
+bool momo_vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
 {
 	// open the file. With cursor at the end
 	std::ifstream file(aFilePath, std::ios::ate | std::ios::binary);
@@ -135,9 +135,9 @@ void PipelineBuilder::Set_Shaders(const VkShaderModule aVertexShader, const VkSh
 {
 	_shaderStages.clear();
 
-	_shaderStages.push_back(vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, aVertexShader));
+	_shaderStages.push_back(momo_vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, aVertexShader));
 
-	_shaderStages.push_back(vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, aFragmentShader));
+	_shaderStages.push_back(momo_vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, aFragmentShader));
 }
 
 void PipelineBuilder::Set_Input_Topology(const VkPrimitiveTopology aTopology)
@@ -359,7 +359,7 @@ void PipelineBuilder::Set_Multisampling_AlphaToCoverage(const VkSampleCountFlagB
     _multisampling.alphaToOneEnable = VK_FALSE;
 }
 
-std::string momo_util::GetShaderExtension(const ShaderType aType)
+std::string momo_ShaderUtil::GetShaderExtension(const ShaderType aType)
 {
 	switch (aType)
 	{
@@ -370,7 +370,7 @@ std::string momo_util::GetShaderExtension(const ShaderType aType)
 	}
 }
 
-std::string momo_util::BuildShaderPath(const std::string& aFileName, const ShaderType aType, const bool aIsHlsl)
+std::string momo_ShaderUtil::BuildShaderPath(const std::string& aFileName, const ShaderType aType, const bool aIsHlsl)
 {
 	// Base directory (adjust this to match your project structure)
 #ifdef _DEBUG
@@ -395,14 +395,14 @@ std::string momo_util::BuildShaderPath(const std::string& aFileName, const Shade
 	return fullPath;
 }
 
-std::optional<VkShaderModule> momo_util::LoadShader(const std::string& aName, const momo_util::ShaderType aType, bool aIsHLSL, const VkDevice aDevice)
+std::optional<VkShaderModule> momo_ShaderUtil::LoadShader(const std::string& aName, const momo_ShaderUtil::ShaderType aType, bool aIsHLSL, const VkDevice aDevice)
 {
     const std::string path = BuildShaderPath(aName, aType, aIsHLSL);
 
     VkShaderModule module;
 
     if (VkResult errorCode = {}; 
-		!vkUtil::LoadShaderModule(path.c_str(), aDevice, &module, errorCode))
+		!momo_vkUtil::LoadShaderModule(path.c_str(), aDevice, &module, errorCode))
     {
 		// TODO- load error shader here instead!.. probably
         fmt::print("Error loading shader. Type: {} Name: {} ErrorCode: {}\n", GetShaderExtension(aType), aName, static_cast<int>(errorCode));
