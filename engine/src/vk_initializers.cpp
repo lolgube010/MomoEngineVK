@@ -92,7 +92,6 @@ VkSubmitInfo2 momo_vkInit::submit_info(const VkCommandBufferSubmitInfo* aCmd, co
 	return info;
 }
 
-//> init_submit
 VkSemaphoreSubmitInfo momo_vkInit::semaphore_submit_info(const VkPipelineStageFlags2 aStageMask, const VkSemaphore aSemaphore)
 {
 	VkSemaphoreSubmitInfo submitInfo{};
@@ -106,7 +105,6 @@ VkSemaphoreSubmitInfo momo_vkInit::semaphore_submit_info(const VkPipelineStageFl
 	return submitInfo;
 }
 
-//< init_submit
 
 VkPresentInfoKHR momo_vkInit::present_info(const VkSwapchainKHR* aSwapchain, const VkSemaphore* aWaitSemaphore, const uint32_t* aSwapchainImageIndex)
 {
@@ -122,7 +120,6 @@ VkPresentInfoKHR momo_vkInit::present_info(const VkSwapchainKHR* aSwapchain, con
 	return info;
 }
 
-//> color_info
 VkRenderingAttachmentInfo momo_vkInit::attachment_info(
 	const VkImageView aView, const VkClearValue* aClear, const VkImageLayout aLayout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/)
 {
@@ -142,8 +139,6 @@ VkRenderingAttachmentInfo momo_vkInit::attachment_info(
 	return colorAttachment;
 }
 
-//< color_info
-//> depth_info
 VkRenderingAttachmentInfo momo_vkInit::depth_attachment_info(const VkImageView aView, const VkImageLayout aLayout /*= VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL*/)
 {
 	VkRenderingAttachmentInfo depthAttachment{};
@@ -159,8 +154,6 @@ VkRenderingAttachmentInfo momo_vkInit::depth_attachment_info(const VkImageView a
 	return depthAttachment;
 }
 
-//< depth_info
-//> render_info
 VkRenderingInfo momo_vkInit::rendering_info(const VkExtent2D aRenderExtent, const VkRenderingAttachmentInfo* aColorAttachment, const VkRenderingAttachmentInfo* aDepthAttachment)
 {
 	VkRenderingInfo renderInfo{};
@@ -176,9 +169,6 @@ VkRenderingInfo momo_vkInit::rendering_info(const VkExtent2D aRenderExtent, cons
 
 	return renderInfo;
 }
-
-//< render_info
-//> subresource
 VkImageSubresourceRange momo_vkInit::image_subresource_range(const VkImageAspectFlags anAspectMask)
 {
 	VkImageSubresourceRange subImage{};
@@ -190,8 +180,6 @@ VkImageSubresourceRange momo_vkInit::image_subresource_range(const VkImageAspect
 
 	return subImage;
 }
-
-//< subresource
 
 
 VkDescriptorSetLayoutBinding momo_vkInit::descriptor_set_layout_binding(const VkDescriptorType aType, const VkShaderStageFlags aStageFlags, const uint32_t aBinding)

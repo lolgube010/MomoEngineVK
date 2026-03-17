@@ -913,9 +913,9 @@ void VulkanEngine::Init_Descriptors()
 		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
 	});
 
-	const char* temp = nullptr;
+	const char* debugStr = nullptr;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-	std::string temp2 = {};
+	std::string debugStr2 = {};
 #endif
     for (unsigned int i = 0; i < FRAME_OVERLAP; i++)   // NOLINT(modernize-loop-convert)
 	{
@@ -931,9 +931,9 @@ void VulkanEngine::Init_Descriptors()
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
         temp2 = fmt::format("Frame, FIF: {}", i);
-        temp = temp2.c_str();
+        debugStr = temp2.c_str();
 #endif
-        _frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes, temp);
+        _frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes, debugStr);
 
 		_mainDeletionQueue.Push_Function([&, i]
 		{

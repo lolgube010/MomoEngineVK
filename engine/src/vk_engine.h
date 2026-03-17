@@ -28,7 +28,7 @@ struct FrameData
 	VkCommandBuffer _mainCommandBuffer; // holds commands, this is mainly just a handle, actual data is being handled by vulkan
 
 	DeletionQueue _deletionQueue;
-	DescriptorAllocatorGrowable _frameDescriptors;
+	DescriptorAllocatorGrowable _frameDescriptors; // [0] storage image, [1] storage buffer, [2] uniform buffer, [3] image/sampler
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
@@ -70,6 +70,8 @@ struct GLTFMetallic_Roughness
 	// create the descriptor set and return a fully built MaterialInstance struct
 	MaterialInstance Write_Material(VkDevice aDevice, MaterialPass aPass, const MaterialResources& aResources, DescriptorAllocatorGrowable& aDescriptorAllocator, const char* aName);
 };
+
+static_assert(sizeof(GLTFMetallic_Roughness::MaterialConstants) == 256); 
 
 struct RenderObject
 {

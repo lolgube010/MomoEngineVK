@@ -22,7 +22,7 @@ bool momo_vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice
 	file.seekg(0);
 
 	// load the entire file into the buffer
-	file.read(reinterpret_cast<char*>(buffer.data()), fileSize);
+    file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(fileSize));
 
 	// now that the file is loaded into the buffer, we can close it
 	file.close();
@@ -72,6 +72,7 @@ void PipelineBuilder::Clear()
 
 VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, [[maybe_unused]] const char* aName) const
 {
+    //> build_pipeline_1
 	// make viewport state from our stored viewport and scissor.
 	// at the moment we won't support multiple viewports or scissors
 	VkPipelineViewportStateCreateInfo viewportState = {};
@@ -94,7 +95,9 @@ VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, [[maybe_unuse
 
 	// completely clear VertexInputStateCreateInfo, as we have no need for it
 	constexpr VkPipelineVertexInputStateCreateInfo vertexInputInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
+    //< build_pipeline_1
 
+	//> build_pipeline_2
 	// build the actual pipeline
 	// we now use all the info structs we have been writing into this one to create the pipeline
 	VkGraphicsPipelineCreateInfo pipelineInfo = {.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO};
@@ -111,7 +114,8 @@ VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, [[maybe_unuse
 	pipelineInfo.pColorBlendState = &colorBlending;
 	pipelineInfo.pDepthStencilState = &_depthStencil;
 	pipelineInfo.layout = _pipelineLayout;
-
+    //< build_pipeline_2
+    //> build_pipeline_3
 	constexpr VkDynamicState state[] = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
 
 	VkPipelineDynamicStateCreateInfo dynamicInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO};
@@ -119,7 +123,8 @@ VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, [[maybe_unuse
 	dynamicInfo.dynamicStateCount = 2;
 
 	pipelineInfo.pDynamicState = &dynamicInfo;
-
+    //< build_pipeline_3
+    //> build_pipeline_4
 	// it's easy to error out on create graphics pipeline, so we handle it a bit better than the common VK_CHECK case
 	VkPipeline newPipeline;
 	if (vkCreateGraphicsPipelines(aDevice, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &newPipeline) != VK_SUCCESS)
@@ -129,6 +134,7 @@ VkPipeline PipelineBuilder::Build_Pipeline(const VkDevice aDevice, [[maybe_unuse
 	}
     MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_PIPELINE, newPipeline, "_Pipeline {}", aName);
 	return newPipeline;
+    //< build_pipeline_4
 }
 
 void PipelineBuilder::Set_Shaders(const VkShaderModule aVertexShader, const VkShaderModule aFragmentShader)

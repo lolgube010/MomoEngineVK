@@ -28,21 +28,51 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 
-
-#define VK_CHECK(x)                                                     \
-    do {                                                                \
-        VkResult err = x;                                               \
-        if (err) {                                                      \
-            fmt::println("Detected Vulkan error: {}", string_VkResult(err)); \
-            abort();                                                    \
-        }                                                               \
-    } while (0)
+struct AllocatedImage
+{
+    VkImage image; // equivalent to ID3D11Resource/ID3D11Texture2D
+    VkImageView imageView; // in vulkan, RTV/SRV/DSV/UAV don't exist, instead this generic one for all of them
+    VmaAllocation allocation; // tracks memory, VkDeviceMemory
+    VkExtent3D imageExtent; // stores width height depth
+    VkFormat imageFormat; // stores format of img, like DXGI_FORMAT_R8G8B8_UNORM
+};
 
 struct AllocatedBuffer
 {
 	VkBuffer buffer;
 	VmaAllocation allocation; // VkDeviceMemory
 	VmaAllocationInfo info;
+};
+
+struct GPUSceneData
+{
+    glm::mat4 view;
+    glm::mat4 proj;
+    glm::mat4 viewProj;
+    glm::vec4 ambientColor;
+    glm::vec4 sunlightDirection; // w for sun power
+    glm::vec4 sunlightColor;
+};
+
+enum class MaterialPass
+{
+    MainColor,
+    Transparent,
+    Other
+};
+
+// material shaders, input layout, states etc.
+struct MaterialPipeline
+{
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+};
+
+struct MaterialInstance
+{
+    MaterialPipeline* pipeline; // non owning
+    VkDescriptorSet materialSet; // set of multiple bindings, e.g. an image view and a buffer.
+    MaterialPass passType;
 };
 
 struct Vertex
@@ -66,27 +96,6 @@ struct GPUDrawPushConstants
 {
 	glm::mat4 _worldMatrix;
 	VkDeviceAddress _vertexBuffer;
-};
-
-enum class MaterialPass
-{
-	MainColor,
-	Transparent,
-	Other
-};
-
-// material shaders, input layout, states etc.
-struct MaterialPipeline
-{
-	VkPipeline pipeline;
-	VkPipelineLayout layout;
-};
-
-struct MaterialInstance
-{
-	MaterialPipeline* pipeline; // non owning
-	VkDescriptorSet materialSet; // set of multiple bindings, e.g. an image view and a buffer.
-	MaterialPass passType;
 };
 
 struct DrawContext;
@@ -130,25 +139,6 @@ struct Node : IRenderable
     }
 };
 
-struct AllocatedImage
-{
-    VkImage image; // equivalent to ID3D11Resource/ID3D11Texture2D
-    VkImageView imageView; // in vulkan, RTV/SRV/DSV/UAV don't exist, instead this generic one for all of them
-    VmaAllocation allocation; // tracks memory, VkDeviceMemory
-    VkExtent3D imageExtent; // stores width height depth
-    VkFormat imageFormat; // stores format of img, like DXGI_FORMAT_R8G8B8_UNORM
-};
-
-struct GPUSceneData
-{
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::mat4 viewProj;
-    glm::vec4 ambientColor;
-    glm::vec4 sunlightDirection; // w for sun power
-    glm::vec4 sunlightColor;
-};
-
 struct ComputePushConstants // max size is 128 bytes
 {
     glm::vec4 data1 = {};
@@ -187,3 +177,15 @@ struct DeletionQueue
         _deleters.clear();
     }
 };
+
+#define VK_CHECK(x)                                                          \
+    do                                                                       \
+    {                                                                        \
+        VkResult err = x;                                                    \
+        if (err)                                                             \
+        {                                                                    \
+            fmt::println("Detected Vulkan error: {}", string_VkResult(err)); \
+            abort();                                                         \
+        }                                                                    \
+    }                                                                        \
+    while (0)
