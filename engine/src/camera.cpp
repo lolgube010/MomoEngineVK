@@ -2,6 +2,8 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 
+#include "Input.h"
+
 glm::mat4 Camera::GetViewMatrix() const
 {
     // to create a correct model view, we need to move the world in opposite direction to the camera so we will create the camera model matrix and invert
@@ -19,64 +21,38 @@ glm::mat4 Camera::GetRotationMatrix() const
     return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 }
 
-void Camera::Process_SDL_Event(const SDL_Event& aE)
+// TODO:
+// Movement in this code is frame-dependant, as we aren't taking the speed of the engine into account. This is done for simplicity in the case, if you want to improve it, you would need to pass deltaTime (time between frames) to the update() function, and multiply the velocity by that. In the tutorial, we are more or less FPS locked to monitor speed due to the options we have used in the swapchain, and we aren't rendering enough data to slow down the engine.
+void Camera::Update()
 {
-    const auto& key = aE.key.keysym.sym;
-    if (aE.type == SDL_KEYDOWN && aE.key.repeat == 0) 
+    const auto& input = Input::Instance();
+    if (input.IsKeyPressed(SDL_SCANCODE_TAB))
     {
-        if (key == SDLK_CAPSLOCK)
-        {
-            const auto enabled = SDL_GetRelativeMouseMode();
-            fmt::print("caps locked presssed, window is currently: {}\n", static_cast<bool>(enabled));
-            SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!enabled));
-        }
-        if (key == SDLK_ESCAPE)
-        {
-            // set dt to 0
-        }
-
-        if (key == SDLK_TAB)
-        {
-            isLocked = !isLocked;
-            velocity = glm::vec3{};
-        }
-        if (isLocked)
-        {
-            return;
-        }
-
-        if (key == SDLK_w) { velocity.z += -1; }
-        if (key == SDLK_s) { velocity.z += 1; }
-        if (key == SDLK_a) { velocity.x += -1; }
-        if (key == SDLK_d) { velocity.x += 1; }
+        isLocked = !isLocked;
+    }
+    if (input.IsKeyPressed(SDL_SCANCODE_CAPSLOCK))
+    {
+        SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!SDL_GetRelativeMouseMode()));
     }
 
     if (isLocked)
     {
         return;
     }
-    if (aE.type == SDL_KEYUP) 
-    {
-        if (key == SDLK_w) { velocity.z -= -1; }
-        if (key == SDLK_s) { velocity.z -= 1; }
-        if (key == SDLK_a) { velocity.x -= -1; }
-        if (key == SDLK_d) { velocity.x -= 1; }
-    }
 
-    if (aE.type == SDL_MOUSEMOTION) 
-    {
-        yaw += static_cast<float>(aE.motion.xrel) / 200.f;
-        pitch -= static_cast<float>(aE.motion.yrel) / 200.f;
+    constexpr float mouseSensitivity = 0.005f;
+    constexpr float maxPitch = 1.50f;
 
-        constexpr float maxMinPitch = 1.50f;
-        pitch = glm::clamp(pitch, -maxMinPitch, maxMinPitch);
-    }
-}
+    yaw += static_cast<float>(Input::Instance().GetMouseDeltaX()) * mouseSensitivity;
+    pitch -= static_cast<float>(Input::Instance().GetMouseDeltaY()) * mouseSensitivity;
+    pitch = glm::clamp(pitch, -maxPitch, maxPitch);
 
-// TODO:
-// Movement in this code is frame-dependant, as we aren't taking the speed of the engine into account. This is done for simplicity in the case, if you want to improve it, you would need to pass deltaTime (time between frames) to the update() function, and multiply the velocity by that. In the tutorial, we are more or less FPS locked to monitor speed due to the options we have used in the swapchain, and we aren't rendering enough data to slow down the engine.
-void Camera::Update()
-{
+    // 4. Handle Movement (WASD)
+    velocity = glm::vec3(0.0f); // Reset velocity every frame
+
+    velocity.z += Input::Instance().IsKeyHeld(SDL_SCANCODE_S) - Input::Instance().IsKeyHeld(SDL_SCANCODE_W);
+    velocity.x += Input::Instance().IsKeyHeld(SDL_SCANCODE_D) - Input::Instance().IsKeyHeld(SDL_SCANCODE_A);
+
 	const glm::mat4 cameraRotation = GetRotationMatrix();
 	position += glm::vec3(cameraRotation * glm::vec4(velocity * 0.5f, 0.f));
 }

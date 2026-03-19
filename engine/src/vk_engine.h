@@ -64,7 +64,7 @@ struct GLTFMetallic_Roughness
 
 	DescriptorWriter writer;
 
-	void Build_Pipelines(VulkanEngine* aEngine);
+	void Build_Pipelines();
 	void Clear_Resources(VkDevice aDevice) const;
 
 	// create the descriptor set and return a fully built MaterialInstance struct
@@ -289,13 +289,12 @@ private:
 
 	void Draw_ImGui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
 	void ImGui_Run();
+    void ImGuiFrame();
 
 	void Resize_Swapchain();
 	void Update_Scene();
 
-	void ProcessEvents(bool& aQuit);
-    void TempRender();
-
+    static void ProcessEvents(bool& aQuit);
 	// temp camera settings
 	float tempCameraFOV = 70.f;
     glm::vec4 tempAmbientColor = glm::vec4(.1f);

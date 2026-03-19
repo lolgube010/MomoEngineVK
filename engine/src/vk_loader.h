@@ -7,20 +7,20 @@
 #include "vk_descriptors.h"
 #include "fastgltf/types.hpp"
 
-struct GLTFMaterial
-{
-    MaterialInstance data;
-#ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    std::string debugName = "No Material Name";
-#endif
-};
-
 struct Bounds 
 {
     glm::vec3 origin;
     float sphereRadius;
     glm::vec3 extents;
     float padding = 0;
+};
+
+struct GLTFMaterial
+{
+    MaterialInstance data;
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+    std::string debugName = "No Material Name";
+#endif
 };
 
 struct GeoSurface 
@@ -34,7 +34,6 @@ struct GeoSurface
 struct MeshAsset 
 {
     std::string name;
-
     std::vector<GeoSurface> surfaces; // submeshes of this specific mesh
     GPUMeshBuffers meshBuffers;
 };
@@ -73,11 +72,11 @@ private:
 
 namespace momo_GLTF
 {
-    std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(VulkanEngine* aEngine, std::string_view aFilePath);
+    std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(std::string_view aFilePath);
 
     VkFilter extract_filter(fastgltf::Filter aFilter);
 
     VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter aFilter);
 
-    std::optional<AllocatedImage> load_image(const VulkanEngine* aEngine, fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath);
+    std::optional<AllocatedImage> load_image(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath);
 }

@@ -15,6 +15,8 @@
 #define VMA_IMPLEMENTATION
 
 #include <vma/vk_mem_alloc.h>
+
+#include "Input.h"
 #include "vk_pipelines.h"
 
 #include "imgui.h"
@@ -31,16 +33,17 @@
 constexpr bool USE_VALIDATION_LAYERS = true;
 constexpr auto APP_NAME = "MomoVK";
 
-void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
+void GLTFMetallic_Roughness::Build_Pipelines()
 {
+    auto& aEngine = VulkanEngine::Get();
 	DescriptorLayoutBuilder layoutBuilder;
 	layoutBuilder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	layoutBuilder.Add_Binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 	layoutBuilder.Add_Binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
-	materialLayout = layoutBuilder.Build(aEngine->_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "GLTFMetallic_Roughness Material");
+	materialLayout = layoutBuilder.Build(aEngine._device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "GLTFMetallic_Roughness Material");
 
-	VkDescriptorSetLayout layouts[] = { aEngine->_gpuSceneDataDescriptorLayout, materialLayout };
+	VkDescriptorSetLayout layouts[] = { aEngine._gpuSceneDataDescriptorLayout, materialLayout };
 
 	VkPushConstantRange matrixRange{};
     matrixRange.offset = 0;
@@ -54,7 +57,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	mesh_layout_info.pushConstantRangeCount = 1;
 
 	VkPipelineLayout newLayout;
-	VK_CHECK(vkCreatePipelineLayout(aEngine->_device, &mesh_layout_info, nullptr, &newLayout));
+	VK_CHECK(vkCreatePipelineLayout(aEngine._device, &mesh_layout_info, nullptr, &newLayout));
     // pipeline layout is technically shared between transparent & opaque, and we never bother deleting it so it's not a big deal right now
     MOMO_VK_SET_DEBUG_NAME(aEngine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout, "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
 
@@ -62,8 +65,8 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	transparentPipeline.layout = newLayout;
 
 	constexpr bool useHLSL = false;
-    auto meshFragShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Fragment, useHLSL, aEngine->_device);
-    auto meshVertexShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Vertex, useHLSL, aEngine->_device);
+    auto meshFragShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Fragment, useHLSL, aEngine._device);
+    auto meshVertexShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Vertex, useHLSL, aEngine._device);
 
 	// build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	PipelineBuilder pipelineBuilder;
@@ -77,24 +80,24 @@ void GLTFMetallic_Roughness::Build_Pipelines(VulkanEngine* aEngine)
 	pipelineBuilder.Enable_DepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	//render format
-	pipelineBuilder.Set_Color_Attachment_Format(aEngine->_drawImage.imageFormat);
-	pipelineBuilder.Set_Depth_Format(aEngine->_depthImage.imageFormat);
+	pipelineBuilder.Set_Color_Attachment_Format(aEngine._drawImage.imageFormat);
+	pipelineBuilder.Set_Depth_Format(aEngine._depthImage.imageFormat);
 
 	// use the triangle layout we created
 	pipelineBuilder._pipelineLayout = newLayout;
 
 	// finally build the pipeline
-    opaquePipeline.pipeline = pipelineBuilder.Build_Pipeline(aEngine->_device, "GLTFMetallic_Roughness Opaque");
+    opaquePipeline.pipeline = pipelineBuilder.Build_Pipeline(aEngine._device, "GLTFMetallic_Roughness Opaque");
 	
     // create the transparent variant, enable additive blending!
 	pipelineBuilder.Enable_Blending_Additive();
 
 	pipelineBuilder.Enable_DepthTest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
-	transparentPipeline.pipeline = pipelineBuilder.Build_Pipeline(aEngine->_device, "GLTFMetallic_Roughness Transparent");
+	transparentPipeline.pipeline = pipelineBuilder.Build_Pipeline(aEngine._device, "GLTFMetallic_Roughness Transparent");
 
-	vkDestroyShaderModule(aEngine->_device, meshFragShader.value(), nullptr);
-	vkDestroyShaderModule(aEngine->_device, meshVertexShader.value(), nullptr);
+	vkDestroyShaderModule(aEngine._device, meshFragShader.value(), nullptr);
+	vkDestroyShaderModule(aEngine._device, meshVertexShader.value(), nullptr);
 }
 
 void GLTFMetallic_Roughness::Clear_Resources(const VkDevice aDevice) const
@@ -201,13 +204,12 @@ void VulkanEngine::Init()
     // _render_doc.Init_RenderDoc(&_instance, _window);
 	
 	Init_Default_Data();
-	
+    Input::Instance().Init();
 	_is_initialized = true;
 }
 
 void VulkanEngine::Draw()
 {
-	Update_Scene(); // should maybe be moved out of draw. this is preparing buffers / updating matrices. 
 
 	{
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "wait for fences");
@@ -349,6 +351,7 @@ void VulkanEngine::Run()
 	{
         const uint64_t currentTime = SDL_GetPerformanceCounter();
 
+		Input::Instance().Update();
 		ProcessEvents(bQuit);
 
 		// do not draw if we are minimized
@@ -364,7 +367,10 @@ void VulkanEngine::Run()
 			Resize_Swapchain();
 		}
 
-		TempRender();
+		ImGuiFrame();
+        Update_Scene();
+	    Draw();
+            // PROFILE_FRAME;
 
 		const float deltaTime = static_cast<float>(currentTime - lastTime) / static_cast<float>(_stats.frequency);
         _stats.frameTime = deltaTime * 1000.0f;
@@ -950,7 +956,7 @@ void VulkanEngine::Init_Pipelines()
 	// graphics pipelines
 	// Init_Mesh_Pipeline(); // todo- remove / comment out
 
-	metalRoughMaterial.Build_Pipelines(this);
+	metalRoughMaterial.Build_Pipelines();
 }
 
 void VulkanEngine::Init_Background_Pipelines()
@@ -1251,7 +1257,7 @@ void VulkanEngine::Init_Default_Data()
 	// }
 
 	const std::string structurePath = {R"(..\..\assets\structure.glb)"};
-    const auto structureFile = momo_GLTF::load_gltf(this, structurePath);
+    const auto structureFile = momo_GLTF::load_gltf(structurePath);
 	assert(structureFile.has_value());
 
 	_loadedScenes["structure"] = *structureFile;
@@ -1510,6 +1516,22 @@ void VulkanEngine::ImGui_Run()
 		// 	printf("Blend mode changed to: %s\n", blendNames[tempBlendModeIndex]);
 		// }
 	}
+}
+
+void VulkanEngine::ImGuiFrame()
+{
+    // imgui new frame
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplSDL2_NewFrame();
+    ImGui::NewFrame();
+
+    ////some imgui UI to test
+    // ImGui::ShowDemoWindow();
+
+    ImGui_Run();
+
+    // make imgui calculate internal draw structures, doesn't actually render!!! just builds the render data.
+    ImGui::Render();
 }
 
 void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
@@ -1878,53 +1900,11 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
     // Handle events on queue
     while (SDL_PollEvent(&e) != 0)
     {
-        // close the window when user alt-f4s or clicks the X button
-        if (e.type == SDL_QUIT)
-        {
-            aQuit = true;
-        }
+        Input::Instance().ProcessEvent(e, aQuit);
 
-        if (e.type == SDL_WINDOWEVENT)
-        {
-            if (e.window.event == SDL_WINDOWEVENT_MINIMIZED)
-            {
-                _freeze_rendering = true;
-            }
-            if (e.window.event == SDL_WINDOWEVENT_RESTORED)
-            {
-                _freeze_rendering = false;
-            }
-            if (e.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-            {
-                _resize_requested = true;
-            }
-        }
-
-        _mainCamera.Process_SDL_Event(e);
-		
         // send SDL event to imgui for handling
         ImGui_ImplSDL2_ProcessEvent(&e);
-        // process_input(e);
     }
-}
-
-void VulkanEngine::TempRender()
-{
-    // imgui new frame
-    ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplSDL2_NewFrame();
-    ImGui::NewFrame();
-
-    ////some imgui UI to test
-    // ImGui::ShowDemoWindow();
-
-    ImGui_Run();
-
-    // make imgui calculate internal draw structures, doesn't actually render!!! just builds the render data.
-    ImGui::Render();
-
-    Draw();
-    PROFILE_FRAME;
 }
 
 bool VulkanEngine::Is_Visible(const RenderObject& aObj, const glm::mat4& aViewProj)
