@@ -211,7 +211,6 @@ void VulkanEngine::Init()
 
 void VulkanEngine::Draw()
 {
-
 	{
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "wait for fences");
 	    //> draw_1
@@ -378,7 +377,6 @@ void VulkanEngine::Run()
 	        Draw();
             PROFILE_FRAME;
         }
-
 	}
 }
 

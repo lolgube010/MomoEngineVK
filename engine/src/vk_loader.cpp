@@ -311,7 +311,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
     debugNameString = fmt::format("Material Data, Path: {}", aFilePath);
     debugName = debugNameString.c_str();
-    #endif
+#endif
     file.materialDataBuffer = aEngine.Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
     int data_index = 0;
     auto sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
@@ -612,6 +612,7 @@ VkSamplerMipmapMode momo_GLTF::extract_mipmap_mode(const fastgltf::Filter aFilte
 std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath)
 {
     const auto& aEngine = VulkanEngine::Get();
+
     AllocatedImage newImage{};
 
     int width, height, nrChannels;
@@ -670,12 +671,8 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
                 auto& buffer = aAsset.buffers[bufferView.bufferIndex];
 
                 std::visit(fastgltf::visitor{
-                               // We only care about VectorWithMime here, because we
-                               // specify LoadExternalBuffers, meaning all buffers
-                               // are already loaded into a vector.
-                               [](auto& arg)
-                               {
-                               },
+                               // We only care about VectorWithMime here, because we specify LoadExternalBuffers, meaning all buffers are already loaded into a vector.
+                               [](auto& arg) {},
                                [&](fastgltf::sources::Vector& vector)
                                {
                                    unsigned char* data = stbi_load_from_memory(vector.bytes.data() + bufferView.byteOffset,
@@ -693,7 +690,7 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
                                        stbi_image_free(data);
                                    }
                                }},
-                           buffer.data);
+                    buffer.data);
             },
         },
         aImage.data);
