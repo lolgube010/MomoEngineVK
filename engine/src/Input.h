@@ -6,8 +6,9 @@ class Input
 {
 public:
     void Init();
-    void Update();
-    void ProcessEvent(const SDL_Event& aE, bool& aQuit);
+    void PreUpdate();
+    void PostUpdate();
+    void ProcessEvent(const SDL_Event& aE);
 
     bool IsKeyHeld(SDL_Scancode aKey) const;
     bool IsKeyPressed(SDL_Scancode aKey) const;

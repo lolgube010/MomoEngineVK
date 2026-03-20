@@ -9,6 +9,7 @@
 
 #include "VkBootstrap.h"
 
+#include <algorithm>
 #include <chrono>
 #include <thread>
 
@@ -346,13 +347,17 @@ void VulkanEngine::Run()
 	bool bQuit = false;
 
 	uint64_t lastTime = SDL_GetPerformanceCounter();
-	// main loop
 	while (!bQuit)
 	{
         const uint64_t currentTime = SDL_GetPerformanceCounter();
+        float dt = (currentTime - lastTime) / static_cast<float>(_stats.frequency);
+        lastTime = currentTime;
+        dt = std::min(dt, 0.25f);
+        _stats.frameTime = dt * 1000.0f;
 
-		Input::Instance().Update();
+        Input::Instance().PreUpdate();
 		ProcessEvents(bQuit);
+		Input::Instance().PostUpdate();
 
 		// do not draw if we are minimized
 		if (_freeze_rendering)
@@ -369,12 +374,11 @@ void VulkanEngine::Run()
 
 		ImGuiFrame();
         Update_Scene();
-	    Draw();
-            // PROFILE_FRAME;
+        {
+	        Draw();
+            PROFILE_FRAME;
+        }
 
-		const float deltaTime = static_cast<float>(currentTime - lastTime) / static_cast<float>(_stats.frequency);
-        _stats.frameTime = deltaTime * 1000.0f;
-        lastTime = currentTime;
 	}
 }
 
@@ -1900,10 +1904,33 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
     // Handle events on queue
     while (SDL_PollEvent(&e) != 0)
     {
-        Input::Instance().ProcessEvent(e, aQuit);
-
         // send SDL event to imgui for handling
         ImGui_ImplSDL2_ProcessEvent(&e);
+        Input::Instance().ProcessEvent(e);
+
+		// close the window when user alt-f4s or clicks the X button
+        if (e.type == SDL_QUIT)
+        {
+            aQuit = true;
+        }
+
+        if (e.type == SDL_WINDOWEVENT)
+        {
+            switch (e.window.event)
+            {
+            case SDL_WINDOWEVENT_MINIMIZED:
+                _freeze_rendering = true;
+                break;
+            case SDL_WINDOWEVENT_RESTORED:
+                _freeze_rendering = false;
+                break;
+            case SDL_WINDOWEVENT_SIZE_CHANGED:
+                _resize_requested = true;
+                break;
+            default:
+                break;
+            }
+        }
     }
 }
 

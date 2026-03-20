@@ -294,7 +294,7 @@ private:
 	void Resize_Swapchain();
 	void Update_Scene();
 
-    static void ProcessEvents(bool& aQuit);
+    void ProcessEvents(bool& aQuit);
 	// temp camera settings
 	float tempCameraFOV = 70.f;
     glm::vec4 tempAmbientColor = glm::vec4(.1f);

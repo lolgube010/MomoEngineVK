@@ -21,11 +21,14 @@ void Input::Init()
     _prevButtons.resize(SDL_CONTROLLER_BUTTON_MAX, 0);
 }
 
-void Input::Update()
+void Input::PreUpdate()
 {
     std::copy_n(_currentState, _previousState.size(), _previousState.begin());
     std::ranges::copy(_currButtons, _prevButtons.begin());
+}
 
+void Input::PostUpdate()
+{
     SDL_GetRelativeMouseState(&_mouseDeltaX, &_mouseDeltaY);
     SDL_GetMouseState(&_mouseX, &_mouseY); // NEW: Absolute position
 
@@ -39,14 +42,8 @@ void Input::Update()
     }
 }
 
-void Input::ProcessEvent(const SDL_Event& aE, bool& aQuit)
+void Input::ProcessEvent(const SDL_Event& aE)
 {
-    // close the window when user alt-f4s or clicks the X button
-    if (aE.type == SDL_QUIT)
-    {
-        aQuit = true;
-    }
-
     // Handle Controller Hotplugging
     if (aE.type == SDL_CONTROLLERDEVICEADDED)
     {
@@ -65,24 +62,6 @@ void Input::ProcessEvent(const SDL_Event& aE, bool& aQuit)
             SDL_GameControllerClose(_controller);
             _controller = nullptr;
             fmt::print("Controller Disconnected!\n");
-        }
-    }
-
-    auto& engine = VulkanEngine::Get();
-
-    if (aE.type == SDL_WINDOWEVENT)
-    {
-        if (aE.window.event == SDL_WINDOWEVENT_MINIMIZED)
-        {
-            engine._freeze_rendering = true;
-        }
-        if (aE.window.event == SDL_WINDOWEVENT_RESTORED)
-        {
-            engine._freeze_rendering = false;
-        }
-        if (aE.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-        {
-            engine._resize_requested = true;
         }
     }
 }
