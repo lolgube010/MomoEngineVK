@@ -4,18 +4,15 @@
 # features
 * HLSL and GLSL shader support.
 * Buffer Device Address and Vertex Pulling.
-* dynamic rendering, descriptor indexing (bindless) & sync2. 
+* Dynamic rendering, descriptor indexing (bindless) & sync2. 
 * GLTF loading (models & textures).
-* Basic Frustum Culling & Draw Sorting
-* Png Texture Loading & Mipmaps.
+* Frustum Culling & Draw Sorting
+* Png Texture Loading with Mipmaps. 
 * Everything's annotated in debug & support for the renderdoc API.
 * super basic lighting and pbr.
 
 # planned features
-I have a lot of things planned for this engine, but overarching goals are...
-* More modern rendering techniques. (full PBR, support for multiple setups like deferred, forward+, clustered etc). 
-* More recent Vulkan extensions.
-* More "Game-Engine support" (ECS etc).
+tons! let's wait and see what happens :]
 
 # How to Build:
 * [Install Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
@@ -27,9 +24,7 @@ I have a lot of things planned for this engine, but overarching goals are...
 * open the .slnx in /build and compile
 
 # tracy how to set up
-you might need to enable long paths on your system:
-* git config --system core.longpaths true
-
+you might need to enable long paths on your system: `git config --system core.longpaths true`
 build the tracyProfiler target. 
 run tracy-profiler.exe
 
