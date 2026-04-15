@@ -1258,8 +1258,8 @@ void VulkanEngine::Init_Default_Data()
 	// 	_loadedNodes[m->name] = std::move(newNode);
 	// }
 
-	const std::string structurePath = {R"(..\..\assets\sponza\sponza-png.glb)"};
-	// const std::string structurePath = {R"(..\..\assets\structure.glb)"};
+	// const std::string structurePath = {R"(..\..\assets\sponza\sponza-png.glb)"};
+	const std::string structurePath = {R"(..\..\assets\structure.glb)"};
     const auto structureFile = momo_GLTF::load_gltf(structurePath);
 	assert(structureFile.has_value());
 
