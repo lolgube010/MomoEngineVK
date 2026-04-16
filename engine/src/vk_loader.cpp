@@ -278,7 +278,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
         VkSampler newSampler;
         vkCreateSampler(aEngine._device, &samplerCreateInfo, nullptr, &newSampler);
-        MOMO_VK_SET_DEBUG_NAME(aEngine->_device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
+        MOMO_VK_SET_DEBUG_NAME(aEngine._device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
 
         file.samplers.push_back(newSampler);
     }

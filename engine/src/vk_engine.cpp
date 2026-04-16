@@ -60,7 +60,7 @@ void GLTFMetallic_Roughness::Build_Pipelines()
 	VkPipelineLayout newLayout;
 	VK_CHECK(vkCreatePipelineLayout(aEngine._device, &mesh_layout_info, nullptr, &newLayout));
     // pipeline layout is technically shared between transparent & opaque, and we never bother deleting it so it's not a big deal right now
-    MOMO_VK_SET_DEBUG_NAME(aEngine->_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout, "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
+    MOMO_VK_SET_DEBUG_NAME(aEngine._device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout, "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
 
 	opaquePipeline.layout = newLayout;
 	transparentPipeline.layout = newLayout;
@@ -938,8 +938,8 @@ void VulkanEngine::Init_Descriptors()
 
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-        temp2 = fmt::format("Frame, FIF: {}", i);
-        debugStr = temp2.c_str();
+        debugStr2 = fmt::format("Frame, FIF: {}", i);
+        debugStr = debugStr2.c_str();
 #endif
         _frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes, debugStr);
 
