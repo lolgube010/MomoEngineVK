@@ -261,6 +261,8 @@ void VulkanEngine::Draw()
             // transition our main draw image into general layout so we can write into it.
             // we will overwrite it all so we don't care about what was the older layout
             momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+            // TEST TO TRIGGER VALIDATION ERROR:
+            // momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_UNDEFINED);
         }
         {
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "draw background");
@@ -428,6 +430,7 @@ void VulkanEngine::Cleanup()
 
 		vkDestroyDevice(_device, nullptr);
 		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
+        _validationCapture.Destroy(_instance);
 		vkDestroyInstance(_instance, nullptr);
 
 		SDL_DestroyWindow(_window);
@@ -547,7 +550,7 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 
         if (aMipmapped)
         {
-            momo_vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{ new_Image.imageExtent.width,new_Image.imageExtent.height });
+            momo_vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{.width = new_Image.imageExtent.width, .height = new_Image.imageExtent.height });
         }
         else
         {
@@ -594,6 +597,9 @@ void VulkanEngine::Init_Vulkan()
 	//< init_instance
 
 	volkLoadInstance(_instance);
+
+    if (USE_VALIDATION_LAYERS)
+        _validationCapture.Init(_instance);
 
 	//> init_device
 	SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
@@ -741,9 +747,9 @@ void VulkanEngine::Init_Swapchain()
 	//> create image (fullscreen render target/render image)
 	//draw image size will match the window
 	const VkExtent3D drawImageExtent = {
-		_windowExtent.width,
-		_windowExtent.height,
-		1
+        .width = _windowExtent.width,
+        .height = _windowExtent.height,
+        .depth = 1
 	};
 
 	// hardcoding the draw format to 16-bit float 
@@ -1047,17 +1053,17 @@ void VulkanEngine::Init_ImGui()
 	//  the size of the pool is very oversize, but it's copied from imgui demo
 	//  itself.
 	const VkDescriptorPoolSize pool_sizes[] = {
-		{VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
-		{VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
-		{VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
-		{VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
-		{VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
-		{VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
-		{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
-		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
-		{VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
-		{VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
-		{VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}
+		{.type = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, .descriptorCount = 1000},
+		{.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, .descriptorCount = 1000}
 	};
 
 	VkDescriptorPoolCreateInfo pool_info = {};
@@ -1193,11 +1199,11 @@ void VulkanEngine::Init_Default_Data()
 	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\thejunkshopsplashscreen2.glb)").value();
 
 	const uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
-    _whiteImage = Create_Image(&white, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_White");
+    _whiteImage = Create_Image(&white, VkExtent3D{.width = 1, .height = 1, .depth = 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_White");
 	const uint32_t grey = glm::packUnorm4x8(glm::vec4(0.66f, 0.66f, 0.66f, 1));
-    _greyImage = Create_Image(&grey, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_Grey");
+    _greyImage = Create_Image(&grey, VkExtent3D{.width = 1, .height = 1, .depth = 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_Grey");
 	const uint32_t black = glm::packUnorm4x8(glm::vec4(0, 0, 0, 0));
-    _blackImage = Create_Image(&black, VkExtent3D{1, 1, 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_Black");
+    _blackImage = Create_Image(&black, VkExtent3D{.width = 1, .height = 1, .depth = 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_Black");
 
 	const uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
 	std::array<uint32_t, 16 * 16 > pixels; //for 16x16 checkerboard texture
@@ -1208,7 +1214,7 @@ void VulkanEngine::Init_Default_Data()
 			pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
 		}
 	}
-	_errorCheckerboardImage = Create_Image(pixels.data(), VkExtent3D{ 16, 16, 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_ErrorCheckerboard");
+	_errorCheckerboardImage = Create_Image(pixels.data(), VkExtent3D{.width = 16, .height = 16, .depth = 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_ErrorCheckerboard");
 
 	VkSamplerCreateInfo sampler = {};
     sampler.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
@@ -1428,6 +1434,8 @@ void VulkanEngine::ImGui_Run()
 {
 	if (ImGui::Begin("settings"))
 	{
+        _validationCapture.DrawImGui();
+
 		ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
 
 		ImGui::Text("Selected effect: %s", selected.name);
@@ -1518,6 +1526,8 @@ void VulkanEngine::ImGui_Run()
                 }
             }
         }
+
+
 	    ImGui::End();
 
 		//

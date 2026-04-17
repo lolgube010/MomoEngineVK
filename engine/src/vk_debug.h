@@ -1,5 +1,32 @@
 #pragma once
 #include "vk_initializers.h"
+#include <atomic>
+
+namespace momo_vkDebug
+{
+    // Captures validation layer messages and displays them in an ImGui panel.
+    // Init() - call once after volkLoadInstance, behind your USE_VALIDATION_LAYERS guard.
+    // Destroy() - call before vkDestroyInstance.
+    // DrawImGui() - call each frame inside an ImGui::Begin/End block; no-op if Init was not called.
+    class ValidationCapture
+    {
+    public:
+        void Init(VkInstance aInstance);
+        void Destroy(VkInstance aInstance);
+        void DrawImGui() const; // call inside an ImGui::Begin/End block; no-op if Init was not called
+
+    private:
+        static VKAPI_ATTR VkBool32 VKAPI_CALL Callback(
+            VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+            VkDebugUtilsMessageTypeFlagsEXT messageType,
+            const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
+            void* pUserData);
+
+        VkDebugUtilsMessengerEXT _messenger = VK_NULL_HANDLE;
+        std::atomic<bool> _hasErrors{false};
+        std::atomic<bool> _hasWarnings{false};
+    };
+}
 
 // helper macros to generate unique variable names
 #define MOMO_CONCAT_IMPL(x, y) x##y
@@ -17,7 +44,8 @@
 #define MOMO_VK_SET_DEBUG_NAME(device, objType, handle, fmtString, ...)
 #endif
 
-#ifdef MOMOVK_ENABLE_DEBUG_NAMES // DON'T USE! USE THE MACROS ABOVE INSTEAD!
+// everything in that namespace needs to be defined in this ifdef- not in the cpp (so the macros work properly)
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES // DON'T USE DIRECTLY! USE THE MACROS ABOVE INSTEAD!
 namespace momo_vkDebug
 {
     template <typename T, typename... Args>

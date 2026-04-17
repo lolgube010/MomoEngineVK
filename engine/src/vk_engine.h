@@ -14,6 +14,7 @@
 #include "RenderDocWrapper.h"
 #include "vk_debug.h"
 
+
 struct FrameData
 {
 	//The _swapchainSemaphore is going to be used so that our render commands wait on the swapchain image request. 
@@ -324,4 +325,6 @@ private:
 
         return str;
     }
+
+    momo_vkDebug::ValidationCapture _validationCapture;
 };
