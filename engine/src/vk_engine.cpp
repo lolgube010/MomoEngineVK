@@ -201,7 +201,7 @@ void VulkanEngine::Init()
 	Init_Descriptors();
 	Init_Pipelines();
 	Init_ImGui();
-	// Init_Tracy();
+	Init_Tracy();
     // _render_doc.Init_RenderDoc(&_instance, _window);
 	
 	Init_Default_Data();

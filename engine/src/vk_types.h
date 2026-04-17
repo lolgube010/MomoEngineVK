@@ -35,6 +35,7 @@ struct AllocatedImage
     VmaAllocation allocation; // tracks memory, VkDeviceMemory
     VkExtent3D imageExtent; // stores width height depth
     VkFormat imageFormat; // stores format of img, like DXGI_FORMAT_R8G8B8_UNORM
+    std::string name;
 };
 
 struct AllocatedBuffer

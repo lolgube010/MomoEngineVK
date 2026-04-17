@@ -176,13 +176,13 @@ void LoadedGLTF::ClearAll()
     descriptorPool.Destroy_Pools(dv);
     creator.Destroy_Buffer(materialDataBuffer);
 
-    for (const auto& v : meshes | std::views::values)
+    for (const auto& v : meshes)
     {
         creator.Destroy_Buffer(v->meshBuffers._indexBuffer);
         creator.Destroy_Buffer(v->meshBuffers._vertexBuffer);
     }
 
-    for (auto& v : images | std::views::values)
+    for (auto& v : images)
     {
         if (v.image == creator._errorCheckerboardImage.image)
         {
@@ -277,7 +277,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         samplerCreateInfo.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
 
         VkSampler newSampler;
-        vkCreateSampler(aEngine._device, &samplerCreateInfo, nullptr, &newSampler);
+        VK_CHECK(vkCreateSampler(aEngine._device, &samplerCreateInfo, nullptr, &newSampler));
         MOMO_VK_SET_DEBUG_NAME(aEngine._device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
 
         file.samplers.push_back(newSampler);
@@ -292,11 +292,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     // load all textures
     for (fastgltf::Image& image : gltf.images)
     {
-        if (std::optional<AllocatedImage> img = load_image(gltf, image, aFilePath); 
+        if (std::optional<AllocatedImage> img = load_image(gltf, image, aFilePath);
             img.has_value())
         {
+            img->name = image.name;
             images.push_back(*img);
-            file.images[image.name.c_str()] = *img;
+            file.images.push_back(*img);
         }
         else
         {
@@ -312,16 +313,19 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     debugNameString = fmt::format("Material Data, Path: {}", aFilePath);
     debugName = debugNameString.c_str();
 #endif
-    file.materialDataBuffer = aEngine.Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
+    GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = nullptr;
+    if (!gltf.materials.empty())
+    {
+        file.materialDataBuffer = aEngine.Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
+        sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
+    }
     int data_index = 0;
-    auto sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
 
     for (fastgltf::Material& mat : gltf.materials)
     {
         auto newMat = std::make_shared<GLTFMaterial>();
         materials.push_back(newMat);
-        auto matName = mat.name.c_str();
-        file.materials[matName] = newMat;
+        file.materials.push_back(newMat);
 
         GLTFMetallic_Roughness::MaterialConstants constants;
         constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
@@ -353,15 +357,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         // grab textures from gltf file
         if (mat.pbrData.baseColorTexture.has_value())
         {
-            size_t img = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].imageIndex.value();
-            size_t sampler = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex].samplerIndex.value();
-
-            materialResources.colorImage = images[img];
-            materialResources.colorSampler = file.samplers[sampler];
+            const fastgltf::Texture& tex = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex];
+            if (tex.imageIndex.has_value())
+                materialResources.colorImage = images[tex.imageIndex.value()];
+            materialResources.colorSampler = tex.samplerIndex.has_value()
+                ? file.samplers[tex.samplerIndex.value()]
+                : aEngine._defaultSamplerLinear;
         }
         // build material
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-        debugNameString = fmt::format("Material Name: {}, Path: {}", matName, aFilePath);
+        debugNameString = fmt::format("Material Name: {}, Path: {}", mat.name, aFilePath);
         debugName = debugNameString.c_str();
         newMat.get()->debugName = debugName;
 #endif
@@ -378,7 +383,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     {
         auto newMesh = std::make_shared<MeshAsset>();
         meshes.push_back(newMesh);
-        file.meshes[mesh.name.c_str()] = newMesh;
+        file.meshes.push_back(newMesh);
         newMesh->name = mesh.name;
         
         // clear the mesh arrays each mesh, we don't want to merge them by error
@@ -387,10 +392,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
         for (auto&& p : mesh.primitives)
         {
+            if (!p.indicesAccessor.has_value())
+            {
+                fmt::print("Skipping non-indexed primitive in mesh '{}'\n", mesh.name);
+                continue;
+            }
+
             GeoSurface newSurface;
             newSurface.startIndex = static_cast<uint32_t>(indices.size());
             newSurface.count = static_cast<uint32_t>(gltf.accessors[p.indicesAccessor.value()].count);
-            
+
             size_t initial_vtx = vertices.size();
 
             // load indexes
@@ -470,7 +481,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             {
                 newSurface.material = materials[p.materialIndex.value()];
             }
-            else
+            else if (!materials.empty())
             {
                 newSurface.material = materials[0];
             }
@@ -545,7 +556,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     }
 
     // run loop again to setup transform hierarchy
-    for (int i = 0; i < gltf.nodes.size(); i++)
+    for (size_t i = 0; i < gltf.nodes.size(); i++)
     {
         fastgltf::Node& node = gltf.nodes[i];
         std::shared_ptr<Node>& sceneNode = nodes[i];
@@ -619,7 +630,7 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
 
     const char* imgName = nullptr;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    const std::string temp = fmt::format("{}, Path: {}", aImage.name.c_str(), aFilePath).c_str();
+    const std::string temp = fmt::format("{}, Path: {}", aImage.name, aFilePath);
     imgName = temp.c_str();
 #endif
 
