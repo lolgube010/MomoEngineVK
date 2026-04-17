@@ -25,8 +25,10 @@
 
 # tracy how to set up
 you might need to enable long paths on your system: `git config --system core.longpaths true`
-build the tracyProfiler target. 
-run tracy-profiler.exe
+* build the tracyProfiler target. 
+* run tracy-profiler.exe
+* make sure TRACY_ON_DEMAND is set to off in cmake, if it's on, rebuild tracy client
+* connect, run game, close game.
 
 # depenency graph / doxygen & graphviz
 * install [doxygen](https://doxygen.nl/download.html) & [graphvis](https://graphviz.org/download/)
