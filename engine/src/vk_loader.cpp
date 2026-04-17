@@ -11,7 +11,7 @@
 #endif
 #include <glm/gtx/quaternion.hpp>
 #include <fastgltf/glm_element_traits.hpp>
-#include <fastgltf/parser.hpp>
+#include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
 
 // std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes_Legacy(VulkanEngine* aEngine, const std::filesystem::path& aFilePath)
@@ -75,7 +75,7 @@
 //
 //             // load vertex positions, this is guaranteed to be in the file. the other info isn't.
 //             {
-//                 fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->second];
+//                 fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
 //                 vertices.resize(vertices.size() + posAccessor.count);
 //
 //                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
@@ -96,7 +96,7 @@
 //                 auto normals = p.findAttribute("NORMAL");
 //                 if (normals != p.attributes.end())
 //                 {
-//                     fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->second],
+//                     fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->accessorIndex],
 //                                                                   [&](glm::vec3 v, size_t index)
 //                                                                   {
 //                                                                       vertices[initial_vtx + index].normal = v;
@@ -109,7 +109,7 @@
 //                 auto uv = p.findAttribute("TEXCOORD_0");
 //                 if (uv != p.attributes.end())
 //                 {
-//                     fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->second],
+//                     fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->accessorIndex],
 //                                                                   [&](glm::vec2 v, size_t index)
 //                                                                   {
 //                                                                       vertices[initial_vtx + index].uv_x = v.x;
@@ -123,7 +123,7 @@
 //                 auto colors = p.findAttribute("COLOR_0");
 //                 if (colors != p.attributes.end())
 //                 {
-//                     fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->second],
+//                     fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->accessorIndex],
 //                                                                   [&](glm::vec4 v, size_t index)
 //                                                                   {
 //                                                                       vertices[initial_vtx + index].color = v;
@@ -208,45 +208,49 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
     fastgltf::Parser parser{};
 
-    constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages;
-
-    fastgltf::GltfDataBuffer data;
-    data.loadFromFile(aFilePath);
-
-    fastgltf::Asset gltf;
+    constexpr auto gltfOptions = fastgltf::Options::DontRequireValidAssetMember | fastgltf::Options::AllowDouble | fastgltf::Options::LoadExternalBuffers | fastgltf::Options::LoadExternalImages;
 
     std::filesystem::path path = aFilePath;
 
-    if (auto type = fastgltf::determineGltfFileType(&data); 
-        type == fastgltf::GltfType::glTF)
+    auto dataResult = fastgltf::GltfDataBuffer::FromPath(path);
+    if (!dataResult)
     {
-        auto load = parser.loadGLTF(&data, path.parent_path(), gltfOptions);
+        fmt::print(stderr, "Failed to load glTF file '{}': {} ({})\n", aFilePath,
+            fastgltf::getErrorName(dataResult.error()), fastgltf::getErrorMessage(dataResult.error()));
+        return {};
+    }
+
+    fastgltf::GltfDataBuffer& data = dataResult.get();
+    fastgltf::Asset gltf;
+
+    const auto type = fastgltf::determineGltfFileType(data);
+    if (type == fastgltf::GltfType::glTF)
+    {
+        auto load = parser.loadGltf(data, path.parent_path(), gltfOptions);
         if (load)
-        {
             gltf = std::move(load.get());
-        }
         else
         {
-            fmt::print(stderr, "Failed to load glTF: {} ({})\n", fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
+            fmt::print(stderr, "Failed to load glTF '{}': {} ({})\n", aFilePath,
+                fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
             return {};
         }
     }
     else if (type == fastgltf::GltfType::GLB)
     {
-        auto load = parser.loadBinaryGLTF(&data, path.parent_path(), gltfOptions);
+        auto load = parser.loadGltfBinary(data, path.parent_path(), gltfOptions);
         if (load)
-        {
             gltf = std::move(load.get());
-        }
         else
         {
-            fmt::print(stderr, "Failed to load glTF: {} ({})\n", fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
+            fmt::print(stderr, "Failed to load glTF '{}': {} ({})\n", aFilePath,
+                fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
             return {};
         }
     }
     else
     {
-        fmt::print(stderr, "Failed to determine glTF container (if file is GLB or GLTF)\n");
+        fmt::print(stderr, "Failed to determine glTF container type for '{}'\n", aFilePath);
         return {};
     }
 
@@ -418,7 +422,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
             // load vertex positions
             {
-                fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->second];
+                fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
                 vertices.resize(vertices.size() + posAccessor.count);
 
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
@@ -438,7 +442,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             auto normals = p.findAttribute("NORMAL");
             if (normals != p.attributes.end())
             {
-                fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->second],
+                fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->accessorIndex],
                                                               [&](glm::vec3 v, size_t index)
                                                               {
                                                                   vertices[initial_vtx + index].normal = v;
@@ -449,7 +453,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             auto uv = p.findAttribute("TEXCOORD_0");
             if (uv != p.attributes.end())
             {
-                fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->second],
+                fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->accessorIndex],
                                                               [&](glm::vec2 v, size_t index)
                                                               {
                                                                   vertices[initial_vtx + index].uv_x = v.x;
@@ -461,7 +465,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             auto colors = p.findAttribute("COLOR_0");
             if (colors != p.attributes.end())
             {
-                fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->second],
+                fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->accessorIndex],
                                                               [&](glm::vec4 v, size_t index)
                                                               {
                                                                   vertices[initial_vtx + index].color = v;
@@ -534,11 +538,11 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         file.nodes[node.name.c_str()] = newNode; // NOTE: not in og vkguide, probably a bug.
         // file.nodes[node.name.c_str()];
 
-        std::visit(fastgltf::visitor{[&](const fastgltf::Node::TransformMatrix& matrix)
+        std::visit(fastgltf::visitor{[&](const fastgltf::math::fmat4x4& matrix)
                                      {
-                                         memcpy(&newNode->localTransform, matrix.data(), sizeof(matrix));
+                                         memcpy(&newNode->localTransform, &matrix, sizeof(matrix));
                                      },
-                                     [&](const fastgltf::Node::TRS& transform)
+                                     [&](const fastgltf::TRS& transform)
                                      {
                                          const glm::vec3 tl(transform.translation[0], transform.translation[1],
                                                       transform.translation[2]);
@@ -673,9 +677,10 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
                     fmt::print(stderr, "load_image: stbi failed to load '{}': {}\n", path, stbi_failure_reason());
                 }
             },
-            [&](fastgltf::sources::Vector& vector)
+            [&](fastgltf::sources::Array& array)
             {
-                unsigned char* data = stbi_load_from_memory(vector.bytes.data(), static_cast<int>(vector.bytes.size()),
+                const auto* bytes = reinterpret_cast<const stbi_uc*>(array.bytes.data());
+                unsigned char* data = stbi_load_from_memory(bytes, static_cast<int>(array.bytes.size()),
                                                             &width, &height, &nrChannels, 4);
                 if (data)
                 {
@@ -690,7 +695,7 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
                 }
                 else
                 {
-                    fmt::print(stderr, "load_image: stbi failed to decode embedded vector for image '{}': {}\n",
+                    fmt::print(stderr, "load_image: stbi failed to decode embedded array for image '{}': {}\n",
                         aImage.name, stbi_failure_reason());
                 }
             },
@@ -705,9 +710,10 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
                                    fmt::print(stderr, "load_image: unhandled buffer source type '{}' for image '{}'\n",
                                        typeid(arg).name(), aImage.name);
                                },
-                               [&](fastgltf::sources::Vector& vector)
+                               [&](fastgltf::sources::Array& array)
                                {
-                                   unsigned char* data = stbi_load_from_memory(vector.bytes.data() + bufferView.byteOffset,
+                                   const auto* bytes = reinterpret_cast<const stbi_uc*>(array.bytes.data() + bufferView.byteOffset);
+                                   unsigned char* data = stbi_load_from_memory(bytes,
                                                                                static_cast<int>(bufferView.byteLength),
                                                                                &width, &height, &nrChannels, 4);
                                    if (data)
