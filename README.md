@@ -12,7 +12,7 @@
 * super basic lighting and pbr.
 
 # planned features
-tons! let's wait and see what happens :]
+* lots of project structure stuff first and foremost. after that it's adding slang & doing the neural shading course. 
 
 # How to Build:
 * [Install Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
