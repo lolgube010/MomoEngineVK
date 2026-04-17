@@ -204,7 +204,7 @@ void VulkanEngine::Init()
 	Init_Tracy();
     // _render_doc.Init_RenderDoc(&_instance, _window);
 	
-	Init_Default_Data();
+	{ PROFILE_SCOPE_N("Init_Default_Data"); Init_Default_Data(); }
     Input::Instance().Init();
 	_is_initialized = true;
 }
@@ -251,58 +251,62 @@ void VulkanEngine::Draw()
 		    _renderScale);
 	    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 	}
-    PROFILE_GPU(_tracyVkCtx, cmd, "Render")
-	{
-        MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
-	    // transition our main draw image into general layout so we can write into it.
-	    // we will overwrite it all so we don't care about what was the older layout
-	    momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-	}
-	{
-        MOMO_VK_SCOPED_CMD_LABEL(cmd, "draw background");
-	    Draw_Background(cmd);
-	}
     {
-        MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & depth img 2");
-	    momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	    momo_vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-    }
-	{
-        MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw Geometry CmdBuff");
-        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw Geometry Queue");
+        // PROFILE_GPU zone must be destroyed before vkEndCommandBuffer — keep it in this block
+        // so its destructor (which calls vkCmdWriteTimestamp) fires while the buffer is still recording.
+        PROFILE_GPU(_tracyVkCtx, cmd, "Render")
+        {
+            MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
+            // transition our main draw image into general layout so we can write into it.
+            // we will overwrite it all so we don't care about what was the older layout
+            momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+        }
+        {
+            MOMO_VK_SCOPED_CMD_LABEL(cmd, "draw background");
+            Draw_Background(cmd);
+        }
+        {
+            MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & depth img 2");
+            momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            momo_vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        }
+        {
+            MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw Geometry CmdBuff");
+            MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw Geometry Queue");
 
-		PROFILE_SCOPE_N("Draw Geometry")
-		Draw_Geometry(cmd);
-	}
-    {
-        MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & swapchain img 3");
-	    //transition the draw image and the swapchain image into their correct transfer layouts
-	    momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-        momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            PROFILE_SCOPE_N("Draw Geometry")
+            Draw_Geometry(cmd);
+        }
+        {
+            MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & swapchain img 3");
+            //transition the draw image and the swapchain image into their correct transfer layouts
+            momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+            momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-	    // execute a copy from the draw image into the swapchain
-        momo_vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[_swapchainImageIndex], _drawExtent, _swapchain_extent);
+            // execute a copy from the draw image into the swapchain
+            momo_vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[_swapchainImageIndex], _drawExtent, _swapchain_extent);
 
-	    // set swapchain image layout to Attachment Optimal so we can draw it
-        momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    }
-	{
-        MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw imGui Cmd Buffer");
-        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw imGui Graphics Queue");
-	    // draw imgui into the swapchain image
-        Draw_ImGui(cmd, _swapchain_image_views[_swapchainImageIndex]);
-	}
-    {
-        MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition swapchain img 4");
-	    // set swapchain image layout to Present so we can show it on the screen
-        momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
-    }
-	{
-        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "end command buffer");
+            // set swapchain image layout to Attachment Optimal so we can draw it
+            momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        }
+        {
+            MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw imGui Cmd Buffer");
+            MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw imGui Graphics Queue");
+            // draw imgui into the swapchain image
+            Draw_ImGui(cmd, _swapchain_image_views[_swapchainImageIndex]);
+        }
+        {
+            MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition swapchain img 4");
+            // set swapchain image layout to Present so we can show it on the screen
+            momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+        }
         PROFILE_GPU_COLLECT(_tracyVkCtx, cmd)
-	    //finalize the command buffer (we can no longer add commands, but it can now be executed)
-	    VK_CHECK(vkEndCommandBuffer(cmd));
-	}
+    } // PROFILE_GPU destructor fires here — end timestamp written while buffer is still recording
+    {
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "end command buffer");
+        //finalize the command buffer (we can no longer add commands, but it can now be executed)
+        VK_CHECK(vkEndCommandBuffer(cmd));
+    }
     {
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "submit command buffer to queue");
 	    //> draw_5
@@ -1121,10 +1125,13 @@ void VulkanEngine::Init_ImGui()
 
 void VulkanEngine::Init_Tracy()
 {
-	// init tracy
 #ifdef TRACY_ENABLE
-	_tracyVkCtx = TracyVkContext(_chosen_GPU, _device, _graphicsQueue, Get_Current_Frame()._mainCommandBuffer)
-		TracyVkContextName(_tracyVkCtx, "_Main Graphics Queue", sizeof("_Main Graphics Queue") - 1)
+	// TracyVkContext requires the command buffer in the *initial* state (reset, not yet begun).
+	// Tracy manages vkBeginCommandBuffer / record / vkEndCommandBuffer / submit internally.
+	// Wrapping in Immediate_Submit pre-begins the buffer, causing a double-begin crash.
+	VK_CHECK(vkResetCommandBuffer(_immCommandBuffer, 0));
+	_tracyVkCtx = TracyVkContext(_chosen_GPU, _device, _graphicsQueue, _immCommandBuffer)
+	TracyVkContextName(_tracyVkCtx, "_Main Graphics Queue", sizeof("_Main Graphics Queue") - 1)
 #endif
 }
 

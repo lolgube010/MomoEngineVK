@@ -200,6 +200,7 @@ void LoadedGLTF::ClearAll()
 
 std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view aFilePath)
 {
+    PROFILE_SCOPE_N("load_gltf")
     auto& aEngine = VulkanEngine::Get();
     fmt::print("Loading GLTF: {}\n", aFilePath);
 
@@ -212,46 +213,53 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
     std::filesystem::path path = aFilePath;
 
-    auto dataResult = fastgltf::GltfDataBuffer::FromPath(path);
-    if (!dataResult)
-    {
-        fmt::print(stderr, "Failed to load glTF file '{}': {} ({})\n", aFilePath,
-            fastgltf::getErrorName(dataResult.error()), fastgltf::getErrorMessage(dataResult.error()));
-        return {};
-    }
-
-    fastgltf::GltfDataBuffer& data = dataResult.get();
     fastgltf::Asset gltf;
+    {
+        // MappedGltfFile uses OS memory-mapped I/O — avoids copying the file into a heap buffer
+        PROFILE_SCOPE_N("fastgltf parse")
+        auto dataResult = fastgltf::MappedGltfFile::FromPath(path);
+        if (!dataResult)
+        {
+            fmt::print(stderr, "Failed to map glTF file '{}': {} ({})\n", aFilePath,
+                fastgltf::getErrorName(dataResult.error()), fastgltf::getErrorMessage(dataResult.error()));
+            return {};
+        }
 
-    const auto type = fastgltf::determineGltfFileType(data);
-    if (type == fastgltf::GltfType::glTF)
-    {
-        auto load = parser.loadGltf(data, path.parent_path(), gltfOptions);
-        if (load)
-            gltf = std::move(load.get());
+        fastgltf::MappedGltfFile& data = dataResult.get();
+
+        // OnlyRenderable skips parsing animations and skins which we don't use
+        constexpr auto categories = fastgltf::Category::OnlyRenderable;
+
+        const auto type = fastgltf::determineGltfFileType(data);
+        if (type == fastgltf::GltfType::glTF)
+        {
+            auto load = parser.loadGltf(data, path.parent_path(), gltfOptions, categories);
+            if (load)
+                gltf = std::move(load.get());
+            else
+            {
+                fmt::print(stderr, "Failed to load glTF '{}': {} ({})\n", aFilePath,
+                    fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
+                return {};
+            }
+        }
+        else if (type == fastgltf::GltfType::GLB)
+        {
+            auto load = parser.loadGltfBinary(data, path.parent_path(), gltfOptions, categories);
+            if (load)
+                gltf = std::move(load.get());
+            else
+            {
+                fmt::print(stderr, "Failed to load glTF '{}': {} ({})\n", aFilePath,
+                    fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
+                return {};
+            }
+        }
         else
         {
-            fmt::print(stderr, "Failed to load glTF '{}': {} ({})\n", aFilePath,
-                fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
+            fmt::print(stderr, "Failed to determine glTF container type for '{}'\n", aFilePath);
             return {};
         }
-    }
-    else if (type == fastgltf::GltfType::GLB)
-    {
-        auto load = parser.loadGltfBinary(data, path.parent_path(), gltfOptions);
-        if (load)
-            gltf = std::move(load.get());
-        else
-        {
-            fmt::print(stderr, "Failed to load glTF '{}': {} ({})\n", aFilePath,
-                fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
-            return {};
-        }
-    }
-    else
-    {
-        fmt::print(stderr, "Failed to determine glTF container type for '{}'\n", aFilePath);
-        return {};
     }
 
     // we can estimate the descriptors we will need accurately
@@ -294,6 +302,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     std::vector<std::shared_ptr<GLTFMaterial>> materials;
 
     // load all textures
+    {PROFILE_SCOPE_N("load textures")
     for (fastgltf::Image& image : gltf.images)
     {
         if (std::optional<AllocatedImage> img = load_image(gltf, image, aFilePath);
@@ -311,12 +320,15 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         }
     }
 
+    } // load textures
+
     // create buffer to hold the material data.
     // was previously VMA_MEMORY_USAGE_CPU_TO_GPU 
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
     debugNameString = fmt::format("Material Data, Path: {}", aFilePath);
     debugName = debugNameString.c_str();
 #endif
+    {PROFILE_SCOPE_N("load materials")
     GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = nullptr;
     if (!gltf.materials.empty())
     {
@@ -377,12 +389,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         newMat->data = aEngine.metalRoughMaterial.Write_Material(aEngine._device, passType, materialResources, file.descriptorPool, debugName);
         data_index++;
     }
+    } // load materials
 
     // use the same vectors for all meshes so that the memory doesn't reallocate as often
     std::vector<uint32_t> indices;
     std::vector<Vertex> vertices;
 
     // TODO- meshoptimizer!
+    {PROFILE_SCOPE_N("upload meshes")
     for (fastgltf::Mesh& mesh : gltf.meshes)
     {
         auto newMesh = std::make_shared<MeshAsset>();
@@ -517,6 +531,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 #endif
         newMesh->meshBuffers = aEngine.UploadMesh(indices, vertices, tempMeshName);
     }
+
+    } // upload meshes
 
     // load all nodes and their meshes
     for (fastgltf::Node& node : gltf.nodes)
