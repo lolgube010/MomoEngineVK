@@ -251,6 +251,9 @@ void VulkanEngine::Draw()
 		    _renderScale);
 	    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 	}
+    #ifdef TRACY_ENABLE
+        TracyVkZone(_tracyVkCtx, cmd," Render ")
+    #endif
 	{
         MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
 	    // transition our main draw image into general layout so we can write into it.

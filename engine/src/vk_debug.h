@@ -1,12 +1,6 @@
 #pragma once
 #include "vk_initializers.h"
 
-// #ifdef _DEBUG
-// #ifndef MOMOVK_ENABLE_DEBUG_NAMES
-// #define MOMOVK_ENABLE_DEBUG_NAMES // uncomment this to remove strings in debug
-// #endif
-// #endif
-
 // helper macros to generate unique variable names
 #define MOMO_CONCAT_IMPL(x, y) x##y
 #define MOMO_MACRO_CONCAT(x, y) MOMO_CONCAT_IMPL(x, y)
