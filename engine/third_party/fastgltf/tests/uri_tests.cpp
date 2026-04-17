@@ -1,7 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <fastgltf/types.hpp>
-#include <fastgltf/parser.hpp>
+#include <fastgltf/core.hpp>
 
 #include "gltf_path.hpp"
 
@@ -10,13 +10,13 @@ TEST_CASE("Test basic URIs", "[uri-tests]") {
     REQUIRE(uri1.scheme().empty());
     REQUIRE(uri1.path().empty());
 
-    std::string_view path = "path/somewhere.xyz";
+    std::string_view relpath = "path/somewhere.xyz";
     SECTION("Basic local path") {
-        const fastgltf::URI uri2(path);
+        const fastgltf::URI uri2(relpath);
         REQUIRE(uri2.scheme().empty());
-        REQUIRE(uri2.path() == path);
+        REQUIRE(uri2.path() == relpath);
         REQUIRE(uri2.isLocalPath());
-        REQUIRE(uri2.fspath() == path);
+        REQUIRE(uri2.fspath() == relpath);
     }
 
     std::string_view abspath = "/path/somewhere.xyz";
@@ -66,9 +66,10 @@ TEST_CASE("Test generic URIs", "[uri-tests]") {
 }
 
 TEST_CASE("Test percent decoding", "[uri-tests]") {
-    std::string test = "%22 %25";
+	// All reserved characters as per RFC 3986 section 2.2 Reserved Characters (January 2005)
+    std::string test = "%20%21%22%23%24%25%26%27%28%29%2A%2B%2C%2F%3A%3B%3D%3F%40%5B%5D";
     fastgltf::URI::decodePercents(test);
-    REQUIRE(test == "\" %");
+    REQUIRE(test == " !\"#$%&'()*+,/:;=?@[]");
 }
 
 TEST_CASE("Test data URI parsing", "[uri-tests]") {
@@ -107,13 +108,16 @@ TEST_CASE("Validate URI copying/moving", "[uri-tests]") {
 
 TEST_CASE("Validate escaped/percent-encoded URI", "[uri-tests]") {
 	const std::string_view gltfString = R"({"images": [{"uri": "grande_sph\u00E8re.png"}]})";
-	fastgltf::GltfDataBuffer dataBuffer;
-	dataBuffer.copyBytes((uint8_t*) gltfString.data(), gltfString.size());
+	auto dataBuffer = fastgltf::GltfDataBuffer::FromBytes(
+			reinterpret_cast<const std::byte*>(gltfString.data()),
+			gltfString.size());
+	REQUIRE(dataBuffer.error() == fastgltf::Error::None);
 
 	fastgltf::Parser parser;
-	auto asset = parser.loadGLTF(&dataBuffer, "", fastgltf::Options::DontRequireValidAssetMember);
+	auto asset = parser.loadGltfJson(dataBuffer.get(), "", fastgltf::Options::DontRequireValidAssetMember);
 	REQUIRE(asset.error() == fastgltf::Error::None);
 
+	REQUIRE(asset->images.size() == 1);
 	auto escaped = std::get<fastgltf::sources::URI>(asset->images.front().data);
 
 	// This only tests wether the default ctor of fastgltf::URI can handle percent-encoding correctly.
@@ -124,12 +128,13 @@ TEST_CASE("Validate escaped/percent-encoded URI", "[uri-tests]") {
 }
 
 TEST_CASE("Test percent-encoded URIs in glTF", "[uri-tests]") {
-	auto boxWithSpaces = sampleModels / "2.0" / "Box With Spaces" / "glTF";
-	fastgltf::GltfDataBuffer jsonData;
-	REQUIRE(jsonData.loadFromFile(boxWithSpaces / "Box With Spaces.gltf"));
+	auto boxWithSpaces = sampleAssets / "Models" / "Box With Spaces" / "glTF";
+
+	fastgltf::GltfFileStream jsonData(boxWithSpaces / "Box With Spaces.gltf");
+	REQUIRE(jsonData.isOpen());
 
 	fastgltf::Parser parser;
-	auto asset = parser.loadGLTF(&jsonData, boxWithSpaces);
+	auto asset = parser.loadGltfJson(jsonData, boxWithSpaces);
 	REQUIRE(asset.error() == fastgltf::Error::None);
 	REQUIRE(fastgltf::validate(asset.get()) == fastgltf::Error::None);
 

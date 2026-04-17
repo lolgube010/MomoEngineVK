@@ -1,5 +1,5 @@
 project = 'fastgltf'
-copyright = '2023, spnda'
+copyright = '2024 - 2026, Sean Apeler'
 author = 'spnda'
 release = '@PROJECT_VERSION@'
 
@@ -9,14 +9,12 @@ templates_path = ['_templates']
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_theme = 'sphinx_rtd_theme'
-# html_static_path = ['_static']
+html_static_path = ['_static']
 html_theme_options = {
     'display_version': True,
     'titles_only': True,
     'navigation_depth': 5,
 }
-
-fastgltf_sources = "@DOXYGEN_INPUT@".split()
 
 breathe_default_project = "fastgltf"
 breathe_projects = {"fastgltf": "@DOXYGEN_OUTPUT@/xml"}

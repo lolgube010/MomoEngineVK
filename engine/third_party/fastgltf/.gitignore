@@ -9,9 +9,10 @@ vcpkg_installed/*
 cmake-build-*/
 
 # IDE specific folders
-.idea/*
-.vscode/*
-.vs/*
+.idea/
+.vscode/
+.vs/
+.cache/
 
 # Binary files
 *.exe
@@ -26,11 +27,18 @@ simdjson/
 deps/
 
 # Test files
-tests/gltf/intel_sponza/
-tests/gltf/sample-models/
-tests/gltf/good-froge/
-tests/gltf/deccer-cubes/
+tests/gltf/intel_sponza
+tests/gltf/glTF-Sample-Models
+tests/gltf/glTF-Sample-Assets
+tests/gltf/glTF_Physics
+tests/gltf/good-froge
+tests/gltf/deccer-cubes
+tests/gltf/bistro
 tests/gltf_loaders/
+tests/gltf/export/
+tests/gltf/export_glb/
+tests/gltf/export_gltf/
+tests/gltf_validator
 
 # gltf Rust wrapper
 tests/gltf-rs/target
@@ -44,3 +52,4 @@ SpirvTemp/
 docs/xml/
 docs/Doxyfile
 docs/conf.py
+docs/.venv/

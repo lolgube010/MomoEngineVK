@@ -4,6 +4,95 @@ API
 
 .. contents:: Table of Contents
 
+glTF enumerations
+=================
+
+AccessorType
+------------
+
+.. doxygenenum:: fastgltf::AccessorType
+
+.. doxygenfunction:: fastgltf::getNumComponents
+
+.. doxygenfunction:: fastgltf::getElementRowCount
+
+.. doxygenfunction:: fastgltf::isMatrix
+
+.. doxygenfunction:: fastgltf::getElementByteSize
+
+.. doxygenfunction:: fastgltf::getAccessorType
+
+.. doxygenfunction:: fastgltf::getAccessorTypeName
+
+ComponentType
+-------------
+
+.. doxygenenum:: fastgltf::ComponentType
+
+.. doxygenfunction:: fastgltf::getComponentByteSize
+
+.. doxygenfunction:: fastgltf::getComponentBitSize
+
+.. doxygenfunction:: fastgltf::getGLComponentType
+
+.. doxygenfunction:: fastgltf::getComponentType
+
+PrimitiveType
+-------------
+
+.. doxygenenum:: fastgltf::PrimitiveType
+
+Filter
+------
+
+.. doxygenenum:: fastgltf::Filter
+
+Wrap
+----
+
+.. doxygenenum:: fastgltf::Wrap
+
+BufferTarget
+------------
+
+.. doxygenenum:: fastgltf::BufferTarget
+
+MimeType
+--------
+
+.. doxygenenum:: fastgltf::MimeType
+
+AnimationInterpolation
+----------------------
+
+.. doxygenenum:: fastgltf::AnimationInterpolation
+
+AnimationPath
+-------------
+
+.. doxygenenum:: fastgltf::AnimationPath
+
+AlphaMode
+---------
+
+.. doxygenenum:: fastgltf::AlphaMode
+
+MeshoptCompressionMode
+----------------------
+
+.. doxygenenum:: fastgltf::MeshoptCompressionMode
+
+MeshoptCompressionFilter
+------------------------
+
+.. doxygenenum:: fastgltf::MeshoptCompressionFilter
+
+LightType
+---------
+
+.. doxygenenum:: fastgltf::LightType
+
+
 glTF structs
 ============
 
@@ -142,11 +231,11 @@ Asset
    :undoc-members:
 
 
-Parser
-======
+Reading & Writing
+=================
 
-This section contains all types that one requires to load a glTF file using fastgltf.
-This includes the Parser class, options, and data buffers.
+This section contains all types that one requires to read or write a glTF file using fastgltf.
+This includes the Parser class, Exporter class, options, and data buffers.
 
 
 Error
@@ -162,6 +251,7 @@ Extensions
 
 .. doxygenfunction:: fastgltf::stringifyExtension
 
+.. doxygenfunction:: fastgltf::stringifyExtensionBits
 
 Category
 --------
@@ -177,6 +267,14 @@ Options
 .. doxygenenum:: fastgltf::Options
 
 
+.. _exportoptions:
+
+ExportOptions
+-------------
+
+.. doxygenenum:: fastgltf::ExportOptions
+
+
 Expected
 --------
 
@@ -185,12 +283,26 @@ Expected
    :undoc-members:
 
 
+GltfDataGetter
+--------------
+
+.. doxygenclass:: fastgltf::GltfDataGetter
+   :members:
+   :undoc-members:
+
+
 GltfDataBuffer
 --------------
 
-.. doxygenfunction:: fastgltf::getGltfBufferPadding
-
 .. doxygenclass:: fastgltf::GltfDataBuffer
+   :members:
+   :undoc-members:
+
+
+GltfFileStream
+--------------
+
+.. doxygenclass:: fastgltf::GltfFileStream
    :members:
    :undoc-members:
 
@@ -198,14 +310,73 @@ GltfDataBuffer
 Parser
 ------
 
+.. doxygenfunction:: fastgltf::determineGltfFileType
+
 .. doxygenclass:: fastgltf::Parser
    :members:
    :undoc-members:
 
-.. doxygenfunction:: fastgltf::determineGltfFileType
-
 .. doxygenstruct:: fastgltf::BufferInfo
    :members:
+
+
+Exporter
+--------
+
+.. doxygenclass:: fastgltf::Exporter
+   :members:
+   :undoc-members:
+
+.. doxygenclass:: fastgltf::FileExporter
+   :members:
+   :undoc-members:
+
+
+Math
+====
+
+**fastgltf** includes a small math library with everything necessary for working with glTF assets.
+
+Vector
+------
+
+.. doxygenclass:: fastgltf::math::vec
+   :members:
+   :undoc-members:
+
+.. doxygenfunction:: fastgltf::math::dot
+
+.. doxygenfunction:: fastgltf::math::cross
+
+.. doxygenfunction:: fastgltf::math::length
+
+.. doxygenfunction:: fastgltf::math::normalize
+
+Quaternion
+----------
+
+.. doxygenclass:: fastgltf::math::quat
+   :members:
+   :undoc-members:
+
+.. doxygenfunction:: fastgltf::math::asMatrix
+
+Matrix
+------
+
+.. doxygenclass:: fastgltf::math::mat
+   :members:
+   :undoc-members:
+
+.. doxygenfunction:: fastgltf::math::translate
+
+.. doxygenfunction:: fastgltf::math::scale
+
+.. doxygenfunction:: fastgltf::math::rotate
+
+.. doxygenfunction:: fastgltf::math::transpose
+
+.. doxygenfunction:: fastgltf::math::decomposeTransformMatrix
 
 
 Utility

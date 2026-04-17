@@ -3,6 +3,7 @@
 #include <fastgltf/types.hpp>
 
 TEST_CASE("Verify clz", "[vector-tests]") {
+	REQUIRE(fastgltf::clz<std::uint8_t>(0b00000000) == 8);
 	REQUIRE(fastgltf::clz<std::uint8_t>(0b00000001) == 7);
 	REQUIRE(fastgltf::clz<std::uint8_t>(0b00000010) == 6);
 	REQUIRE(fastgltf::clz<std::uint8_t>(0b00000100) == 5);
@@ -112,4 +113,14 @@ TEST_CASE("Test vectors with polymorphic allocators", "[vector-tests]") {
 	for (auto& i : ints) {
 		REQUIRE(i == 5);
 	}
+}
+
+TEST_CASE("Test initial value for StaticVector", "[vector-tests]") {
+	fastgltf::StaticVector<std::uint32_t> vector(10, 25);
+	std::size_t count = 0;
+	for (auto& i : vector) {
+		REQUIRE(i == 25);
+		++count;
+	}
+	REQUIRE(count == 10);
 }
