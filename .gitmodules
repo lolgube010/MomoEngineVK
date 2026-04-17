@@ -3,4 +3,4 @@
 	url = https://github.com/wolfpld/tracy.git
 [submodule "engine/third_party/fastgltf"]
 	path = engine/third_party/fastgltf
-	url = https://github.com/spnda/fastgltf
+	url = https://github.com/spnda/fastgltf.git
