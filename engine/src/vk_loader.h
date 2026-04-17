@@ -40,11 +40,6 @@ struct MeshAsset
 
 class VulkanEngine;
 
-// NOTE: LEGACY
-// std optional allows our vector to be errored / null. 
-// std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes_Legacy(VulkanEngine* aEngine, const std::filesystem::path& aFilePath);
-
-
 struct LoadedGLTF : IRenderable 
 {
     // storage for all the data on a given glTF file
@@ -78,5 +73,16 @@ namespace momo_GLTF
 
     VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter aFilter);
 
-    std::optional<AllocatedImage> load_image(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath);
+    // TODO:
+    // For the textures, we are going to load them using stb_image. Sadly, it does not load KTX or DDS
+    // formats which are much better for GPU usage (compressed, direct upload, pregenerated mipmaps).
+
+    // CPU-side decode result + staging buffer ready for a batched GPU upload.
+    // The VkImage is allocated but contains no data yet; Immediate_Submit fills it.
+    struct PendingTextureUpload
+    {
+        AllocatedImage image;
+        AllocatedBuffer stagingBuffer;
+    };
+    std::optional<PendingTextureUpload> load_image(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath);
 }

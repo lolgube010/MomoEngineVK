@@ -2,9 +2,11 @@
 #include <vk_loader.h>
 
 #include "vk_engine.h"
+#include "vk_images.h"
 #include "vk_initializers.h"
 #include "vk_types.h"
 #include <fmt/std.h>
+#include <execution>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
@@ -13,146 +15,6 @@
 #include <fastgltf/glm_element_traits.hpp>
 #include <fastgltf/core.hpp>
 #include <fastgltf/tools.hpp>
-
-// std::optional<std::vector<std::shared_ptr<MeshAsset>>> LoadGltfMeshes_Legacy(VulkanEngine* aEngine, const std::filesystem::path& aFilePath)
-// {
-//     fmt::print("Loading GLTF: {}\n", aFilePath);
-//
-//     fastgltf::GltfDataBuffer data;
-//     data.loadFromFile(aFilePath);
-//
-//     constexpr auto gltfOptions = fastgltf::Options::LoadGLBBuffers | fastgltf::Options::LoadExternalBuffers;
-//
-//     fastgltf::Asset gltf;
-//     fastgltf::Parser parser{};
-//
-//     auto load = parser.loadBinaryGLTF(&data, aFilePath.parent_path(), gltfOptions);
-//
-//     if (load)
-//     {
-//         gltf = std::move(load.get());
-//     }
-//     else
-//     {
-//         fmt::print("Failed to load glTF: {} \n", fastgltf::to_underlying(load.error()));
-//         return {};
-//     }
-//
-//     std::vector<std::shared_ptr<MeshAsset>> meshes;
-//
-//     // use the same vectors for all meshes so that the memory doesn't reallocate as often
-//     std::vector<uint32_t> indices;
-//     std::vector<Vertex> vertices;
-//     for (fastgltf::Mesh& mesh : gltf.meshes)
-//     {
-//         MeshAsset newMesh;
-//
-//         newMesh.name = mesh.name;
-//
-//         // clear the mesh arrays each mesh, we don't want to merge them by error
-//         indices.clear();
-//         vertices.clear();
-//
-//         for (auto&& p : mesh.primitives)
-//         {
-//             GeoSurface newSurface;
-//             newSurface.startIndex = static_cast<uint32_t>(indices.size());
-//             newSurface.count = static_cast<uint32_t>(gltf.accessors[p.indicesAccessor.value()].count);
-//
-//             size_t initial_vtx = vertices.size();
-//
-//             // load indexes
-//             {
-//                 fastgltf::Accessor& indexAccessor = gltf.accessors[p.indicesAccessor.value()];
-//                 indices.reserve(indices.size() + indexAccessor.count);
-//
-//                 fastgltf::iterateAccessor<std::uint32_t>(gltf, indexAccessor,
-//                                                          [&](std::uint32_t idx)
-//                                                          {
-//                                                              indices.push_back(idx + static_cast<uint32_t>(initial_vtx));
-//                                                          });
-//             }
-//
-//             // load vertex positions, this is guaranteed to be in the file. the other info isn't.
-//             {
-//                 fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
-//                 vertices.resize(vertices.size() + posAccessor.count);
-//
-//                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
-//                                                               [&](glm::vec3 v, size_t index)
-//                                                               {
-//                                                                   Vertex new_vtx;
-//                                                                   new_vtx.pos = v;
-//                                                                   new_vtx.normal = {1, 0, 0};
-//                                                                   new_vtx.color = glm::vec4{1.f};
-//                                                                   new_vtx.uv_x = 0;
-//                                                                   new_vtx.uv_y = 0;
-//                                                                   vertices[initial_vtx + index] = new_vtx;
-//                                                               });
-//             }
-//
-//             // load vertex normals. data except position isn't guaranteed to exist so we need to check first.
-//             {
-//                 auto normals = p.findAttribute("NORMAL");
-//                 if (normals != p.attributes.end())
-//                 {
-//                     fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->accessorIndex],
-//                                                                   [&](glm::vec3 v, size_t index)
-//                                                                   {
-//                                                                       vertices[initial_vtx + index].normal = v;
-//                                                                   });
-//                 }
-//             }
-//
-//             // load UVs
-//             {
-//                 auto uv = p.findAttribute("TEXCOORD_0");
-//                 if (uv != p.attributes.end())
-//                 {
-//                     fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->accessorIndex],
-//                                                                   [&](glm::vec2 v, size_t index)
-//                                                                   {
-//                                                                       vertices[initial_vtx + index].uv_x = v.x;
-//                                                                       vertices[initial_vtx + index].uv_y = v.y;
-//                                                                   });
-//                 }
-//             }
-//
-//             // load vertex colors
-//             {
-//                 auto colors = p.findAttribute("COLOR_0");
-//                 if (colors != p.attributes.end())
-//                 {
-//                     fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->accessorIndex],
-//                                                                   [&](glm::vec4 v, size_t index)
-//                                                                   {
-//                                                                       vertices[initial_vtx + index].color = v;
-//                                                                   });
-//                 }
-//             }
-//             newMesh.surfaces.push_back(newSurface);
-//         }
-//
-//         // override the vertex colors with the vertex normals which is useful for debugging
-//         constexpr bool OverrideColors = true;
-//         if (OverrideColors)
-//         {
-//             for (Vertex& vtx : vertices)
-//             {
-//                 vtx.color = glm::vec4(vtx.normal, 1.f);
-//             }
-//         }
-//
-//         // if we ever want to do something with the model data while it still lives on the cpu, THIS is that moment. after this they're gpu only.
-//
-//         // where we create and fill our buffers.
-//         newMesh.meshBuffers = aEngine->UploadMesh(indices, vertices);
-//
-//         meshes.emplace_back(std::make_shared<MeshAsset>(std::move(newMesh)));
-//     }
-//
-//     return meshes;
-// }
 
 void LoadedGLTF::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 {
@@ -170,7 +32,7 @@ void LoadedGLTF::ClearAll()
     // Those structures are still around. 
     // If you want to destroy a LoadedGLTF at runtime, either do a VkQueueWait like we have in the cleanup function, or add it into the per - frame deletion queue and defer it. 
     // We are storing the shared_ptrs to hold LoadedGLTF, so it can abuse the lambda capture functionality to do this.
-    auto& creator = VulkanEngine::Get();
+    const auto& creator = VulkanEngine::Get();
     const VkDevice dv = creator._device;
 
     descriptorPool.Destroy_Pools(dv);
@@ -301,26 +163,71 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     std::vector<AllocatedImage> images;
     std::vector<std::shared_ptr<GLTFMaterial>> materials;
 
-    // load all textures
+    // Phase 1 — CPU: decode every image and fill a host-visible staging buffer.
+    // No GPU submissions here; we batch them all into one Immediate_Submit below.
+    //
+    // Each image is independent so decoding runs in parallel across all cores.
+    // stbi uses no global state for the decode itself (only stbi_failure_reason() is a global
+    // string, so error messages on the rare failure path may be garbled — acceptable).
+    // VMA Create_Image / Create_Buffer are internally locked and safe to call concurrently.
+    std::vector<std::optional<PendingTextureUpload>> decoded(gltf.images.size());
+
     {PROFILE_SCOPE_N("load textures")
-    for (fastgltf::Image& image : gltf.images)
+    std::transform(std::execution::par,
+        gltf.images.begin(), gltf.images.end(),
+        decoded.begin(),
+        [&](fastgltf::Image& image) { return load_image_stbi(gltf, image, aFilePath); });
+    } // load textures
+
+    // Collect results serially — maintains index alignment with gltf.images for material lookups.
+    std::vector<PendingTextureUpload> pendingUploads;
+    pendingUploads.reserve(gltf.images.size());
+    for (size_t i = 0; i < decoded.size(); ++i)
     {
-        if (std::optional<AllocatedImage> img = load_image(gltf, image, aFilePath);
-            img.has_value())
+        if (decoded[i].has_value())
         {
-            img->name = image.name;
-            images.push_back(*img);
-            file.images.push_back(*img);
+            decoded[i]->image.name = gltf.images[i].name;
+            images.push_back(decoded[i]->image);
+            file.images.push_back(decoded[i]->image);
+            pendingUploads.push_back(std::move(*decoded[i]));
         }
         else
         {
-            // we failed to load, so lets give the slot a default texture to not completely break loading
+            // failed to decode — slot gets a fallback so material indices stay aligned
             images.push_back(aEngine._errorCheckerboardImage);
-            fmt::print("gltf failed to load texture {}\n", image.name);
+            fmt::print("gltf failed to load texture {}\n", gltf.images[i].name);
         }
     }
 
-    } // load textures
+    // Phase 2 — GPU: copy all staging buffers and generate mipmaps in one command buffer.
+    // Previously this was one Immediate_Submit per texture (N serial CPU-GPU sync points).
+    {
+        PROFILE_SCOPE_N("upload textures")
+        aEngine.Immediate_Submit([&](const VkCommandBuffer cmd)
+        {
+            for (const auto& p : pendingUploads)
+            {
+                momo_vkUtil::Transition_Image(cmd, p.image.image,
+                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+                VkBufferImageCopy copyRegion = {};
+                copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+                copyRegion.imageSubresource.layerCount = 1;
+                copyRegion.imageExtent = p.image.imageExtent;
+                vkCmdCopyBufferToImage(cmd, p.stagingBuffer.buffer, p.image.image,
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+
+                // TODO: And in the upload textures GPU batch — replace the generate_mipmaps call with a loop that copies each mip level individually(since they're all in the staging buffer already), and the final layout transition goes straight to SHADER_READ_ONLY_OPTIMAL without going through the blit chain.
+                momo_vkUtil::generate_mipmaps(cmd, p.image.image,
+                    VkExtent2D{.width = p.image.imageExtent.width, .height = p.image.imageExtent.height });
+            }
+        });
+
+        for (auto& p : pendingUploads)
+        {
+            aEngine.Destroy_Buffer(p.stagingBuffer);
+        }
+    } // upload textures
 
     // create buffer to hold the material data.
     // was previously VMA_MEMORY_USAGE_CPU_TO_GPU 
@@ -637,29 +544,29 @@ VkSamplerMipmapMode momo_GLTF::extract_mipmap_mode(const fastgltf::Filter aFilte
 
 }
 
-// TODO:
-// For the textures, we are going to load them using stb_image.This is a single - header library to load png, jpeg, and a few others.Sadly, it does not load KTX or DDS formats, which are much better for graphics usages as they can be uploaded almost directly into the GPU and are a compressed format that the GPU reads directly so it saves VRAM.
-
-std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath)
+std::optional<momo_GLTF::PendingTextureUpload> momo_GLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath)
 {
-    const auto& aEngine = VulkanEngine::Get();
+    // Decodes one GLTF image to RGBA pixels, allocates the VkImage and a host-visible staging
+    // buffer, and copies the pixels in. Does NOT submit any GPU work — call site batches uploads.
+    const auto& engine = VulkanEngine::Get();
 
-    AllocatedImage newImage{};
-
-    int width, height, nrChannels;
-
+    // TODO: Replace this — the entire std::visit block and the three variables before it(lines 555 - 613).This is the "what format is the image data in, decode it to raw RGBA pixels" section.With KTX2, the file already contains BCn / ASTC compressed data with all mip levels baked in — there 's no CPU decode step at all. You' d replace the stbi visitor with a ktxTexture2_CreateFromMemory call that gives you the raw compressed bytes directly.
+    
     const char* imgName = nullptr;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
     const std::string temp = fmt::format("{}, Path: {}", aImage.name, aFilePath);
     imgName = temp.c_str();
 #endif
 
+    int width = 0, height = 0, nrChannels = 0;
+    unsigned char* pixels = nullptr;
+
     std::visit(
         fastgltf::visitor{
             [&](auto& arg)
             {
                 fmt::print(stderr, "load_image: unhandled source type '{}' for image '{}'\n",
-                    typeid(arg).name(), aImage.name);
+                           typeid(arg).name(), aImage.name);
             },
             [&](fastgltf::sources::URI& filePath)
             {
@@ -671,93 +578,63 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
                 if (!filePath.uri.isLocalPath())
                 {
                     fmt::print(stderr, "load_image: non-local URI not supported: '{}' (image '{}')\n",
-                        filePath.uri.string(), aImage.name);
+                               filePath.uri.string(), aImage.name);
                     return;
                 }
-
                 const std::string path(filePath.uri.path().begin(), filePath.uri.path().end());
-                unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
-                if (data)
-                {
-                    VkExtent3D imagesize;
-                    imagesize.width = width;
-                    imagesize.height = height;
-                    imagesize.depth = 1;
-
-                    newImage = aEngine.Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName, true);
-
-                    stbi_image_free(data);
-                }
-                else
-                {
+                pixels = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+                if (!pixels)
                     fmt::print(stderr, "load_image: stbi failed to load '{}': {}\n", path, stbi_failure_reason());
-                }
             },
             [&](fastgltf::sources::Array& array)
             {
                 const auto* bytes = reinterpret_cast<const stbi_uc*>(array.bytes.data());
-                unsigned char* data = stbi_load_from_memory(bytes, static_cast<int>(array.bytes.size()),
-                                                            &width, &height, &nrChannels, 4);
-                if (data)
-                {
-                    VkExtent3D imagesize;
-                    imagesize.width = width;
-                    imagesize.height = height;
-                    imagesize.depth = 1;
-
-                    newImage = aEngine.Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName, true);
-
-                    stbi_image_free(data);
-                }
-                else
-                {
+                pixels = stbi_load_from_memory(bytes, static_cast<int>(array.bytes.size()),
+                                               &width, &height, &nrChannels, 4);
+                if (!pixels)
                     fmt::print(stderr, "load_image: stbi failed to decode embedded array for image '{}': {}\n",
-                        aImage.name, stbi_failure_reason());
-                }
+                               aImage.name, stbi_failure_reason());
             },
             [&](fastgltf::sources::BufferView& view)
             {
                 const auto& bufferView = aAsset.bufferViews[view.bufferViewIndex];
                 auto& buffer = aAsset.buffers[bufferView.bufferIndex];
-
-                std::visit(fastgltf::visitor{
-                               [&](auto& arg)
-                               {
-                                   fmt::print(stderr, "load_image: unhandled buffer source type '{}' for image '{}'\n",
-                                       typeid(arg).name(), aImage.name);
-                               },
-                               [&](fastgltf::sources::Array& array)
-                               {
-                                   const auto* bytes = reinterpret_cast<const stbi_uc*>(array.bytes.data() + bufferView.byteOffset);
-                                   unsigned char* data = stbi_load_from_memory(bytes,
-                                                                               static_cast<int>(bufferView.byteLength),
-                                                                               &width, &height, &nrChannels, 4);
-                                   if (data)
-                                   {
-                                       VkExtent3D imagesize;
-                                       imagesize.width = width;
-                                       imagesize.height = height;
-                                       imagesize.depth = 1;
-
-                                       newImage = aEngine.Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName, true);
-
-                                       stbi_image_free(data);
-                                   }
-                                   else
-                                   {
-                                       fmt::print(stderr, "load_image: stbi failed to decode buffer view for image '{}': {}\n",
-                                           aImage.name, stbi_failure_reason());
-                                   }
-                               }},
-                    buffer.data);
+                std::visit(fastgltf::visitor{[&](auto& arg)
+                                             {
+                                                 fmt::print(stderr, "load_image: unhandled buffer source type '{}' for image '{}'\n",
+                                                            typeid(arg).name(), aImage.name);
+                                             },
+                                             [&](fastgltf::sources::Array& array)
+                                             {
+                                                 const auto* bytes = reinterpret_cast<const stbi_uc*>(array.bytes.data() + bufferView.byteOffset);
+                                                 pixels = stbi_load_from_memory(bytes, static_cast<int>(bufferView.byteLength),
+                                                                                &width, &height, &nrChannels, 4);
+                                                 if (!pixels)
+                                                     fmt::print(stderr, "load_image: stbi failed to decode buffer view for image '{}': {}\n",
+                                                                aImage.name, stbi_failure_reason());
+                                             }},
+                           buffer.data);
             },
         },
         aImage.data);
 
-    // if any of the attempts to load the data failed, we haven't written the image, so handle is null
-    if (newImage.image == VK_NULL_HANDLE)
-    {
-        return {};
-    }
-    return newImage;
+    if (!pixels)
+        return std::nullopt;
+
+    const VkExtent3D extent = {.width = static_cast<uint32_t>(width), .height = static_cast<uint32_t>(height), .depth = 1};
+
+    // TODO:
+    // Also change these lines(618 - 626) — the format, image usage flags, and staging buffer size :
+    // Currently: hardcoded UNORM, TRANSFER_SRC for mipmap blitting, only mip 0 size
+    // KTX2 replacement: format comes from ktxTex->vkFormat, no TRANSFER_SRC needed, staging buffer holds all mip levels combined. do ktxTex-->dataSize instead of what im dooing now
+ 
+    // Allocate the destination VkImage. TRANSFER_SRC is needed for mipmap blitting.
+    AllocatedImage image = engine.Create_Image(extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, imgName, /*mipmapped=*/true);
+
+    const size_t dataSize = static_cast<size_t>(width) * height * 4;
+    const AllocatedBuffer staging = engine.Create_Buffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, nullptr);
+    memcpy(staging.info.pMappedData, pixels, dataSize);
+    stbi_image_free(pixels);
+
+    return PendingTextureUpload{.image = std::move(image), .stagingBuffer = staging};
 }
