@@ -251,9 +251,7 @@ void VulkanEngine::Draw()
 		    _renderScale);
 	    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 	}
-    #ifdef TRACY_ENABLE
-        TracyVkZone(_tracyVkCtx, cmd," Render ")
-    #endif
+    PROFILE_GPU(_tracyVkCtx, cmd, "Render")
 	{
         MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
 	    // transition our main draw image into general layout so we can write into it.
@@ -301,6 +299,7 @@ void VulkanEngine::Draw()
     }
 	{
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "end command buffer");
+        PROFILE_GPU_COLLECT(_tracyVkCtx, cmd)
 	    //finalize the command buffer (we can no longer add commands, but it can now be executed)
 	    VK_CHECK(vkEndCommandBuffer(cmd));
 	}
@@ -402,11 +401,13 @@ void VulkanEngine::Cleanup()
 
 			frame._deletionQueue.Flush();
 		}
+#ifdef TRACY_ENABLE
 		if (_tracyVkCtx)
 		{
 			TracyVkDestroy(_tracyVkCtx)
 			_tracyVkCtx = nullptr;
 		}
+#endif
 		// for (const auto& mesh : _testMeshes) 
 		// {
 		// 	Destroy_Buffer(mesh->meshBuffers._indexBuffer);

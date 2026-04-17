@@ -22,9 +22,9 @@
 
 // Vulkan GPU zones (highly recommended!)
 // Requires you to have a TracyVkCtx created (see below)
-#define PROFILE_GPU(cmdbuf, name)     TracyVkZone(cmdbuf, name)
-#define PROFILE_GPU_C(cmdbuf, name, color)  TracyVkZoneC(cmdbuf, name, color)
-#define PROFILE_GPU_COLLECT(cmdbuf)   TracyVkCollect(cmdbuf)
+#define PROFILE_GPU(ctx, cmdbuf, name)              TracyVkZone(ctx, cmdbuf, name)
+#define PROFILE_GPU_C(ctx, cmdbuf, name, color)     TracyVkZoneC(ctx, cmdbuf, name, color)
+#define PROFILE_GPU_COLLECT(ctx, cmdbuf)            TracyVkCollect(ctx, cmdbuf)
 
 #else
 // No-op when Tracy is disabled (TRACY_ENABLE=OFF or not set)
@@ -36,7 +36,7 @@
 #define PROFILE_FRAME_N(name)
 #define PROFILE_MSG(msg)
 #define PROFILE_PLOT(name, val)
-#define PROFILE_GPU(cmdbuf, name)
-#define PROFILE_GPU_C(cmdbuf, name, color)
-#define PROFILE_GPU_COLLECT(cmdbuf)
+#define PROFILE_GPU(ctx, cmdbuf, name)
+#define PROFILE_GPU_C(ctx, cmdbuf, name, color)
+#define PROFILE_GPU_COLLECT(ctx, cmdbuf)
 #endif
