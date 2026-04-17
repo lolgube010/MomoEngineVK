@@ -10,7 +10,7 @@ project(MomoVK
 # ---------------------------------------------------------------------------
 option(MOMOVK_ENABLE_DEBUG_NAMES "Enable Vulkan object debug naming in Debug builds" OFF)
 option(TRACY_ENABLE              "Enable Tracy profiling client"                      ON)
-option(TRACY_ON_DEMAND           "Tracy on-demand mode (connect manually)"            ON)
+option(TRACY_ON_DEMAND           "Tracy on-demand mode (connect manually; disabling lets Tracy buffer startup data so you can profile init)"  OFF)
 
 # ---------------------------------------------------------------------------
 # Vulkan SDK — find once here; subdirectories use the resulting targets

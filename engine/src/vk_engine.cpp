@@ -204,13 +204,14 @@ void VulkanEngine::Init()
 	Init_Tracy();
     // _render_doc.Init_RenderDoc(&_instance, _window);
 	
-	{ PROFILE_SCOPE_N("Init_Default_Data"); Init_Default_Data(); }
+	Init_Default_Data();
     Input::Instance().Init();
 	_is_initialized = true;
 }
 
 void VulkanEngine::Draw()
 {
+    PROFILE_SCOPE_N("Draw")
 	{
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "wait for fences");
 	    //> draw_1
@@ -355,7 +356,7 @@ void VulkanEngine::Run()
 	while (!bQuit)
 	{
         const uint64_t currentTime = SDL_GetPerformanceCounter();
-        float dt = (currentTime - lastTime) / static_cast<float>(_stats.frequency);
+        float dt = static_cast<float>(currentTime - lastTime) / static_cast<float>(_stats.frequency);
         lastTime = currentTime;
         dt = std::min(dt, 0.25f);
         _stats.frameTime = dt * 1000.0f;
@@ -566,6 +567,7 @@ void VulkanEngine::Destroy_Image(const AllocatedImage& aImg) const
 
 void VulkanEngine::Init_Vulkan()
 {
+    PROFILE_SCOPE_N("Init_Vulkan")
     if (auto res = volkInitialize(); 
 		res != VK_SUCCESS)
     {
@@ -733,6 +735,7 @@ void VulkanEngine::Init_Vulkan()
 
 void VulkanEngine::Init_Swapchain()
 {
+    PROFILE_SCOPE_N("Init_Swapchain")
 	Create_Swapchain(_windowExtent.width, _windowExtent.height);
 
 	//> create image (fullscreen render target/render image)
@@ -807,7 +810,8 @@ void VulkanEngine::Init_Swapchain()
 
 void VulkanEngine::Init_Commands()
 {
-	// create a command pool for commands submitted to the graphics queue. 
+    PROFILE_SCOPE_N("Init_Commands")
+	// create a command pool for commands submitted to the graphics queue.
 	// we also want the pool to allow for resetting of individual command buffers
 	const VkCommandPoolCreateInfo commandPoolInfo = momo_vkInit::command_pool_create_info(_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
@@ -842,6 +846,7 @@ void VulkanEngine::Init_Commands()
 
 void VulkanEngine::Init_Sync_Structures()
 {
+    PROFILE_SCOPE_N("Init_Sync_Structures")
 	// create synchronization structures
 	// one fence to control when the gpu has finished rendering the frame, and 2 semaphores to synchronize rendering with swapchain
 	// we want the fence to start signalled so we can wait on it on the first frame
@@ -880,6 +885,7 @@ void VulkanEngine::Init_Sync_Structures()
 
 void VulkanEngine::Init_Descriptors()
 {
+    PROFILE_SCOPE_N("Init_Descriptors")
 	//create a descriptor pool that will hold 10 sets with 1 image each
 	std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> sizes =
 	{
@@ -960,6 +966,7 @@ void VulkanEngine::Init_Descriptors()
 
 void VulkanEngine::Init_Pipelines()
 {
+    PROFILE_SCOPE_N("Init_Pipelines")
 	// compute pipelines
 	Init_Background_Pipelines();
 
@@ -971,6 +978,7 @@ void VulkanEngine::Init_Pipelines()
 
 void VulkanEngine::Init_Background_Pipelines()
 {
+    PROFILE_SCOPE_N("Init_Background_Pipelines")
 	VkPushConstantRange pushConstant{};
 	pushConstant.offset = 0;
 	pushConstant.size = sizeof(ComputePushConstants);
@@ -1034,6 +1042,7 @@ void VulkanEngine::Init_Background_Pipelines()
 
 void VulkanEngine::Init_ImGui()
 {
+    PROFILE_SCOPE_N("Init_ImGui")
 	// 1: create descriptor pool for IMGUI
 	//  the size of the pool is very oversize, but it's copied from imgui demo
 	//  itself.
@@ -1125,6 +1134,7 @@ void VulkanEngine::Init_ImGui()
 
 void VulkanEngine::Init_Tracy()
 {
+    PROFILE_SCOPE_N("Init_Tracy")
 #ifdef TRACY_ENABLE
 	// TracyVkContext requires the command buffer in the *initial* state (reset, not yet begun).
 	// Tracy manages vkBeginCommandBuffer / record / vkEndCommandBuffer / submit internally.
@@ -1137,6 +1147,7 @@ void VulkanEngine::Init_Tracy()
 
 void VulkanEngine::Init_Default_Data()
 {
+    PROFILE_SCOPE_N("Init_Default_Data")
 	// std::array<Vertex, 4> rect_vertices;
 	//
 	// rect_vertices[0].pos = {0.8, -0.5, 0};
@@ -1535,6 +1546,7 @@ void VulkanEngine::ImGui_Run()
 
 void VulkanEngine::ImGuiFrame()
 {
+    PROFILE_SCOPE_N("ImGuiFrame")
     // imgui new frame
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL2_NewFrame();
@@ -1869,6 +1881,7 @@ void VulkanEngine::Resize_Swapchain()
 
 void VulkanEngine::Update_Scene()
 {
+    PROFILE_SCOPE_N("Update_Scene")
 	const auto start = std::chrono::system_clock::now();
 
 	_mainDrawContext.opaqueSurfaces.clear();
@@ -1910,6 +1923,7 @@ void VulkanEngine::Update_Scene()
 
 void VulkanEngine::ProcessEvents(bool& aQuit)
 {
+    PROFILE_SCOPE_N("ProcessEvents")
     SDL_Event e;
 
     // Handle events on queue
