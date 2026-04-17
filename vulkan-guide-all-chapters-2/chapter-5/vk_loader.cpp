@@ -356,6 +356,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> loadGltf(VulkanEngine* engine, std::s
                     });
             }
 
+            // display the vertex normals
+            constexpr bool OverrideColors = false;
+            if (OverrideColors) {
+                for (Vertex& vtx : vertices) {
+                    vtx.color = glm::vec4(vtx.normal, 1.f);
+                }
+            }
+
             if (p.materialIndex.has_value()) {
                 newSurface.material = materials[p.materialIndex.value()];
             } else {

@@ -11,11 +11,20 @@ layout (location = 0) out vec4 outFragColor;
 
 void main() 
 {
-	//outFragColor = vec4(inColor.xyz, 1.f); // to debug normals
-	float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
+    //outFragColor = vec4(1.f,1.f,1.f,1.f); return;
+    vec4 metalRough = texture(metalRoughTex, inUV);
+    //outFragColor = metalRough; return;
+    float roughness = metalRough.g * materialData.metal_rough_factors.y;
+    float metallic  = metalRough.b * materialData.metal_rough_factors.x;
 
-	vec3 color = inColor * texture(colorTex,inUV).xyz;
-	vec3 ambient = color *  sceneData.ambientColor.xyz;
+    float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
 
-	outFragColor = vec4(color * lightValue *  sceneData.sunlightColor.w + ambient ,1.0f);
+    vec3 color   = inColor * texture(colorTex, inUV).xyz *
+materialData.colorFactors.xyz;
+    vec3 ambient = color * sceneData.ambientColor.xyz;
+
+    // Metals have no diffuse; attenuate by (1 - metallic)
+    vec3 diffuse = color * (1.0 - metallic) * lightValue * sceneData.sunlightColor.w;
+
+    outFragColor = vec4(diffuse + ambient, 1.0);
 }

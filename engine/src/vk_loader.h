@@ -84,5 +84,5 @@ namespace momo_GLTF
         AllocatedImage image;
         AllocatedBuffer stagingBuffer;
     };
-    std::optional<PendingTextureUpload> load_image(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath);
+    std::optional<PendingTextureUpload> load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath);
 }

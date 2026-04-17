@@ -1182,6 +1182,7 @@ void VulkanEngine::Init_Default_Data()
 
 	_mainCamera.velocity = glm::vec3(0.f);
 	_mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
+	// _mainCamera.position = glm::vec3();
 
 	_mainCamera.pitch = 0;
 	_mainCamera.yaw = 0;
@@ -1280,9 +1281,9 @@ void VulkanEngine::Init_Default_Data()
 	// 	_loadedNodes[m->name] = std::move(newNode);
 	// }
 
-	// const std::string structurePath = {R"(..\..\assets\sponza\sponza-png.glb)"};
-	// const std::string structurePath = {R"(..\..\assets\sponza\sponza-avif-hi.glb)"};
-	const std::string structurePath = {R"(..\..\assets\structure.glb)"};
+	const std::string structurePath = {R"(..\..\assets\sponza\sponza-png.glb)"};
+	// const std::string structurePath = {R"(..\..\assets\sponza\sponza-avif-hi.glb)"}; // unsupported model test
+	// const std::string structurePath = {R"(..\..\assets\structure.glb)"};
     const auto structureFile = momo_GLTF::load_gltf(structurePath);
 	assert(structureFile.has_value());
 

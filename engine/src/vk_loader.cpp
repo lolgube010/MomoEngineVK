@@ -201,8 +201,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
     // Phase 2 — GPU: copy all staging buffers and generate mipmaps in one command buffer.
     // Previously this was one Immediate_Submit per texture (N serial CPU-GPU sync points).
-    {
-        PROFILE_SCOPE_N("upload textures")
+    { PROFILE_SCOPE_N("upload textures")
         aEngine.Immediate_Submit([&](const VkCommandBuffer cmd)
         {
             for (const auto& p : pendingUploads)
@@ -229,73 +228,85 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         }
     } // upload textures
 
-    // create buffer to hold the material data.
-    // was previously VMA_MEMORY_USAGE_CPU_TO_GPU 
-#ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    debugNameString = fmt::format("Material Data, Path: {}", aFilePath);
-    debugName = debugNameString.c_str();
-#endif
-    {PROFILE_SCOPE_N("load materials")
-    GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = nullptr;
-    if (!gltf.materials.empty())
-    {
-        file.materialDataBuffer = aEngine.Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
-        sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
-    }
-    int data_index = 0;
-
-    for (fastgltf::Material& mat : gltf.materials)
-    {
-        auto newMat = std::make_shared<GLTFMaterial>();
-        materials.push_back(newMat);
-        file.materials.push_back(newMat);
-
-        GLTFMetallic_Roughness::MaterialConstants constants;
-        constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
-        constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
-        constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
-        constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
-
-        constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
-        constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
-        // write material parameters to buffer
-        sceneMaterialConstants[data_index] = constants;
-
-        auto passType = MaterialPass::MainColor;
-        if (mat.alphaMode == fastgltf::AlphaMode::Blend)
-        {
-            passType = MaterialPass::Transparent;
-        }
-
-        GLTFMetallic_Roughness::MaterialResources materialResources;
-        // default the material textures
-        materialResources.colorImage = aEngine._whiteImage;
-        materialResources.colorSampler = aEngine._defaultSamplerLinear;
-        materialResources.metalRoughImage = aEngine._whiteImage;
-        materialResources.metalRoughSampler = aEngine._defaultSamplerLinear;
-
-        // set the uniform buffer for the material data
-        materialResources.dataBuffer = file.materialDataBuffer.buffer;
-        materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
-        // grab textures from gltf file
-        if (mat.pbrData.baseColorTexture.has_value())
-        {
-            const fastgltf::Texture& tex = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex];
-            if (tex.imageIndex.has_value())
-                materialResources.colorImage = images[tex.imageIndex.value()];
-            materialResources.colorSampler = tex.samplerIndex.has_value()
-                ? file.samplers[tex.samplerIndex.value()]
-                : aEngine._defaultSamplerLinear;
-        }
-        // build material
-#ifdef MOMOVK_ENABLE_DEBUG_NAMES
-        debugNameString = fmt::format("Material Name: {}, Path: {}", mat.name, aFilePath);
+    #ifdef MOMOVK_ENABLE_DEBUG_NAMES
+        debugNameString = fmt::format("Material Data, Path: {}", aFilePath);
         debugName = debugNameString.c_str();
-        newMat.get()->debugName = debugName;
-#endif
-        newMat->data = aEngine.metalRoughMaterial.Write_Material(aEngine._device, passType, materialResources, file.descriptorPool, debugName);
-        data_index++;
-    }
+    #endif
+    {PROFILE_SCOPE_N("load materials")
+        GLTFMetallic_Roughness::MaterialConstants* sceneMaterialConstants = nullptr;
+        if (!gltf.materials.empty())
+        {
+            // create buffer to hold the material data.
+            // was previously VMA_MEMORY_USAGE_CPU_TO_GPU 
+            file.materialDataBuffer = aEngine.Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
+            sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
+        }
+        int data_index = 0;
+
+        for (fastgltf::Material& mat : gltf.materials)
+        {
+            auto newMat = std::make_shared<GLTFMaterial>();
+            materials.push_back(newMat);
+            file.materials.push_back(newMat);
+
+            GLTFMetallic_Roughness::MaterialConstants constants;
+            constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
+            constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
+            constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
+            constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
+
+            constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
+            constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
+            
+            // write material parameters to buffer
+            sceneMaterialConstants[data_index] = constants;
+
+            auto passType = MaterialPass::MainColor;
+            if (mat.alphaMode == fastgltf::AlphaMode::Blend)
+            {
+                passType = MaterialPass::Transparent;
+            }
+
+            GLTFMetallic_Roughness::MaterialResources materialResources;
+            
+            // default the material textures
+            materialResources.colorImage = aEngine._whiteImage;
+            materialResources.colorSampler = aEngine._defaultSamplerLinear;
+            materialResources.metalRoughImage = aEngine._whiteImage;
+            materialResources.metalRoughSampler = aEngine._defaultSamplerLinear;
+
+            // set the uniform buffer for the material data
+            materialResources.dataBuffer = file.materialDataBuffer.buffer;
+            materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
+           
+            // grab textures from gltf file
+            if (mat.pbrData.baseColorTexture.has_value())
+            {
+                const fastgltf::Texture& tex = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex];
+                if (tex.imageIndex.has_value())
+                    materialResources.colorImage = images[tex.imageIndex.value()];
+                materialResources.colorSampler = tex.samplerIndex.has_value()
+                    ? file.samplers[tex.samplerIndex.value()]
+                    : aEngine._defaultSamplerLinear;
+            }
+            if (mat.pbrData.metallicRoughnessTexture.has_value())
+            {
+                const fastgltf::Texture& tex = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex];
+                if (tex.imageIndex.has_value())
+                    materialResources.metalRoughImage = images[tex.imageIndex.value()];
+                materialResources.metalRoughSampler = tex.samplerIndex.has_value()
+                    ? file.samplers[tex.samplerIndex.value()]
+                    : aEngine._defaultSamplerLinear;
+            }
+            // build material
+            #ifdef MOMOVK_ENABLE_DEBUG_NAMES
+                debugNameString = fmt::format("Material Name: {}, Path: {}", mat.name, aFilePath);
+                debugName = debugNameString.c_str();
+                newMat.get()->debugName = debugName;
+            #endif
+            newMat->data = aEngine.metalRoughMaterial.Write_Material(aEngine._device, passType, materialResources, file.descriptorPool, debugName);
+            data_index++;
+        }
     } // load materials
 
     // use the same vectors for all meshes so that the memory doesn't reallocate as often
@@ -342,6 +353,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             }
 
             // load vertex positions
+            glm::vec3 minPos = glm::vec3(FLT_MAX);
+            glm::vec3 maxPos = glm::vec3(-FLT_MAX);
             {
                 fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
                 vertices.resize(vertices.size() + posAccessor.count);
@@ -356,6 +369,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                                                                   newVtx.uv_x = 0;
                                                                   newVtx.uv_y = 0;
                                                                   vertices[initial_vtx + index] = newVtx;
+                                                                  minPos = glm::min(minPos, v);
+                                                                  maxPos = glm::max(maxPos, v);
                                                               });
             }
 
@@ -393,6 +408,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                                                               });
             }
 
+            // used to debug normals
             constexpr bool OverrideColors = false;
             if (OverrideColors)
             {
@@ -412,15 +428,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             }
 
 
-            // MOMO TODO- can't we do this while fetching the vertices...?
-            //loop the vertices of this surface, find min/max bounds
-            glm::vec3 minPos = vertices[initial_vtx].pos;
-            glm::vec3 maxPos = vertices[initial_vtx].pos;
-            for (size_t i = initial_vtx; i < vertices.size(); i++)
-            {
-                minPos = glm::min(minPos, vertices[i].pos);
-                maxPos = glm::max(maxPos, vertices[i].pos);
-            }
             // calculate origin and extents from the min/max, use extent length for radius
             newSurface.bounds.origin = (maxPos + minPos) / 2.f;
             newSurface.bounds.extents = (maxPos - minPos) / 2.f;
