@@ -227,7 +227,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         }
         else
         {
-            fmt::print(stderr, "Failed to load glTF: {}\n", fastgltf::to_underlying(load.error()));
+            fmt::print(stderr, "Failed to load glTF: {} ({})\n", fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
             return {};
         }
     }
@@ -240,7 +240,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         }
         else
         {
-            fmt::print(stderr, "Failed to load glTF: {}\n", fastgltf::to_underlying(load.error()));
+            fmt::print(stderr, "Failed to load glTF: {} ({})\n", fastgltf::getErrorName(load.error()), fastgltf::getErrorMessage(load.error()));
             return {};
         }
     }
@@ -636,17 +636,26 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
 
     std::visit(
         fastgltf::visitor{
-            [](auto& arg)
+            [&](auto& arg)
             {
+                fmt::print(stderr, "load_image: unhandled source type '{}' for image '{}'\n",
+                    typeid(arg).name(), aImage.name);
             },
             [&](fastgltf::sources::URI& filePath)
             {
-                assert(filePath.fileByteOffset == 0); // We don't support offsets with stbi.
-                assert(filePath.uri.isLocalPath()); // We're only capable of loading
-                // local files.
+                if (filePath.fileByteOffset != 0)
+                {
+                    fmt::print(stderr, "load_image: non-zero byte offset not supported (image '{}')\n", aImage.name);
+                    return;
+                }
+                if (!filePath.uri.isLocalPath())
+                {
+                    fmt::print(stderr, "load_image: non-local URI not supported: '{}' (image '{}')\n",
+                        filePath.uri.string(), aImage.name);
+                    return;
+                }
 
-                const std::string path(filePath.uri.path().begin(),
-                                       filePath.uri.path().end()); // Thanks C++.
+                const std::string path(filePath.uri.path().begin(), filePath.uri.path().end());
                 unsigned char* data = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
                 if (data)
                 {
@@ -656,8 +665,12 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
                     imagesize.depth = 1;
 
                     newImage = aEngine.Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName, true);
-                    
+
                     stbi_image_free(data);
+                }
+                else
+                {
+                    fmt::print(stderr, "load_image: stbi failed to load '{}': {}\n", path, stbi_failure_reason());
                 }
             },
             [&](fastgltf::sources::Vector& vector)
@@ -675,6 +688,11 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
 
                     stbi_image_free(data);
                 }
+                else
+                {
+                    fmt::print(stderr, "load_image: stbi failed to decode embedded vector for image '{}': {}\n",
+                        aImage.name, stbi_failure_reason());
+                }
             },
             [&](fastgltf::sources::BufferView& view)
             {
@@ -682,8 +700,11 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
                 auto& buffer = aAsset.buffers[bufferView.bufferIndex];
 
                 std::visit(fastgltf::visitor{
-                               // We only care about VectorWithMime here, because we specify LoadExternalBuffers, meaning all buffers are already loaded into a vector.
-                               [](auto& arg) {},
+                               [&](auto& arg)
+                               {
+                                   fmt::print(stderr, "load_image: unhandled buffer source type '{}' for image '{}'\n",
+                                       typeid(arg).name(), aImage.name);
+                               },
                                [&](fastgltf::sources::Vector& vector)
                                {
                                    unsigned char* data = stbi_load_from_memory(vector.bytes.data() + bufferView.byteOffset,
@@ -699,6 +720,11 @@ std::optional<AllocatedImage> momo_GLTF::load_image(fastgltf::Asset& aAsset, fas
                                        newImage = aEngine.Create_Image(data, imagesize, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, imgName, true);
 
                                        stbi_image_free(data);
+                                   }
+                                   else
+                                   {
+                                       fmt::print(stderr, "load_image: stbi failed to decode buffer view for image '{}': {}\n",
+                                           aImage.name, stbi_failure_reason());
                                    }
                                }},
                     buffer.data);
