@@ -980,12 +980,10 @@ void VulkanEngine::Init_Descriptors()
     for (unsigned int i = 0; i < FRAME_OVERLAP; i++)   // NOLINT(modernize-loop-convert)
 	{
 		// create a descriptor pool
-		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_Sizes = 
+		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_Sizes =
 		{
-			// {._type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
-			// {._type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
 			{._type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 3 },
-			// {._type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
+			{._type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
 		};
 
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
@@ -1761,7 +1759,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
     
 	VkDescriptorSetVariableDescriptorCountAllocateInfo allocArrayInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO, .pNext = nullptr};
 
-    uint32_t descriptorCounts = texCache.Cache.size();
+    uint32_t descriptorCounts = std::max(1u, static_cast<uint32_t>(texCache.Cache.size()));
     allocArrayInfo.pDescriptorCounts = &descriptorCounts;
     allocArrayInfo.descriptorSetCount = 1;
 
@@ -1770,12 +1768,12 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
     debugNameString = fmt::format("Global, Frame Num: {}", _frame_number);
     debugName = debugNameString.c_str();
 #endif
-    VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout, debugName);
+    VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout, debugName, &allocArrayInfo);
 	
 	DescriptorWriter writer;
 	writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	
-    if (texCache.Cache.size() > 0)
+    if (!texCache.Cache.empty())
     {
         VkWriteDescriptorSet arraySet{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
         arraySet.descriptorCount = texCache.Cache.size();
