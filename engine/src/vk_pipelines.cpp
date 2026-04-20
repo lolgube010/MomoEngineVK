@@ -376,34 +376,43 @@ std::string momo_ShaderUtil::GetShaderExtension(const ShaderType aType)
 	}
 }
 
-std::string momo_ShaderUtil::BuildShaderPath(const std::string& aFileName, const ShaderType aType, const bool aIsHlsl)
+std::string momo_ShaderUtil::BuildShaderPath(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
 {
 	// Base directory (adjust this to match your project structure)
 #ifdef _DEBUG
-	const std::string basePath = "../../shaders/bin/debug/";
+    constexpr std::string_view basePath = "../../shaders/bin/debug/";
 #else
-	const std::string basePath = "../../shaders/bin/release/";
+    constexpr std::string_view basePath = "../../shaders/bin/release/";
 #endif
 	// Get standard extension (e.g., ".comp")
 	const std::string stageExt = GetShaderExtension(aType);
 
 	// Build the final string
 	// Format: ../../shaders/name.stage[.hlsl].spv
-	std::string fullPath = basePath + aFileName + stageExt;
+	std::string fullPath = basePath.data() + aFileName + stageExt;
 
-	if (aIsHlsl)
-	{
+    switch (aShaderLang)
+    {
+
+    case ShaderLang::GLSL:
+        break;
+    case ShaderLang::HLSL:
 		fullPath += ".hlsl";
-	}
+        break;
+    case ShaderLang::Slang:
+        break;
+    default:
+        throw;
+    }
 
 	fullPath += ".spv";
 
 	return fullPath;
 }
 
-std::optional<VkShaderModule> momo_ShaderUtil::LoadShader(const std::string& aName, const momo_ShaderUtil::ShaderType aType, bool aIsHLSL, const VkDevice aDevice)
+std::optional<VkShaderModule> momo_ShaderUtil::LoadShader(const std::string& aName, const momo_ShaderUtil::ShaderType aType, const ShaderLang aShaderLang, const VkDevice aDevice)
 {
-    const std::string path = BuildShaderPath(aName, aType, aIsHLSL);
+    const std::string path = BuildShaderPath(aName, aType, aShaderLang);
 
     VkShaderModule module;
 

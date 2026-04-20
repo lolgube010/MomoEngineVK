@@ -71,7 +71,14 @@ namespace momo_ShaderUtil
 		Compute,
 	};
 
+	enum class ShaderLang
+    {
+		GLSL,
+		HLSL,
+		Slang
+    };
+
 	std::string GetShaderExtension(ShaderType aType);
-	std::string BuildShaderPath(const std::string& aFileName, ShaderType aType, bool aIsHlsl);
-    std::optional<VkShaderModule> LoadShader(const std::string& aName, momo_ShaderUtil::ShaderType aType, bool aIsHLSL, VkDevice aDevice);
+    std::string BuildShaderPath(const std::string& aFileName, ShaderType aType, ShaderLang aShaderLang);
+    std::optional<VkShaderModule> LoadShader(const std::string& aName, momo_ShaderUtil::ShaderType aType, ShaderLang aShaderLang, VkDevice aDevice);
 }

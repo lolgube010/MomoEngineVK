@@ -65,7 +65,7 @@ void GLTFMetallic_Roughness::Build_Pipelines()
 	opaquePipeline.layout = newLayout;
 	transparentPipeline.layout = newLayout;
 
-	constexpr bool useHLSL = false;
+	constexpr auto useHLSL = momo_ShaderUtil::ShaderLang::GLSL;
     auto meshFragShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Fragment, useHLSL, aEngine._device);
     auto meshVertexShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Vertex, useHLSL, aEngine._device);
 
@@ -152,7 +152,7 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 		def.vertexBufferAddress = mesh->meshBuffers._vertexBufferAddress;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
         def.matDebugName = s.material->debugName;
-        def.meshDebugName = mesh->name.c_str();
+        def.meshDebugName = mesh->name;
 #endif
 		switch (s.material->data.passType)
 		{
@@ -193,17 +193,16 @@ void VulkanEngine::Init()
 		window_flags
 	);
 	
+	_render_doc.Load();
 	Init_Vulkan();
-    // _debugInfo.Init(_instance);
 	Init_Swapchain();
+    _render_doc.Set_Window(_instance, _window);
 	Init_Commands();
 	Init_Sync_Structures();
 	Init_Descriptors();
 	Init_Pipelines();
 	Init_ImGui();
 	Init_Tracy();
-    // _render_doc.Init_RenderDoc(&_instance, _window);
-	
 	Init_Default_Data();
     Input::Instance().Init();
 	_is_initialized = true;
@@ -311,7 +310,7 @@ void VulkanEngine::Draw()
         VK_CHECK(vkEndCommandBuffer(cmd));
     }
     {
-        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "submit command buffer to queue");
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "submit command buffer queue");
 	    //> draw_5
 	    // prepare the submission to the queue. 
 	    // we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
@@ -521,7 +520,7 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 
 	const char* uploadBufferName = nullptr;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    std::string temp = fmt::format("Upload, {}", aName).c_str();
+    std::string temp = fmt::format("Upload, {}", aName);
     uploadBufferName = temp.c_str();
 #endif
     const AllocatedBuffer uploadBuffer = Create_Buffer(data_Size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, uploadBufferName);
@@ -999,8 +998,9 @@ void VulkanEngine::Init_Background_Pipelines()
 	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_ComputePipelineLayout));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _ComputePipelineLayout, "_Pipeline Layout Compute Background");
 
-    auto gradientShader = momo_ShaderUtil::LoadShader("gradient_color", momo_ShaderUtil::ShaderType::Compute, false, _device);
-    auto skyShader = momo_ShaderUtil::LoadShader("sky", momo_ShaderUtil::ShaderType::Compute, false, _device);
+	constexpr auto useHLSL = momo_ShaderUtil::ShaderLang::GLSL;
+    auto gradientShader = momo_ShaderUtil::LoadShader("gradient_color", momo_ShaderUtil::ShaderType::Compute, useHLSL, _device);
+    auto skyShader = momo_ShaderUtil::LoadShader("sky", momo_ShaderUtil::ShaderType::Compute, useHLSL, _device);
 
 	VkPipelineShaderStageCreateInfo stageInfo = momo_vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, gradientShader.value());
 
@@ -1528,6 +1528,21 @@ void VulkanEngine::ImGui_Run()
             }
         }
 
+        if (ImGui::CollapsingHeader("RenderDoc"))
+        {
+            if (_render_doc.Is_Loaded()) // NOLINT(readability-static-accessed-through-instance)
+            {
+                if (ImGui::Button("Trigger Capture"))
+                    _render_doc.Trigger_Capture(); // NOLINT(readability-static-accessed-through-instance)
+                ImGui::SameLine();
+                if (ImGui::Button("Open in RenderDoc"))
+                    _render_doc.Launch_Replay_UI();  // NOLINT(readability-static-accessed-through-instance)
+            }
+            else
+            {
+                ImGui::TextDisabled("Not loaded. Enable Cmake Option or Launch via RenderDoc or set RENDERDOC_PATH.");
+            }
+        }
 
 	    ImGui::End();
 
@@ -1773,6 +1788,16 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
             pushConstants._vertexBuffer = r.vertexBufferAddress;
             vkCmdPushConstants(aCmd, r.material->pipeline->layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
+#ifdef MOMOVK_ENABLE_RENDERDOC
+            {
+                const char* const passStr = (r.material->passType == MaterialPass::Transparent) ? "transparent" : "opaque";
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+                _render_doc.Annotate_Draw(aCmd, r.matDebugName.c_str(), r.meshDebugName.c_str(), passStr);
+#else
+                _render_doc.Annotate_Draw(aCmd, nullptr, nullptr, passStr);
+#endif
+            }
+#endif
             vkCmdDrawIndexed(aCmd, r.indexCount, 1, r.firstIndex, 0, 0);
             _stats.drawCall_count++;
             _stats.tri_count += r.indexCount / 3;
@@ -2131,14 +2156,14 @@ GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, cons
 	newSurface._vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAddressInfo);
 
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    bufferNameString = fmt::format("{}", aMeshName).c_str();
+    bufferNameString = fmt::format("{}", aMeshName);
     bufferName = bufferNameString.c_str();
 #endif
 	//create index buffer, was previously VMA_MEMORY_USAGE_CPU_ONLY
     newSurface._indexBuffer = Create_Buffer(indexBufferSize, VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VMA_MEMORY_USAGE_AUTO, bufferName);
 
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    bufferNameString = fmt::format("{}", aMeshName).c_str();
+    bufferNameString = fmt::format("{}", aMeshName);
     bufferName = bufferNameString.c_str();
 #endif
     // staging buffer is 1 buffer for both copies to index and vertex buffers.

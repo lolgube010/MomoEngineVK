@@ -38,6 +38,11 @@ if(MOMOVK_ENABLE_DEBUG_NAMES)
     )
 endif()
 
+# RenderDoc in-app API (all configs — you may want to capture release builds too)
+if(MOMOVK_ENABLE_RENDERDOC)
+    target_compile_definitions(MomoVK PRIVATE MOMOVK_ENABLE_RENDERDOC)
+endif()
+
 # ---------------------------------------------------------------------------
 # Link libraries
 # ---------------------------------------------------------------------------
@@ -53,10 +58,13 @@ target_link_libraries(MomoVK
         vkbootstrap
         imgui
         fastgltf::fastgltf
-        renderdoc_app
     PRIVATE
         Tracy::TracyClient
 )
+
+if(MOMOVK_ENABLE_RENDERDOC)
+    target_link_libraries(MomoVK PRIVATE renderdoc_app)
+endif()
 
 # ---------------------------------------------------------------------------
 # Precompiled headers

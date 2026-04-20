@@ -9,6 +9,7 @@ project(MomoVK
 # CMake options (declared at root so they appear in CMake-GUI / cmake -L)
 # ---------------------------------------------------------------------------
 option(MOMOVK_ENABLE_DEBUG_NAMES "Enable Vulkan object debug naming in Debug builds" OFF)
+option(MOMOVK_ENABLE_RENDERDOC   "Enable RenderDoc in-app API integration"           OFF)
 option(TRACY_ENABLE              "Enable Tracy profiling client"                      ON)
 option(TRACY_ON_DEMAND           "Tracy on-demand mode (connect manually; disabling lets Tracy buffer startup data so you can profile init)"  OFF)
 

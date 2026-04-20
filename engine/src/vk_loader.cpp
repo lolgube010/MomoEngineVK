@@ -639,7 +639,7 @@ std::optional<momo_GLTF::PendingTextureUpload> momo_GLTF::load_image_stbi(fastgl
     AllocatedImage image = engine.Create_Image(extent, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, imgName, /*mipmapped=*/true);
 
     const size_t dataSize = static_cast<size_t>(width) * height * 4;
-    const AllocatedBuffer staging = engine.Create_Buffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, nullptr);
+    const AllocatedBuffer staging = engine.Create_Buffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, imgName);
     memcpy(staging.info.pMappedData, pixels, dataSize);
     stbi_image_free(pixels);
 
