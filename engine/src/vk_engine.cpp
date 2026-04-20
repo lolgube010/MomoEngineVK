@@ -909,14 +909,14 @@ void VulkanEngine::Init_Descriptors()
         _drawImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_COMPUTE_BIT, "drawImage");
 	}
 	// for textures
-	{
+	// {
 		// TODO:
 		// When we do drawing, we want to use the fixed hardware in the GPU for accessing texture data, which needs the sampler.We have the option to either use VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, which packages an image and a sampler to use with that image, or to use 2 descriptors, and separate the two into VK_DESCRIPTOR_TYPE_SAMPLER and VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE.According to gpu vendors, the separated approach can be faster as there is less duplicated data.But its a bit harder to deal with so we won't be doing it for now.Instead, we will use the combined descriptor to make our shaders simpler.
 
-		DescriptorLayoutBuilder builder;
-		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        _singleImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_FRAGMENT_BIT, "singleImage");
-	}
+		// DescriptorLayoutBuilder builder;
+		// builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        // _singleImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_FRAGMENT_BIT, "singleImage");
+	// }
 	// for our draw image
 	{
 		DescriptorLayoutBuilder builder;
@@ -937,7 +937,7 @@ void VulkanEngine::Init_Descriptors()
 		_globalDescriptorAllocator.Destroy_Pools(_device);
 
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
-		vkDestroyDescriptorSetLayout(_device, _singleImageDescriptorLayout, nullptr);
+		// vkDestroyDescriptorSetLayout(_device, _singleImageDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
 	});
 
@@ -950,10 +950,10 @@ void VulkanEngine::Init_Descriptors()
 		// create a descriptor pool
 		std::vector<DescriptorAllocatorGrowable::PoolSizeRatio> frame_Sizes = 
 		{
-			{._type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
-			{._type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
+			// {._type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, ._ratio = 3 },
+			// {._type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, ._ratio = 3 },
 			{._type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, ._ratio = 3 },
-			{._type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
+			// {._type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, ._ratio = 4 },
 		};
 
 		_frames[i]._frameDescriptors = DescriptorAllocatorGrowable{};
@@ -1269,7 +1269,7 @@ void VulkanEngine::Init_Default_Data()
 	materialResources.dataBuffer = materialConstants.buffer;
 	materialResources.dataBufferOffset = 0;
 
-	defaultData = metalRoughMaterial.Write_Material(_device, MaterialPass::MainColor, materialResources, _globalDescriptorAllocator, "Default Material");
+	// defaultData = metalRoughMaterial.Write_Material(_device, MaterialPass::MainColor, materialResources, _globalDescriptorAllocator, "Default Material");
 
 	// for (auto& m : _testMeshes) 
 	// {
@@ -1453,7 +1453,8 @@ void VulkanEngine::ImGui_Run()
 		ImGui::Value("cameraPitchRad", _mainCamera.pitch);
         ImGui::Separator();
 		ImGui::ColorEdit4("SunColor", reinterpret_cast<float*>(&tempSunColor));
-		ImGui::ColorEdit4("AmbientColor", reinterpret_cast<float*>(&tempAmbientColor));
+		// ImGui::ColorEdit4("AmbientColor", reinterpret_cast<float*>(&tempAmbientColor));
+        ImGui::DragFloat4("ambient col", reinterpret_cast<float*>(&tempAmbientColor), 0, 2.f);
 		ImGui::DragFloat4("SunDir1", reinterpret_cast<float*>(&tempSunDir), 0.1f);
 
 		if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))

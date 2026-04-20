@@ -53,7 +53,7 @@ struct LoadedGLTF : IRenderable
 
     std::vector<VkSampler> samplers;
 
-    DescriptorAllocatorGrowable descriptorPool;
+    DescriptorAllocatorGrowable descriptorPool; // every materialSet for every surface in this file.
 
     AllocatedBuffer materialDataBuffer;
 

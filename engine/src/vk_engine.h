@@ -40,7 +40,7 @@ struct GLTFMetallic_Roughness
 	MaterialPipeline opaquePipeline;
 	MaterialPipeline transparentPipeline;
 
-	VkDescriptorSetLayout materialLayout; // [0] Uniform Buffer, [1] image/sampler, [2] image/sampler
+	VkDescriptorSetLayout materialLayout; // [0] Uniform Buffer (gltfMaterialData), [1] image/sampler (colorTex), [2] image/sampler (metalRoughTex)
 
 	struct MaterialConstants
 	{
@@ -197,10 +197,10 @@ public:
 	VkExtent2D _drawExtent;
 	float _renderScale = 1.f;
 
-	DescriptorAllocatorGrowable _globalDescriptorAllocator;
+	DescriptorAllocatorGrowable _globalDescriptorAllocator; // lives throughout the engines lifetime, used for compute image and fallback shader.
 
-	VkDescriptorSet _drawImageDescriptors;
-	VkDescriptorSetLayout _drawImageDescriptorLayout; // for compute draw (storage image)
+	VkDescriptorSet _drawImageDescriptors; // allocated from globalDescriptorAllocator
+	VkDescriptorSetLayout _drawImageDescriptorLayout; // for compute draw (storage image), bg shader
 
 	// VkPipeline _gradientPipeline;
 	VkPipelineLayout _ComputePipelineLayout; // prev: gradientPipelineLayout
@@ -225,7 +225,7 @@ public:
 	// std::vector<std::shared_ptr<MeshAsset>> _testMeshes; 
 
 	GPUSceneData _sceneData = {};
-	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout; // uniform buffer, for draw image. once/frame data (projection matrices etc / struct GPUSceneData in vk_types.h).
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout; // uniform buffer, for draw image. once/frame data (projection matrices etc / struct GPUSceneData in vk_types.h). allocated in draw_geometry
 
 	// actually allocate a new image
 	AllocatedImage Create_Image(VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, const char* aName, bool aMipmapped = false) const;
@@ -245,9 +245,9 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 
-	VkDescriptorSetLayout _singleImageDescriptorLayout; // for textures, combined image/sampler, used in old mesh pipeline and should TODO: be removed
+	// VkDescriptorSetLayout _singleImageDescriptorLayout; // for textures, combined image/sampler, used in old mesh pipeline and should TODO: be removed
 
-	MaterialInstance defaultData;
+	// MaterialInstance defaultData; // fallback material
 	GLTFMetallic_Roughness metalRoughMaterial;
 
 	DrawContext _mainDrawContext;
@@ -298,7 +298,7 @@ private:
     void ProcessEvents(bool& aQuit);
 	// temp camera settings
 	float tempCameraFOV = 70.f;
-    glm::vec4 tempAmbientColor = glm::vec4(.1f);
+    glm::vec4 tempAmbientColor = glm::vec4(1.f);
     glm::vec4 tempSunColor = glm::vec4(1.f);
     glm::vec4 tempSunDir = glm::vec4(0, 1, 0.5, 1.f);
 	// int tempBlendModeIndex = 0;

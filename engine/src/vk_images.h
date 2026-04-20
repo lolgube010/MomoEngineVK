@@ -4,7 +4,7 @@
 // This will contain image related vulkan helpers
 namespace momo_vkUtil
 {
-    // For Shader read: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL. For Compute R/W: VK_IMAGE_LAYOUT_GENERAL
+    // For Shader read: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL. For Compute R/W: VK_IMAGE_LAYOUT_GENERAL. Uses sync2.
 	void Transition_Image(VkCommandBuffer aCmd, VkImage aImg, VkImageLayout aCurrentLayout, VkImageLayout aNewLayout);
 
 	void copy_image_to_image(VkCommandBuffer aCmd, VkImage aSource, VkImage aDestination, VkExtent2D aSrcSize, VkExtent2D aDstSize);
