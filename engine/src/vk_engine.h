@@ -104,18 +104,14 @@ struct MeshNode : Node
 	void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
 };
 
-struct TextureID
-{
-    uint32_t Index;
-};
-
 struct TextureCache
 {
 
     std::vector<VkDescriptorImageInfo> Cache;
     std::unordered_map<std::string, TextureID> NameMap;
-    TextureID AddTexture(const VkImageView& image, VkSampler sampler);
+    TextureID AddTexture(const VkImageView& aImage, VkSampler aSampler);
 };
+
 
 struct EngineStats
 {
@@ -258,7 +254,7 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 
-	 TextureCache texCache;
+    TextureCache texCache;
 
 	// VkDescriptorSetLayout _singleImageDescriptorLayout; // for textures, combined image/sampler, used in old mesh pipeline and should TODO: be removed
 
@@ -296,7 +292,6 @@ private:
 
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
-	// void Init_Mesh_Pipeline(); // todo- remove?
 
 	void Create_Swapchain(uint32_t aWidth, uint32_t aHeight);
 	void Destroy_Swapchain() const;

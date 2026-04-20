@@ -190,3 +190,9 @@ struct DeletionQueue
         }                                                                    \
     }                                                                        \
     while (0)
+
+struct TextureID
+{
+    uint32_t Index;
+};
+

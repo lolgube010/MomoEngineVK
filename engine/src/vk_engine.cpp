@@ -39,8 +39,8 @@ void GLTFMetallic_Roughness::Build_Pipelines()
     auto& aEngine = VulkanEngine::Get();
 	DescriptorLayoutBuilder layoutBuilder;
 	layoutBuilder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	layoutBuilder.Add_Binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	layoutBuilder.Add_Binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	// layoutBuilder.Add_Binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	// layoutBuilder.Add_Binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	materialLayout = layoutBuilder.Build(aEngine._device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "GLTFMetallic_Roughness Material");
 
@@ -66,7 +66,7 @@ void GLTFMetallic_Roughness::Build_Pipelines()
 	transparentPipeline.layout = newLayout;
 
 	constexpr auto useHLSL = momo_ShaderUtil::ShaderLang::GLSL;
-    auto meshFragShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Fragment, useHLSL, aEngine._device);
+    auto meshFragShader = momo_ShaderUtil::LoadShader("mesh_pbr", momo_ShaderUtil::ShaderType::Fragment, useHLSL, aEngine._device);
     auto meshVertexShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Vertex, useHLSL, aEngine._device);
 
 	// build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
@@ -128,8 +128,8 @@ MaterialInstance GLTFMetallic_Roughness::Write_Material(const VkDevice aDevice, 
 
 	writer.Clear();
 	writer.Write_Buffer(0, aResources.dataBuffer, sizeof(MaterialConstants), aResources.dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.Write_Image(1, aResources.colorImage.imageView, aResources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	writer.Write_Image(2, aResources.metalRoughImage.imageView, aResources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	// writer.Write_Image(1, aResources.colorImage.imageView, aResources.colorSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+	// writer.Write_Image(2, aResources.metalRoughImage.imageView, aResources.metalRoughSampler, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	writer.Update_Set(aDevice, matData.materialSet);
 
@@ -172,6 +172,24 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 	Node::Draw(aTopMatrix, aCtx);
 }
 
+TextureID TextureCache::AddTexture(const VkImageView& aImage, const VkSampler aSampler)
+{
+    for (unsigned int i = 0; i < Cache.size(); i++)
+    {
+        if (Cache[i].imageView == aImage && Cache[i].sampler == aSampler)
+        {
+            // found, return it
+            return TextureID{i};
+        }
+    }
+
+    uint32_t idx = Cache.size();
+
+    Cache.push_back(VkDescriptorImageInfo{.sampler = aSampler, .imageView = aImage, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
+
+    return TextureID{idx};
+}
+
 VulkanEngine& VulkanEngine::Get()
 {
     static VulkanEngine instance;
@@ -194,10 +212,10 @@ void VulkanEngine::Init()
 		window_flags
 	);
 	
-	_render_doc.Load();
+	_render_doc.Load();  // NOLINT(readability-static-accessed-through-instance)
 	Init_Vulkan();
 	Init_Swapchain();
-    _render_doc.Set_Window(_instance, _window);
+    _render_doc.Set_Window(_instance, _window); // NOLINT(readability-static-accessed-through-instance)
 	Init_Commands();
 	Init_Sync_Structures();
 	Init_Descriptors();
@@ -216,16 +234,13 @@ void VulkanEngine::Draw()
     PROFILE_SCOPE_N("Draw")
 	{
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "wait for fences");
-	    //> draw_1
 	    // wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	    VK_CHECK(vkWaitForFences(_device, 1, &Get_Current_Frame()._renderFence, true, 1000000000));
 	    Get_Current_Frame()._deletionQueue.Flush();
 	    Get_Current_Frame()._frameDescriptors.Clear_Pools(_device);
-	    //< draw_1
 	}
     uint32_t _swapchainImageIndex;
     {
-	    //> draw_2
 	    // request image from the swapchain
 	    if (const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &_swapchainImageIndex); 
 		    res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) 
@@ -233,11 +248,9 @@ void VulkanEngine::Draw()
 		    _resize_requested = true;
 		    return;
 	    }
-	    //< draw_2
     }
 	VK_CHECK(vkResetFences(_device, 1, &Get_Current_Frame()._renderFence));
 
-	//> draw_3
 	// naming it cmd for shorter writing
 	const VkCommandBuffer& cmd = Get_Current_Frame()._mainCommandBuffer;
 
@@ -302,7 +315,6 @@ void VulkanEngine::Draw()
     }
     {
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "submit command buffer queue");
-	    //> draw_5
 	    // prepare the submission to the queue. 
 	    // we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
 	    // we will signal the _renderSemaphore, to signal that rendering has finished
@@ -318,10 +330,8 @@ void VulkanEngine::Draw()
 	    // submit command buffer to the queue and execute it.
 	    // _renderFence will now block until the graphic commands finish execution
 	    VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, Get_Current_Frame()._renderFence));
-	    //< draw_5
     }
     {
-	    //> draw_6
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "present");
 	    // prepare present
 	    // this will put the image we just rendered to into the visible window.
@@ -336,7 +346,6 @@ void VulkanEngine::Draw()
 	    }
 	    //increase the number of frames drawn
 	    _frame_number++;
-	    //< draw_6
     }
 }
 
@@ -628,6 +637,9 @@ void VulkanEngine::Init_Vulkan()
 	features12.bufferDeviceAddress = true;
 	features12.descriptorIndexing = true;
     features12.scalarBlockLayout = true;
+    features12.descriptorBindingPartiallyBound = true;
+    features12.descriptorBindingVariableDescriptorCount = true;
+    features12.runtimeDescriptorArray = true;
 
 	// vk 1.1 features
 	// VkPhysicalDeviceVulkan11Features features11{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
@@ -931,7 +943,17 @@ void VulkanEngine::Init_Descriptors()
 	{
 		DescriptorLayoutBuilder builder;
 		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-        _gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "gpuSceneData");
+		builder.Add_Binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+        VkDescriptorSetLayoutBindingFlagsCreateInfo bindFlags = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO, .pNext = nullptr};
+
+        std::array<VkDescriptorBindingFlags, 2> flagArray{0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT};
+
+        builder._bindings[1].descriptorCount = 4048;
+
+        bindFlags.bindingCount = 2;
+        bindFlags.pBindingFlags = flagArray.data();
+
+        _gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "gpuSceneData", &bindFlags);
 	}
 
 	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout, "drawImage");
@@ -1737,6 +1759,12 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	// GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
 	*sceneUniformData = _sceneData;
     
+	VkDescriptorSetVariableDescriptorCountAllocateInfo allocArrayInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO, .pNext = nullptr};
+
+    uint32_t descriptorCounts = texCache.Cache.size();
+    allocArrayInfo.pDescriptorCounts = &descriptorCounts;
+    allocArrayInfo.descriptorSetCount = 1;
+
     // create a descriptor set that binds that buffer and update it
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES 
     debugNameString = fmt::format("Global, Frame Num: {}", _frame_number);
@@ -1746,7 +1774,19 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	
 	DescriptorWriter writer;
 	writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	writer.Update_Set(_device, globalDescriptor);
+	
+    if (texCache.Cache.size() > 0)
+    {
+        VkWriteDescriptorSet arraySet{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
+        arraySet.descriptorCount = texCache.Cache.size();
+        arraySet.dstArrayElement = 0;
+        arraySet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        arraySet.dstBinding = 1;
+        arraySet.pImageInfo = texCache.Cache.data();
+        writer._writes.push_back(arraySet);
+    }
+
+    writer.Update_Set(_device, globalDescriptor);
 	
 	//defined outside the draw function, this is the state we will try to skip
 	MaterialPipeline* lastPipeline = nullptr;
@@ -1772,8 +1812,8 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
                     VkViewport viewport2;
                     viewport2.x = 0;
                     viewport2.y = 0;
-                    viewport2.width = static_cast<float>(_windowExtent.width);
-                    viewport2.height = static_cast<float>(_windowExtent.height);
+                    viewport2.width = static_cast<float>(_drawExtent.width);
+                    viewport2.height = static_cast<float>(_drawExtent.height);
                     viewport2.minDepth = 0.f;
                     viewport2.maxDepth = 1.f;
 
@@ -1782,8 +1822,8 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
                     VkRect2D scissor2;
                     scissor2.offset.x = 0;
                     scissor2.offset.y = 0;
-                    scissor2.extent.width = _windowExtent.width;
-                    scissor2.extent.height = _windowExtent.height;
+                    scissor2.extent.width = _drawExtent.width;
+                    scissor2.extent.height = _drawExtent.height;
 
                     vkCmdSetScissor(aCmd, 0, 1, &scissor2);
                 }
