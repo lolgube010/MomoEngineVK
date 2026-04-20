@@ -2,14 +2,10 @@
 // or project specific include files.
 // This will be the main class for the engine, and where most of the code of the tutorial will go
 #pragma once
-
 #include <vk_types.h>
-
 #include <vk_descriptors.h>
-
 #include "camera.h"
 #include "vk_loader.h"
-
 #include "MomoTracy.h"
 #include "RenderDocWrapper.h"
 #include "vk_debug.h"
@@ -47,8 +43,12 @@ struct GLTFMetallic_Roughness
 		glm::vec4 colorFactors; // used to multiply the color texture
 		glm::vec4 metal_rough_factors; // metallic and roughness parameters on r and b components, plus two more that are used in other places.
 
+		uint32_t colorTexID;
+        uint32_t metalRoughTexID;
+        uint32_t pad1;
+        uint32_t pad2;
 		// We have also a bunch of vec4s for padding. In vulkan, when you want to bind a uniform buffer, it needs to meet a minimum requirement for its alignment. 256 bytes is a good default alignment for this which all the gpus we target meet, so we are adding those vec4s to pad the structure to 256 bytes.
-		glm::vec4 extra[14] = {};
+		glm::vec4 extra[13] = {};
 	};
 
 	// When we create the descriptor set, there are some textures we want to bind, and the uniform buffer with the color factors and other properties. We will hold those in the MaterialResources struct, so that its easy to send them to the write_material function.
@@ -102,6 +102,19 @@ struct MeshNode : Node
 	std::shared_ptr<MeshAsset> mesh;
 
 	void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
+};
+
+struct TextureID
+{
+    uint32_t Index;
+};
+
+struct TextureCache
+{
+
+    std::vector<VkDescriptorImageInfo> Cache;
+    std::unordered_map<std::string, TextureID> NameMap;
+    TextureID AddTexture(const VkImageView& image, VkSampler sampler);
 };
 
 struct EngineStats
@@ -178,7 +191,7 @@ public:
 	FrameData _frames[FRAME_OVERLAP];
 	
     uint32_t _swapchainImageCount{0};
-    uint32_t _swapchainImageIndex;
+    // uint32_t _swapchainImageIndex;
 	std::vector<VkSemaphore> ready_for_present_semaphores; // previously called render_semaphore, also called submit semaphores.
 
 	// TODO-
@@ -195,7 +208,7 @@ public:
 	AllocatedImage _depthImage; // main depth
 
 	VkExtent2D _drawExtent;
-	float _renderScale = 1.f;
+	// float _renderScale = 1.f;
 
 	DescriptorAllocatorGrowable _globalDescriptorAllocator; // lives throughout the engines lifetime, used for compute image and fallback shader.
 
@@ -245,6 +258,8 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 
+	 TextureCache texCache;
+
 	// VkDescriptorSetLayout _singleImageDescriptorLayout; // for textures, combined image/sampler, used in old mesh pipeline and should TODO: be removed
 
 	// MaterialInstance defaultData; // fallback material
@@ -276,7 +291,8 @@ private:
 	void Init_Descriptors();
 	void Init_ImGui();
 	void Init_Tracy();
-	void Init_Default_Data(); // where we load models.
+	void Init_Default_Data();
+	void Init_Models();
 
 	void Init_Pipelines();
 	void Init_Background_Pipelines();
@@ -289,6 +305,7 @@ private:
 	void Draw_Geometry(VkCommandBuffer aCmd);
 
 	void Draw_ImGui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
+    void Draw_Main(VkCommandBuffer aCmd);
 	void ImGui_Run();
     void ImGuiFrame();
 

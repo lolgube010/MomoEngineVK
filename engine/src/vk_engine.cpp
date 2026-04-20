@@ -205,7 +205,9 @@ void VulkanEngine::Init()
 	Init_ImGui();
 	Init_Tracy();
 	Init_Default_Data();
+    Init_Models();
     Input::Instance().Init();
+
 	_is_initialized = true;
 }
 
@@ -219,9 +221,9 @@ void VulkanEngine::Draw()
 	    VK_CHECK(vkWaitForFences(_device, 1, &Get_Current_Frame()._renderFence, true, 1000000000));
 	    Get_Current_Frame()._deletionQueue.Flush();
 	    Get_Current_Frame()._frameDescriptors.Clear_Pools(_device);
-	    VK_CHECK(vkResetFences(_device, 1, &Get_Current_Frame()._renderFence));
 	    //< draw_1
 	}
+    uint32_t _swapchainImageIndex;
     {
 	    //> draw_2
 	    // request image from the swapchain
@@ -233,6 +235,7 @@ void VulkanEngine::Draw()
 	    }
 	    //< draw_2
     }
+	VK_CHECK(vkResetFences(_device, 1, &Get_Current_Frame()._renderFence));
 
 	//> draw_3
 	// naming it cmd for shorter writing
@@ -246,10 +249,8 @@ void VulkanEngine::Draw()
 	    //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
 	    const VkCommandBufferBeginInfo cmdBeginInfo = momo_vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-	    _drawExtent.height = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.height, _drawImage.imageExtent.height)) *
-		    _renderScale);
-	    _drawExtent.width = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.width, _drawImage.imageExtent.width)) *
-		    _renderScale);
+	    _drawExtent.height = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.height, _drawImage.imageExtent.height)));
+	    _drawExtent.width = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.width, _drawImage.imageExtent.width)));
 	    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 	}
     {
@@ -261,24 +262,13 @@ void VulkanEngine::Draw()
             // transition our main draw image into general layout so we can write into it.
             // we will overwrite it all so we don't care about what was the older layout
             momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+            momo_vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
             // TEST TO TRIGGER VALIDATION ERROR:
             // momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_UNDEFINED);
         }
         {
-            MOMO_VK_SCOPED_CMD_LABEL(cmd, "draw background");
-            Draw_Background(cmd);
-        }
-        {
-            MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & depth img 2");
-            momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-            momo_vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-        }
-        {
-            MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw Geometry CmdBuff");
-            MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw Geometry Queue");
-
-            PROFILE_SCOPE_N("Draw Geometry")
-            Draw_Geometry(cmd);
+            MOMO_VK_SCOPED_CMD_LABEL(cmd, "draw main");
+            Draw_Main(cmd);
         }
         {
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & swapchain img 3");
@@ -447,6 +437,26 @@ void VulkanEngine::Draw_ImGui(const VkCommandBuffer aCmd, const VkImageView aTar
 	ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), aCmd);
 
 	vkCmdEndRendering(aCmd);
+}
+
+void VulkanEngine::Draw_Main(VkCommandBuffer aCmd)
+{
+    {
+        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "draw background");
+        Draw_Background(aCmd);
+    }
+    {
+        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "transition draw & depth img 2");
+        momo_vkUtil::Transition_Image(aCmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        momo_vkUtil::Transition_Image(aCmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+    }
+    {
+        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Geometry CmdBuff");
+        MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw Geometry Queue");
+
+        PROFILE_SCOPE_N("Draw Geometry")
+        Draw_Geometry(aCmd);
+    }
 }
 
 void VulkanEngine::Immediate_Submit(const std::function<void(VkCommandBuffer aCmd)>& aFunction) const
@@ -1288,15 +1298,18 @@ void VulkanEngine::Init_Default_Data()
 	// 	_loadedNodes[m->name] = std::move(newNode);
 	// }
 
-	const std::string structurePath = {R"(..\..\assets\sponza\sponza-png.glb)"};
-	// const std::string structurePath = {R"(..\..\assets\sponza\sponza-avif-hi.glb)"}; // unsupported model test
-	// const std::string structurePath = {R"(..\..\assets\structure.glb)"};
-    const auto structureFile = momo_GLTF::load_gltf(structurePath);
-	assert(structureFile.has_value());
-
-	_loadedScenes["structure"] = *structureFile;
-
 	//>materials
+}
+
+void VulkanEngine::Init_Models()
+{
+    const std::string structurePath = {R"(..\..\assets\sponza\sponza-png.glb)"};
+    // const std::string structurePath = {R"(..\..\assets\sponza\sponza-avif-hi.glb)"}; // unsupported model test
+    // const std::string structurePath = {R"(..\..\assets\structure.glb)"};
+    const auto structureFile = momo_GLTF::load_gltf(structurePath);
+    assert(structureFile.has_value());
+
+    _loadedScenes["structure"] = *structureFile;
 }
 
 // void VulkanEngine::Init_Mesh_Pipeline()
@@ -1450,7 +1463,7 @@ void VulkanEngine::ImGui_Run()
 		ImGui::Separator();
 		ImGui::SliderFloat("camera fov", &tempCameraFOV, 1, 180);
 		// ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
-		ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 2.f);
+		// ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 2.f);
 		ImGui::Value("cameraPitchRad", _mainCamera.pitch);
         ImGui::Separator();
 		ImGui::ColorEdit4("SunColor", reinterpret_cast<float*>(&tempSunColor));
@@ -1718,11 +1731,11 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
     {
         Destroy_Buffer(gpuSceneDataBuffer);
     });
-	
-	 //write the buffer
-	 GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.info.pMappedData);
-	 // GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
-	 *sceneUniformData = _sceneData;
+    
+    //write the buffer
+	GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.info.pMappedData);
+	// GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
+	*sceneUniformData = _sceneData;
     
     // create a descriptor set that binds that buffer and update it
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES 
@@ -1838,33 +1851,6 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	//convert to microseconds (integer), and then come back to miliseconds
 	auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 	_stats.mesh_draw_time = elapsed.count() / 1000.f;
-	
-    // old manual drawing
-	// VkDescriptorSet imageSet = Get_Current_Frame()._frameDescriptors.Allocate(_device, _singleImageDescriptorLayout);
-	// {
-	// 	auto& imageToBind = _errorCheckerboardImage;
-	// 	DescriptorWriter writer;
-	// 	writer.Write_Image(0, imageToBind.imageView, _defaultSamplerNearest, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	//
-	// 	writer.Update_Set(_device, imageSet);
-	// }
-	// vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _meshPipelineLayout, 0, 1, &imageSet, 0, nullptr);
-	// const glm::mat4 view = glm::translate(tempView);
-	// // For the projection matrix, we are doing a trick here. Note that we are sending 10000 to the “near” and 0.1 to the “far”. We will be reversing the depth, so that depth 1 is the near plane, and depth 0 the far plane. This is a technique that greatly increases the quality of depth testing.
-	// glm::mat4 projection = glm::perspective(glm::radians(tempCameraFOV), static_cast<float>(_drawExtent.width) / static_cast<float>(_drawExtent.height), 10000.f, 0.1f);
-	//
-	// // invert the Y direction on projection matrix so that we are more similar to opengl and gltf axis
-	// projection[1][1] *= -1;
-	//
-	// const auto& mesh = _testMeshes[2]; // 0 cube, 1 sphere, 2 monke
-	// GPUDrawPushConstants push_Constants{};
-	// push_Constants._worldMatrix = projection * view;
-	// push_Constants._vertexBuffer = mesh->meshBuffers._vertexBufferAddress;
-	//
-	// vkCmdPushConstants(aCmd, _meshPipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &push_Constants);
-	// vkCmdBindIndexBuffer(aCmd, mesh->meshBuffers._indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-	//
-	// vkCmdDrawIndexed(aCmd, mesh->surfaces[0].count, 1, mesh->surfaces[0].startIndex, 0, 0);
 }
 
 AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBufferUsageFlags aUsage, const VmaMemoryUsage aMemoryUsage, const char* aName) const

@@ -161,6 +161,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     std::vector<std::shared_ptr<MeshAsset>> meshes;
     std::vector<std::shared_ptr<Node>> nodes;
     std::vector<AllocatedImage> images;
+    // std::vector<TexureID> imageIDs;
     std::vector<std::shared_ptr<GLTFMaterial>> materials;
 
     // Phase 1 — CPU: decode every image and fill a host-visible staging buffer.
@@ -190,6 +191,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             images.push_back(decoded[i]->image);
             file.images.push_back(decoded[i]->image);
             pendingUploads.push_back(std::move(*decoded[i]));
+            // imageIDs.push_back( engine->texCache.AddTexture(materialResources.colorImage.imageView, materialResources.colorSampler, );
         }
         else
         {
@@ -258,9 +260,6 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
             constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
             
-            // write material parameters to buffer
-            sceneMaterialConstants[data_index] = constants;
-
             auto passType = MaterialPass::MainColor;
             if (mat.alphaMode == fastgltf::AlphaMode::Blend)
             {
@@ -298,6 +297,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                     ? file.samplers[tex.samplerIndex.value()]
                     : aEngine._defaultSamplerLinear;
             }
+
+            // constants.colorTexID = aEngine->texCache.AddTexture(materialResources.colorImage.imageView, materialResources.colorSampler).Index;
+            // constants.metalRoughTexID = aEngine->texCache.AddTexture(materialResources.metalRoughImage.imageView, materialResources.metalRoughSampler).Index;
+
+            // write material parameters to buffer
+            sceneMaterialConstants[data_index] = constants;
+
+
             // build material
             #ifdef MOMOVK_ENABLE_DEBUG_NAMES
                 debugNameString = fmt::format("Material Name: {}, Path: {}", mat.name, aFilePath);
