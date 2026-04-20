@@ -4,9 +4,10 @@
 # features
 * HLSL and GLSL shader support.
 * Buffer Device Address and Vertex Pulling.
-* Dynamic rendering, descriptor indexing (bindless) & sync2. 
+* Dynamic rendering, descriptor indexing (bindless) & sync2.
 * GLTF loading (models & textures).
 * Frustum Culling & Draw Sorting
+* bindless textures & material system.
 * Png Texture Loading with Mipmaps. 
 * Everything's annotated in debug & support for the renderdoc API.
 * super basic lighting and pbr.
