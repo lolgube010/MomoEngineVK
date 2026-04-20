@@ -153,6 +153,7 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
         def.matDebugName = s.material->debugName;
         def.meshDebugName = mesh->name;
+        def.combinedDebugLabel = s.combinedDebugLabel.c_str();
 #endif
 		switch (s.material->data.passType)
 		{
@@ -1792,7 +1793,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
             {
                 const char* const passStr = (r.material->passType == MaterialPass::Transparent) ? "transparent" : "opaque";
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-                _render_doc.Annotate_Draw(aCmd, r.matDebugName.c_str(), r.meshDebugName.c_str(), passStr);
+                _render_doc.Annotate_Draw(aCmd, r.matDebugName.data(), r.meshDebugName.data(), passStr);
 #else
                 _render_doc.Annotate_Draw(aCmd, nullptr, nullptr, passStr);
 #endif
@@ -1808,9 +1809,8 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	        {
                 const auto& mesh = _mainDrawContext.opaqueSurfaces[r];
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-                debugNameString = fmt::format("Mesh: {}, {}", mesh.meshDebugName, mesh.matDebugName);
-                MOMO_VK_SCOPED_CMD_LABEL(aCmd, debugNameString.c_str());
-    #endif
+                MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh.combinedDebugLabel);
+#endif
                 draw(mesh);
 	        }
 	    }
@@ -1821,10 +1821,9 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	        {
                 const auto& mesh = _mainDrawContext.transparentSurfaces[r];
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-                debugNameString = fmt::format("Mesh: {}, {}", mesh.meshDebugName, mesh.matDebugName);
-                MOMO_VK_SCOPED_CMD_LABEL(aCmd, debugNameString.c_str());
-    #endif
-	            draw(mesh);
+                MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh.combinedDebugLabel);
+#endif
+                draw(mesh);
 	        }
 	    }
     }

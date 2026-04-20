@@ -432,7 +432,13 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             newSurface.bounds.origin = (maxPos + minPos) / 2.f;
             newSurface.bounds.extents = (maxPos - minPos) / 2.f;
             newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
-            
+
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+            newSurface.combinedDebugLabel = newSurface.material
+                ? fmt::format("Mesh: {}, {}", mesh.name, newSurface.material->debugName)
+                : fmt::format("Mesh: {}", mesh.name);
+#endif
+
             newMesh->surfaces.push_back(newSurface);
         }
 

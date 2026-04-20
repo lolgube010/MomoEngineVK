@@ -23,12 +23,15 @@ struct GLTFMaterial
 #endif
 };
 
-struct GeoSurface 
+struct GeoSurface
 {
     uint32_t startIndex;
     uint32_t count;
     Bounds bounds;
     std::shared_ptr<GLTFMaterial> material;
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+    std::string combinedDebugLabel; // built once at load: "Mesh: X, Material: Y"
+#endif
 };
 
 struct MeshAsset 

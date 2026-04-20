@@ -85,9 +85,9 @@ struct RenderObject
 	glm::mat4 transform;
 	VkDeviceAddress vertexBufferAddress;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    std::string matDebugName = "Unnamed Material";
-    std::string meshDebugName = "Unnamed Mesh";
-    // int padding[29];
+    std::string_view matDebugName;
+    std::string_view meshDebugName;
+    const char* combinedDebugLabel = nullptr; //  points into GeoSurface::combinedDebugLabel
 #endif
 };
 

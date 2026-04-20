@@ -1,6 +1,7 @@
 #pragma once
 #include "vk_initializers.h"
 #include <atomic>
+#include "fmt/format.h"
 
 namespace momo_vkDebug
 {
@@ -54,14 +55,16 @@ namespace momo_vkDebug
         if (!vkSetDebugUtilsObjectNameEXT)
             return;
 
-        std::string finalName = fmt::vformat(aFmtString, fmt::make_format_args(aArgs...));
+        fmt::memory_buffer buf;
+        fmt::vformat_to(std::back_inserter(buf), aFmtString, fmt::make_format_args(aArgs...));
+        buf.push_back('\0');
         VkDebugUtilsObjectNameInfoEXT nameInfo = {};
         nameInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_OBJECT_NAME_INFO_EXT;
         nameInfo.objectType = aObjectType;
 
         // ReSharper disable once CppCStyleCast
         nameInfo.objectHandle = (uint64_t)(aHandle);
-        nameInfo.pObjectName = finalName.c_str();
+        nameInfo.pObjectName = buf.data();
 
         vkSetDebugUtilsObjectNameEXT(aDevice, &nameInfo);
     }
