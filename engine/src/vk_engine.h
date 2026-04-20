@@ -128,6 +128,7 @@ struct TextureCache
     std::unordered_set<uint32_t> _freeSlots;
     std::unordered_set<VkImageView> _engineImages;
     std::unordered_map<ViewSamplerKey, uint32_t, ViewSamplerHash> _lookup;
+    bool _dirty = true;
 
     TextureID AddTexture(const VkImageView& aImage, VkSampler aSampler);
     void MarkEngineImage(VkImageView aView);
@@ -258,7 +259,9 @@ public:
 	// std::vector<std::shared_ptr<MeshAsset>> _testMeshes; 
 
 	GPUSceneData _sceneData = {};
-	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout; // uniform buffer, for draw image. once/frame data (projection matrices etc / struct GPUSceneData in vk_types.h). allocated in draw_geometry
+	VkDescriptorSetLayout _gpuSceneDataDescriptorLayout;
+	VkDescriptorPool _persistentDescPool{VK_NULL_HANDLE};
+	std::array<VkDescriptorSet, FRAME_OVERLAP> _persistentGlobalDescriptors{};
 
 	// actually allocate a new image
 	AllocatedImage Create_Image(VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, const char* aName, bool aMipmapped = false) const;
@@ -280,13 +283,9 @@ public:
 
     TextureCache texCache;
 
-	// VkDescriptorSetLayout _singleImageDescriptorLayout; // for textures, combined image/sampler, used in old mesh pipeline and should TODO: be removed
-
-	// MaterialInstance defaultData; // fallback material
 	GLTFMetallic_Roughness metalRoughMaterial;
 
 	DrawContext _mainDrawContext;
-	// std::unordered_map<std::string, std::shared_ptr<Node>> _loadedNodes;
 
 	Camera _mainCamera;
 

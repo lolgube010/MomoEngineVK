@@ -39,8 +39,6 @@ void GLTFMetallic_Roughness::Build_Pipelines()
     auto& aEngine = VulkanEngine::Get();
 	DescriptorLayoutBuilder layoutBuilder;
 	layoutBuilder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	// layoutBuilder.Add_Binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-	// layoutBuilder.Add_Binding(2, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
 
 	materialLayout = layoutBuilder.Build(aEngine._device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "GLTFMetallic_Roughness Material");
 
@@ -195,6 +193,7 @@ TextureID TextureCache::AddTexture(const VkImageView& aImage, const VkSampler aS
     }
 
     _lookup.emplace(key, idx);
+    _dirty = true;
     return TextureID{idx};
 }
 
@@ -215,6 +214,7 @@ void TextureCache::FreeTextures(const std::span<const TextureID> aIDs, const VkD
         _lookup.erase(ViewSamplerKey{.imageView = _cache[Index].imageView, .sampler = _cache[Index].sampler});
         _cache[Index] = aFallback;
         _freeSlots.insert(Index);
+        _dirty = true;
     }
 }
 
@@ -681,6 +681,7 @@ void VulkanEngine::Init_Vulkan()
     features12.scalarBlockLayout = true;
     features12.descriptorBindingPartiallyBound = true;
     features12.descriptorBindingVariableDescriptorCount = true;
+    features12.descriptorBindingSampledImageUpdateAfterBind = true;
     features12.runtimeDescriptorArray = true;
 
 	// vk 1.1 features
@@ -970,14 +971,6 @@ void VulkanEngine::Init_Descriptors()
 		builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
         _drawImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_COMPUTE_BIT, "drawImage");
 	}
-	// for textures
-	// {
-		// TODO:
-		// When we do drawing, we want to use the fixed hardware in the GPU for accessing texture data, which needs the sampler.We have the option to either use VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, which packages an image and a sampler to use with that image, or to use 2 descriptors, and separate the two into VK_DESCRIPTOR_TYPE_SAMPLER and VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE.According to gpu vendors, the separated approach can be faster as there is less duplicated data.But its a bit harder to deal with so we won't be doing it for now.Instead, we will use the combined descriptor to make our shaders simpler.
-
-		// DescriptorLayoutBuilder builder;
-		// builder.Add_Binding(0, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
-        // _singleImageDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_FRAGMENT_BIT, "singleImage");
 	// }
 	// for our draw image
 	{
@@ -986,14 +979,19 @@ void VulkanEngine::Init_Descriptors()
 		builder.Add_Binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         VkDescriptorSetLayoutBindingFlagsCreateInfo bindFlags = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO, .pNext = nullptr};
 
-        const std::array<VkDescriptorBindingFlags, 2> flagArray{0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT};
+        const std::array<VkDescriptorBindingFlags, 2> flagArray{
+            0,
+            VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
+            VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT |
+            VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT,
+        };
 
         builder._bindings[1].descriptorCount = 4048;
 
         bindFlags.bindingCount = 2;
         bindFlags.pBindingFlags = flagArray.data();
 
-        _gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "gpuSceneData", &bindFlags);
+        _gpuSceneDataDescriptorLayout = builder.Build(_device, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "gpuSceneData", &bindFlags, VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT);
 	}
 
 	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout, "drawImage");
@@ -1009,7 +1007,6 @@ void VulkanEngine::Init_Descriptors()
 		_globalDescriptorAllocator.Destroy_Pools(_device);
 
 		vkDestroyDescriptorSetLayout(_device, _drawImageDescriptorLayout, nullptr);
-		// vkDestroyDescriptorSetLayout(_device, _singleImageDescriptorLayout, nullptr);
 		vkDestroyDescriptorSetLayout(_device, _gpuSceneDataDescriptorLayout, nullptr);
 	});
 
@@ -1045,6 +1042,52 @@ void VulkanEngine::Init_Descriptors()
             Destroy_Buffer(_frames[i].sceneDataBuffer);
 		});
 	}
+
+    // Persistent pool: one global descriptor set per frame slot.
+    // UBO binding written once here; texture array patched lazily when texCache._dirty is set.
+    {
+        constexpr uint32_t kMaxTextures = 4048;
+        const std::array<VkDescriptorPoolSize, 2> poolSizes{{
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,         FRAME_OVERLAP},
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, FRAME_OVERLAP * kMaxTextures},
+        }};
+        VkDescriptorPoolCreateInfo poolInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO};
+        poolInfo.flags    = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT;
+        poolInfo.maxSets  = FRAME_OVERLAP;
+        poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
+        poolInfo.pPoolSizes    = poolSizes.data();
+        VK_CHECK(vkCreateDescriptorPool(_device, &poolInfo, nullptr, &_persistentDescPool));
+
+        std::array<uint32_t, FRAME_OVERLAP> varCounts;
+        varCounts.fill(kMaxTextures);
+        VkDescriptorSetVariableDescriptorCountAllocateInfo varInfo{
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
+            .descriptorSetCount = FRAME_OVERLAP,
+            .pDescriptorCounts  = varCounts.data(),
+        };
+
+        std::array<VkDescriptorSetLayout, FRAME_OVERLAP> layouts;
+        layouts.fill(_gpuSceneDataDescriptorLayout);
+        VkDescriptorSetAllocateInfo allocInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO};
+        allocInfo.pNext              = &varInfo;
+        allocInfo.descriptorPool     = _persistentDescPool;
+        allocInfo.descriptorSetCount = FRAME_OVERLAP;
+        allocInfo.pSetLayouts        = layouts.data();
+        VK_CHECK(vkAllocateDescriptorSets(_device, &allocInfo, _persistentGlobalDescriptors.data()));
+
+        // Write UBO binding once per frame slot — buffer handle never changes.
+        for (uint32_t i = 0; i < FRAME_OVERLAP; i++)
+        {
+            DescriptorWriter writer;
+            writer.Write_Buffer(0, _frames[i].sceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+            writer.Update_Set(_device, _persistentGlobalDescriptors[i]);
+        }
+
+        _mainDeletionQueue.Push_Function([&]
+        {
+            vkDestroyDescriptorPool(_device, _persistentDescPool, nullptr);
+        });
+    }
 }
 
 void VulkanEngine::Init_Pipelines()
@@ -1686,40 +1729,28 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	vkCmdSetScissor(aCmd, 0, 1, &scissor);
 
-    AllocatedBuffer& gpuSceneDataBuffer = Get_Current_Frame().sceneDataBuffer;
-    *static_cast<GPUSceneData*>(gpuSceneDataBuffer.info.pMappedData) = _sceneData;
-    
-	VkDescriptorSetVariableDescriptorCountAllocateInfo allocArrayInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO, .pNext = nullptr};
+    *static_cast<GPUSceneData*>(Get_Current_Frame().sceneDataBuffer.info.pMappedData) = _sceneData;
 
-    uint32_t descriptorCounts = std::max(1u, static_cast<uint32_t>(texCache._cache.size()));
-    allocArrayInfo.pDescriptorCounts = &descriptorCounts;
-    allocArrayInfo.descriptorSetCount = 1;
-
-    // create a descriptor set that binds that buffer and update it
-#ifdef MOMOVK_ENABLE_DEBUG_NAMES 
-    debugNameString = fmt::format("Global, Frame Num: {}", _frame_number);
-    debugName = debugNameString.c_str();
-#else
-    const char* debugName = nullptr;
-#endif
-
-    VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout, debugName, &allocArrayInfo);
-	
-	DescriptorWriter writer;
-	writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-	
-    if (!texCache._cache.empty())
+    if (texCache._dirty && !texCache._cache.empty())
     {
-        VkWriteDescriptorSet arraySet{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        arraySet.descriptorCount = texCache._cache.size();
-        arraySet.dstArrayElement = 0;
-        arraySet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        arraySet.dstBinding = 1;
-        arraySet.pImageInfo = texCache._cache.data();
-        writer._writes.push_back(arraySet);
+        const VkWriteDescriptorSet arrayWrite{
+            .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstBinding      = 1,
+            .dstArrayElement = 0,
+            .descriptorCount = static_cast<uint32_t>(texCache._cache.size()),
+            .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo      = texCache._cache.data(),
+        };
+        for (VkDescriptorSet set : _persistentGlobalDescriptors)
+        {
+            VkWriteDescriptorSet write = arrayWrite;
+            write.dstSet = set;
+            vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
+        }
+        texCache._dirty = false;
     }
 
-    writer.Update_Set(_device, globalDescriptor);
+    const VkDescriptorSet globalDescriptor = _persistentGlobalDescriptors[_frame_number % FRAME_OVERLAP];
 	
 	//defined outside the draw function, this is the state we will try to skip
 	MaterialPipeline* lastPipeline = nullptr;
