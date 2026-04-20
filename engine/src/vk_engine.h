@@ -2,6 +2,7 @@
 // or project specific include files.
 // This will be the main class for the engine, and where most of the code of the tutorial will go
 #pragma once
+#include <chrono>
 #include <vk_types.h>
 #include <vk_descriptors.h>
 #include "camera.h"
@@ -362,4 +363,7 @@ private:
     }
 
     momo_vkDebug::ValidationCapture _validationCapture;
+
+    VmaTotalStatistics _cachedVmaStats{};
+    std::chrono::steady_clock::time_point _lastVmaStatsTime{};
 };

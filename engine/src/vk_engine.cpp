@@ -1520,19 +1520,20 @@ void VulkanEngine::ImGui_Run()
     #endif
             if (ImGui::CollapsingHeader("VMA", ImGuiTreeNodeFlags_DefaultOpen))
             {
-                // WARNING: This is slow to call every frame!
-                VmaTotalStatistics stats;
-                vmaCalculateStatistics(_allocator, &stats);
+                const auto now = std::chrono::steady_clock::now();
+                if (now - _lastVmaStatsTime >= std::chrono::seconds(5))
+                {
+                    vmaCalculateStatistics(_allocator, &_cachedVmaStats);
+                    _lastVmaStatsTime = now;
+                }
+                const VmaTotalStatistics& stats = _cachedVmaStats;
 
-                // Cast to double for accurate MB calculations
                 const double allocatedMB = static_cast<double>(stats.total.statistics.allocationBytes) / (1024.0 * 1024.0);
                 const double blockMB = static_cast<double>(stats.total.statistics.blockBytes) / (1024.0 * 1024.0);
                 const double allocationSizeMaxMB = static_cast<double>(stats.total.allocationSizeMax) / (1024.0 * 1024.0);
-
-                // Handle the case where min size defaults to UINT64_MAX when there are 0 allocations
                 const uint64_t minSize = (stats.total.statistics.allocationCount == 0) ? 0 : stats.total.allocationSizeMin;
 
-                ImGui::Text("Total Memory Allocated: %.2f MB", allocatedMB); // Changed "VRAM" to "Total Memory"
+                ImGui::Text("Total Memory Allocated: %.2f MB", allocatedMB);
                 ImGui::Text("Total Allocations: %u", stats.total.statistics.allocationCount);
                 ImGui::Text("Total Blocks: %u", stats.total.statistics.blockCount);
                 ImGui::Text("BlockBytes: %.2f MB", blockMB);
@@ -1771,25 +1772,6 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
                     vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->pipeline);
                     vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 0, 1, &globalDescriptor, 0, nullptr);
-
-                    //set dynamic viewport and scissor
-                    VkViewport viewport2;
-                    viewport2.x = 0;
-                    viewport2.y = 0;
-                    viewport2.width = static_cast<float>(_drawExtent.width);
-                    viewport2.height = static_cast<float>(_drawExtent.height);
-                    viewport2.minDepth = 0.f;
-                    viewport2.maxDepth = 1.f;
-
-                    vkCmdSetViewport(aCmd, 0, 1, &viewport2);
-
-                    VkRect2D scissor2;
-                    scissor2.offset.x = 0;
-                    scissor2.offset.y = 0;
-                    scissor2.extent.width = _drawExtent.width;
-                    scissor2.extent.height = _drawExtent.height;
-
-                    vkCmdSetScissor(aCmd, 0, 1, &scissor2);
                 }
                 vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r.material->pipeline->layout, 1, 1, &r.material->materialSet, 0, nullptr);
 
