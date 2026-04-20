@@ -13,7 +13,7 @@
 * super basic lighting and pbr.
 
 # planned features
-* lots of project structure stuff first and foremost. after that it's adding slang & doing the neural shading course. 
+* lots of project structure stuff first and foremost. after that it's adding slang & doing the neural shading course. before slang i'll do this though: https://jcgt.org/published/0015/01/03/
 
 # How to Build:
 * [Install Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
