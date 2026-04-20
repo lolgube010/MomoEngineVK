@@ -174,20 +174,48 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 
 TextureID TextureCache::AddTexture(const VkImageView& aImage, const VkSampler aSampler)
 {
-    for (unsigned int i = 0; i < Cache.size(); i++)
+    const ViewSamplerKey key{.imageView = aImage, .sampler = aSampler};
+
+    if (const auto it = _lookup.find(key); it != _lookup.end())
+        return TextureID{it->second};
+
+    const VkDescriptorImageInfo info{.sampler = aSampler, .imageView = aImage, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
+
+    uint32_t idx;
+    if (!_freeSlots.empty())
     {
-        if (Cache[i].imageView == aImage && Cache[i].sampler == aSampler)
-        {
-            // found, return it
-            return TextureID{i};
-        }
+        idx = *_freeSlots.begin();
+        _freeSlots.erase(_freeSlots.begin());
+        _cache[idx] = info;
+    }
+    else
+    {
+        idx = static_cast<uint32_t>(_cache.size());
+        _cache.push_back(info);
     }
 
-    uint32_t idx = Cache.size();
-
-    Cache.push_back(VkDescriptorImageInfo{.sampler = aSampler, .imageView = aImage, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL});
-
+    _lookup.emplace(key, idx);
     return TextureID{idx};
+}
+
+void TextureCache::MarkEngineImage(const VkImageView aView)
+{
+    _engineImages.insert(aView);
+}
+
+void TextureCache::FreeTextures(const std::span<const TextureID> aIDs, const VkDescriptorImageInfo& aFallback)
+{
+    for (const auto [Index] : aIDs)
+    {
+        if (_engineImages.contains(_cache[Index].imageView))
+            continue;
+        if (_freeSlots.contains(Index))
+            continue;
+
+        _lookup.erase(ViewSamplerKey{.imageView = _cache[Index].imageView, .sampler = _cache[Index].sampler});
+        _cache[Index] = aFallback;
+        _freeSlots.insert(Index);
+    }
 }
 
 VulkanEngine& VulkanEngine::Get()
@@ -242,12 +270,26 @@ void VulkanEngine::Draw()
     uint32_t _swapchainImageIndex;
     {
 	    // request image from the swapchain
-	    if (const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &_swapchainImageIndex); 
-		    res == VK_ERROR_OUT_OF_DATE_KHR || res == VK_SUBOPTIMAL_KHR) 
-	    {
-		    _resize_requested = true;
-		    return;
-	    }
+        {
+            const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &_swapchainImageIndex);
+            if (res == VK_ERROR_OUT_OF_DATE_KHR)
+            {
+                // Error code: acquire failed, semaphore was NOT signaled — safe to return early.
+                _resize_requested = true;
+                return;
+            }
+            if (res == VK_SUBOPTIMAL_KHR)
+            {
+                // Success code: acquire succeeded, semaphore IS signaled, image index is valid.
+                // Must continue and render this frame — returning early would orphan the semaphore.
+                // Recreate swapchain after present instead.
+                _resize_requested = true;
+            }
+            else
+            {
+                VK_CHECK(res);
+            }
+        }
     }
 	VK_CHECK(vkResetFences(_device, 1, &Get_Current_Frame()._renderFence));
 
@@ -337,7 +379,7 @@ void VulkanEngine::Draw()
 	    // this will put the image we just rendered to into the visible window.
 	    // we want to wait on the _renderSemaphore for that, 
 	    // as its necessary that drawing commands have finished before the image is displayed to the user
-        VkPresentInfoKHR presentInfo = momo_vkInit::present_info(&_swapchain, &ready_for_present_semaphores[_swapchainImageIndex], &_swapchainImageIndex);
+        const VkPresentInfoKHR presentInfo = momo_vkInit::present_info(&_swapchain, &ready_for_present_semaphores[_swapchainImageIndex], &_swapchainImageIndex);
 
 	    if (const VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo); 
 		    presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) 
@@ -843,10 +885,9 @@ void VulkanEngine::Init_Commands()
 	// we also want the pool to allow for resetting of individual command buffers
 	const VkCommandPoolCreateInfo commandPoolInfo = momo_vkInit::command_pool_create_info(_graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-    for (unsigned int i = 0; i < FRAME_OVERLAP; ++i)
-	{
-        auto& frame = _frames[i];
-		VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &frame._commandPool));
+    for (auto& frame : _frames)
+    {
+        VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &frame._commandPool));
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, "_Command Pool Main, FIF: {}", i);
 		
         // allocate the default command buffer that we will use for rendering
@@ -882,10 +923,9 @@ void VulkanEngine::Init_Sync_Structures()
 	const VkFenceCreateInfo fenceCreateInfo = momo_vkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
 	const VkSemaphoreCreateInfo semaphoreCreateInfo = momo_vkInit::semaphore_create_info();
 
-    for (unsigned int i = 0; i < FRAME_OVERLAP; ++i)
+    for (auto& frame : _frames)
     {
-        auto& frame = _frames[i];
-		VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &frame._renderFence));
+        VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &frame._renderFence));
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
 		//VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore)); // moved to 2nd for loop
 		
@@ -946,7 +986,7 @@ void VulkanEngine::Init_Descriptors()
 		builder.Add_Binding(1, VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
         VkDescriptorSetLayoutBindingFlagsCreateInfo bindFlags = {.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO, .pNext = nullptr};
 
-        std::array<VkDescriptorBindingFlags, 2> flagArray{0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT};
+        const std::array<VkDescriptorBindingFlags, 2> flagArray{0, VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT};
 
         builder._bindings[1].descriptorCount = 4048;
 
@@ -991,11 +1031,18 @@ void VulkanEngine::Init_Descriptors()
         debugStr2 = fmt::format("Frame, FIF: {}", i);
         debugStr = debugStr2.c_str();
 #endif
-        _frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes, debugStr);
+        _frames[i]._frameDescriptors.Init(_device, 1000, frame_Sizes, debugStr, VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT);
+
+#ifdef MOMOVK_ENABLE_DEBUG_NAMES
+        debugStr2 = fmt::format("GPUSceneData, FIF: {}", i);
+        debugStr = debugStr2.c_str();
+#endif
+        _frames[i].sceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugStr);
 
 		_mainDeletionQueue.Push_Function([&, i]
 		{
 			_frames[i]._frameDescriptors.Destroy_Pools(_device);
+            Destroy_Buffer(_frames[i].sceneDataBuffer);
 		});
 	}
 }
@@ -1218,16 +1265,11 @@ void VulkanEngine::Init_Default_Data()
     _stats.frequency = SDL_GetPerformanceFrequency();
 
 	_mainCamera.velocity = glm::vec3(0.f);
-	_mainCamera.position = glm::vec3(30.f, -00.f, -085.f);
-	// _mainCamera.position = glm::vec3();
+	// _mainCamera.position = glm::vec3(30.f, -00.f, -085.f); // for structure
+	_mainCamera.position = glm::vec3(0.f, 5.f, 0.f);
 
 	_mainCamera.pitch = 0;
 	_mainCamera.yaw = 0;
-
-	// In the file provided, index 0 is a cube, index 1 is a sphere, and index 2 is a blender monkey head. we will be drawing that last one, draw it right after drawing the rectangle from before
-	// _testMeshes = LoadGltfMeshes_Legacy(this, R"(..\..\assets\basicmesh.glb)").value(); 
-	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\structure.glb)").value();
-	// _testMeshes = LoadGltfMeshes(this, R"(..\..\assets\thejunkshopsplashscreen2.glb)").value();
 
 	const uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
     _whiteImage = Create_Image(&white, VkExtent3D{.width = 1, .height = 1, .depth = 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_White");
@@ -1247,6 +1289,11 @@ void VulkanEngine::Init_Default_Data()
 	}
 	_errorCheckerboardImage = Create_Image(pixels.data(), VkExtent3D{.width = 16, .height = 16, .depth = 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_ErrorCheckerboard");
 
+    texCache.MarkEngineImage(_whiteImage.imageView);
+    texCache.MarkEngineImage(_greyImage.imageView);
+    texCache.MarkEngineImage(_blackImage.imageView);
+    texCache.MarkEngineImage(_errorCheckerboardImage.imageView);
+
 	VkSamplerCreateInfo sampler = {};
     sampler.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
 
@@ -1254,13 +1301,13 @@ void VulkanEngine::Init_Default_Data()
 	sampler.magFilter = VK_FILTER_NEAREST;
 	sampler.minFilter = VK_FILTER_NEAREST;
 
-	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest);
+	VK_CHECK(vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerNearest, "_Sampler Default Nearest");
 
 	// linear blurs
 	sampler.magFilter = VK_FILTER_LINEAR;
 	sampler.minFilter = VK_FILTER_LINEAR;
-	vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerLinear);
+	VK_CHECK(vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerLinear));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerLinear, "_Sampler Default Linear");
 	
 
@@ -1299,26 +1346,6 @@ void VulkanEngine::Init_Default_Data()
 
 	materialResources.dataBuffer = materialConstants.buffer;
 	materialResources.dataBufferOffset = 0;
-
-	// defaultData = metalRoughMaterial.Write_Material(_device, MaterialPass::MainColor, materialResources, _globalDescriptorAllocator, "Default Material");
-
-	// for (auto& m : _testMeshes) 
-	// {
-	// 	std::shared_ptr<MeshNode> newNode = std::make_shared<MeshNode>();
-	// 	newNode->mesh = m;
-	//
-	// 	newNode->localTransform = glm::mat4{ 1.f };
-	// 	newNode->worldTransform = glm::mat4{ 1.f };
-	//
-	// 	for (auto& s : newNode->mesh->surfaces) 
-	// 	{
-	// 		s.material = std::make_shared<GLTFMaterial>(defaultData);
-	// 	}
-	//
-	// 	_loadedNodes[m->name] = std::move(newNode);
-	// }
-
-	//>materials
 }
 
 void VulkanEngine::Init_Models()
@@ -1331,62 +1358,6 @@ void VulkanEngine::Init_Models()
 
     _loadedScenes["structure"] = *structureFile;
 }
-
-// void VulkanEngine::Init_Mesh_Pipeline()
-// {
-//     auto triangleFragShader = momo_util::LoadShader("tex_image", momo_util::ShaderType::Fragment, false, _device, &_debugInfo);
-//     auto triangleVertexShader = momo_util::LoadShader("colored_triangle_mesh", momo_util::ShaderType::Vertex, false, _device, &_debugInfo);
-//
-// 	VkPushConstantRange bufferRange{};
-// 	bufferRange.offset = 0;
-// 	bufferRange.size = sizeof(GPUDrawPushConstants);
-// 	bufferRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-//
-// 	VkPipelineLayoutCreateInfo pipeline_layout_info = vkInit::pipeline_layout_create_info();
-// 	pipeline_layout_info.pPushConstantRanges = &bufferRange;
-// 	pipeline_layout_info.pushConstantRangeCount = 1;
-// 	pipeline_layout_info.pSetLayouts = &_singleImageDescriptorLayout;
-// 	pipeline_layout_info.setLayoutCount = 1;
-// 	VK_CHECK(vkCreatePipelineLayout(_device, &pipeline_layout_info, nullptr, &_meshPipelineLayout));
-//
-// 	PipelineBuilder pipelineBuilder;
-//
-// 	//use the triangle layout we created
-// 	pipelineBuilder._pipelineLayout = _meshPipelineLayout;
-// 	//connecting the vertex and pixel shaders to the pipeline
-// 	pipelineBuilder.Set_Shaders(triangleVertexShader.value(), triangleFragShader.value());
-// 	//it will draw triangles
-// 	pipelineBuilder.Set_Input_Topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-// 	//filled triangles
-// 	pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_FILL);
-//     // pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_LINE);
-// 	//no backface culling
-// 	pipelineBuilder.Set_Cull_Mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
-// 	//no multisampling
-// 	pipelineBuilder.Set_Multisampling_None();
-// 	
-// 	pipelineBuilder.Disable_Blending();			
-// 	
-//     pipelineBuilder.Enable_DepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
-//
-// 	//connect the image format we will draw into, from draw image
-// 	pipelineBuilder.Set_Color_Attachment_Format(_drawImage.imageFormat);
-// 	pipelineBuilder.Set_Depth_Format(_depthImage.imageFormat);
-//
-// 	//finally build the pipeline
-// 	_meshPipeline = pipelineBuilder.Build_Pipeline(_device);
-//
-// 	//clean structures
-// 	vkDestroyShaderModule(_device, triangleFragShader.value(), nullptr);
-// 	vkDestroyShaderModule(_device, triangleVertexShader.value(), nullptr);
-//
-// 	_mainDeletionQueue.Push_Function([&]
-// 	{
-// 		vkDestroyPipelineLayout(_device, _meshPipelineLayout, nullptr);
-// 		vkDestroyPipeline(_device, _meshPipeline, nullptr);
-// 	});
-//
-// }
 
 void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeight)
 {
@@ -1511,12 +1482,12 @@ void VulkanEngine::ImGui_Run()
                 vmaCalculateStatistics(_allocator, &stats);
 
                 // Cast to double for accurate MB calculations
-                double allocatedMB = static_cast<double>(stats.total.statistics.allocationBytes) / (1024.0 * 1024.0);
-                double blockMB = static_cast<double>(stats.total.statistics.blockBytes) / (1024.0 * 1024.0);
-                double allocationSizeMaxMB = static_cast<double>(stats.total.allocationSizeMax) / (1024.0 * 1024.0);
+                const double allocatedMB = static_cast<double>(stats.total.statistics.allocationBytes) / (1024.0 * 1024.0);
+                const double blockMB = static_cast<double>(stats.total.statistics.blockBytes) / (1024.0 * 1024.0);
+                const double allocationSizeMaxMB = static_cast<double>(stats.total.allocationSizeMax) / (1024.0 * 1024.0);
 
                 // Handle the case where min size defaults to UINT64_MAX when there are 0 allocations
-                uint64_t minSize = (stats.total.statistics.allocationCount == 0) ? 0 : stats.total.allocationSizeMin;
+                const uint64_t minSize = (stats.total.statistics.allocationCount == 0) ? 0 : stats.total.allocationSizeMin;
 
                 ImGui::Text("Total Memory Allocated: %.2f MB", allocatedMB); // Changed "VRAM" to "Total Memory"
                 ImGui::Text("Total Allocations: %u", stats.total.statistics.allocationCount);
@@ -1548,15 +1519,15 @@ void VulkanEngine::ImGui_Run()
                     }
                 }
 
-                double usageMB = static_cast<double>(totalVramUsage) / (1024.0 * 1024.0);
-                double budgetMB = static_cast<double>(totalVramBudget) / (1024.0 * 1024.0);
+                const double usageMB = static_cast<double>(totalVramUsage) / (1024.0 * 1024.0);
+                const double budgetMB = static_cast<double>(totalVramBudget) / (1024.0 * 1024.0);
 
                 ImGui::Text("VRAM Usage: %.2f MB / %.2f MB", usageMB, budgetMB);
 
                 // Optional: Progress bar for visual representation
                 if (totalVramBudget > 0)
                 {
-                    float fraction = static_cast<float>(totalVramUsage) / static_cast<float>(totalVramBudget);
+                    const float fraction = static_cast<float>(totalVramUsage) / static_cast<float>(totalVramBudget);
                     ImGui::ProgressBar(fraction, ImVec2(-1.f, 0.f));
                 }
             }
@@ -1580,28 +1551,6 @@ void VulkanEngine::ImGui_Run()
 
 	    ImGui::End();
 
-		//
-		// // The list of names matching your functions
-		// const char* blendNames[] = 
-		// {
-		// 	"Disabled",
-		// 	"Additive",
-		// 	"Alpha Blend",
-		// 	"Multiply",
-		// 	"Screen",
-		// 	"Premultiplied Alpha",
-		// 	"Subtractive",
-		// 	"Invert",
-		// 	"Min",
-		// 	"Max",
-		// 	"Color Dodge"
-		// };
-		// // Create the dropdown menu
-		// if (ImGui::Combo("Blend Function", &tempBlendModeIndex, blendNames, IM_ARRAYSIZE(blendNames))) 
-		// {
-		// 	// This block executes only when the value changes
-		// 	printf("Blend mode changed to: %s\n", blendNames[tempBlendModeIndex]);
-		// }
 	}
 }
 
@@ -1737,29 +1686,12 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 	vkCmdSetScissor(aCmd, 0, 1, &scissor);
 
-    //allocate a new uniform buffer for the scene data.
-    // was previously VMA_MEMORY_USAGE_CPU_TO_GPU
-    const char* debugName = nullptr;
-#ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    std::string debugNameString = fmt::format("GPUSceneData, Frame Num: {}", _frame_number);
-    debugName = debugNameString.c_str();
-#endif
-    AllocatedBuffer gpuSceneDataBuffer = Create_Buffer(sizeof(GPUSceneData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
-    
-    //add it to the deletion queue of this frame so it gets deleted once it's been used
-    Get_Current_Frame()._deletionQueue.Push_Function([gpuSceneDataBuffer, this]
-    {
-        Destroy_Buffer(gpuSceneDataBuffer);
-    });
-    
-    //write the buffer
-	GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.info.pMappedData);
-	// GPUSceneData* sceneUniformData = static_cast<GPUSceneData*>(gpuSceneDataBuffer.allocation->GetMappedData());
-	*sceneUniformData = _sceneData;
+    AllocatedBuffer& gpuSceneDataBuffer = Get_Current_Frame().sceneDataBuffer;
+    *static_cast<GPUSceneData*>(gpuSceneDataBuffer.info.pMappedData) = _sceneData;
     
 	VkDescriptorSetVariableDescriptorCountAllocateInfo allocArrayInfo{.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO, .pNext = nullptr};
 
-    uint32_t descriptorCounts = std::max(1u, static_cast<uint32_t>(texCache.Cache.size()));
+    uint32_t descriptorCounts = std::max(1u, static_cast<uint32_t>(texCache._cache.size()));
     allocArrayInfo.pDescriptorCounts = &descriptorCounts;
     allocArrayInfo.descriptorSetCount = 1;
 
@@ -1767,20 +1699,23 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES 
     debugNameString = fmt::format("Global, Frame Num: {}", _frame_number);
     debugName = debugNameString.c_str();
+#else
+    const char* debugName = nullptr;
 #endif
+
     VkDescriptorSet globalDescriptor = Get_Current_Frame()._frameDescriptors.Allocate(_device, _gpuSceneDataDescriptorLayout, debugName, &allocArrayInfo);
 	
 	DescriptorWriter writer;
 	writer.Write_Buffer(0, gpuSceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
 	
-    if (!texCache.Cache.empty())
+    if (!texCache._cache.empty())
     {
         VkWriteDescriptorSet arraySet{.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET};
-        arraySet.descriptorCount = texCache.Cache.size();
+        arraySet.descriptorCount = texCache._cache.size();
         arraySet.dstArrayElement = 0;
         arraySet.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         arraySet.dstBinding = 1;
-        arraySet.pImageInfo = texCache.Cache.data();
+        arraySet.pImageInfo = texCache._cache.data();
         writer._writes.push_back(arraySet);
     }
 
@@ -1879,10 +1814,6 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	    }
     }
     
-    // we delete the draw commands now that we processed them
-    // _mainDrawContext.opaqueSurfaces.clear();
-    _mainDrawContext.transparentSurfaces.clear();
-
 	vkCmdEndRendering(aCmd);
 	
 	auto end = std::chrono::system_clock::now();
@@ -1945,6 +1876,7 @@ void VulkanEngine::Update_Scene()
 	const auto start = std::chrono::system_clock::now();
 
 	_mainDrawContext.opaqueSurfaces.clear();
+    _mainDrawContext.transparentSurfaces.clear();
 
 	// _loadedNodes["Suzanne"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
 
@@ -2052,40 +1984,6 @@ bool VulkanEngine::Is_Visible(const RenderObject& aObj, const glm::mat4& aViewPr
     }
  
     return true;
-
-
-    // constexpr std::array corners{
-    //     glm::vec3{1, 1, 1}, glm::vec3{1, 1, -1}, glm::vec3{1, -1, 1}, glm::vec3{1, -1, -1}, glm::vec3{-1, 1, 1}, glm::vec3{-1, 1, -1}, glm::vec3{-1, -1, 1}, glm::vec3{-1, -1, -1},
-    // };
-    //
-    // glm::mat4 matrix = aViewProj * aObj.transform;
-    //
-    // glm::vec3 min = {1.5, 1.5, 1.5};
-    // glm::vec3 max = {-1.5, -1.5, -1.5};
-    //
-    // for (int c = 0; c < 8; c++)
-    // {
-    //     // project each corner into clip space
-    //     glm::vec4 v = matrix * glm::vec4(aObj.bounds.origin + (corners[c] * aObj.bounds.extents), 1.f);
-    //
-    //     // perspective correction
-    //     v.x = v.x / v.w;
-    //     v.y = v.y / v.w;
-    //     v.z = v.z / v.w;
-    //
-    //     min = glm::min(glm::vec3{v.x, v.y, v.z}, min);
-    //     max = glm::max(glm::vec3{v.x, v.y, v.z}, max);
-    // }
-    //
-    // // check the clip space box is within the view
-    // if (min.z > 1.f || max.z < 0.f || min.x > 1.f || max.x < -1.f || min.y > 1.f || max.y < -1.f)
-    // {
-    //     return false;
-    // }
-    // else
-    // {
-    //     return true;
-    // }
 }
 
 const char* VulkanEngine::Get_Device_Type_String(const VkPhysicalDeviceType aType)
@@ -2102,6 +2000,7 @@ const char* VulkanEngine::Get_Device_Type_String(const VkPhysicalDeviceType aTyp
         return "Virtual GPU";
     case VK_PHYSICAL_DEVICE_TYPE_CPU:
         return "CPU";
+    case VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM:
     default:
         return "Unknown";
     }

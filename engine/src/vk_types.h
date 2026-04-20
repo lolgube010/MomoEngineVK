@@ -13,6 +13,7 @@
 #include <functional>
 #include <deque>
 #include <ranges>
+#include <unordered_set>
 
 #include <Volk/volk.h>
 #include <vulkan/vk_enum_string_helper.h>

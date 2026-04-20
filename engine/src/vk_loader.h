@@ -55,6 +55,7 @@ struct LoadedGLTF : IRenderable
     std::vector<std::shared_ptr<Node>> topNodes;
 
     std::vector<VkSampler> samplers;
+    std::vector<TextureID> textureIDs; // indices into VulkanEngine::texCache; freed on ClearAll
 
     DescriptorAllocatorGrowable descriptorPool; // every materialSet for every surface in this file.
 

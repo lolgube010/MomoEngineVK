@@ -14,11 +14,14 @@ layout (location = 0) out vec4 outFragColor;
 
 void main()
 {
+    //outFragColor = vec4(1.f,1.f,1.f,1.f); return;
+    //outFragColor = vec4(normalize(inNormal) * 0.5 + 0.5, 1.f); return;
+    //outFragColor = vec4(inColor.xyz, 1.f); return;
     vec4 metalRough = texture(allTextures[materialData.metalRoughTexID], inUV);
     float roughness = metalRough.g * materialData.metal_rough_factors.y;
     float metallic  = metalRough.b * materialData.metal_rough_factors.x;
 
-    float lightValue = max(dot(inNormal, sceneData.sunlightDirection.xyz), 0.1f);
+    float lightValue = max(dot(normalize(inNormal), sceneData.sunlightDirection.xyz), 0.1f);
 
     vec3 color   = inColor * texture(allTextures[materialData.colorTexID], inUV).xyz *
         materialData.colorFactors.xyz;

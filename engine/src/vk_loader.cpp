@@ -32,8 +32,15 @@ void LoadedGLTF::ClearAll()
     // Those structures are still around. 
     // If you want to destroy a LoadedGLTF at runtime, either do a VkQueueWait like we have in the cleanup function, or add it into the per - frame deletion queue and defer it. 
     // We are storing the shared_ptrs to hold LoadedGLTF, so it can abuse the lambda capture functionality to do this.
-    const auto& creator = VulkanEngine::Get();
+    auto& creator = VulkanEngine::Get();
     const VkDevice dv = creator._device;
+
+    const VkDescriptorImageInfo fallback{
+        .sampler     = creator._defaultSamplerLinear,
+        .imageView   = creator._errorCheckerboardImage.imageView,
+        .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+    };
+    creator.texCache.FreeTextures(textureIDs, fallback);
 
     descriptorPool.Destroy_Pools(dv);
     creator.Destroy_Buffer(materialDataBuffer);
@@ -298,8 +305,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                     : aEngine._defaultSamplerLinear;
             }
 
-            constants.colorTexID = aEngine.texCache.AddTexture(materialResources.colorImage.imageView, materialResources.colorSampler).Index;
-            constants.metalRoughTexID = aEngine.texCache.AddTexture(materialResources.metalRoughImage.imageView, materialResources.metalRoughSampler).Index;
+            const TextureID colorID = aEngine.texCache.AddTexture(materialResources.colorImage.imageView, materialResources.colorSampler);
+            const TextureID metalRoughID = aEngine.texCache.AddTexture(materialResources.metalRoughImage.imageView, materialResources.metalRoughSampler);
+            constants.colorTexID = colorID.Index;
+            constants.metalRoughTexID = metalRoughID.Index;
+            file.textureIDs.push_back(colorID);
+            file.textureIDs.push_back(metalRoughID);
 
             // write material parameters to buffer
             sceneMaterialConstants[data_index] = constants;
@@ -416,12 +427,12 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             }
 
             // used to debug normals
-            constexpr bool OverrideColors = false;
-            if (OverrideColors)
+            constexpr bool OverrideColorsWithNormals = false;
+            if (OverrideColorsWithNormals)
             {
                 for (Vertex& vtx : vertices)
                 {
-                    vtx.color = glm::vec4(glm::normalize(vtx.normal), 1.f);
+                    vtx.color = glm::vec4(glm::normalize(vtx.normal) * 0.5f + 0.5f, 1.f);
                 }
             }
 

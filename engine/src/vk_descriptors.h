@@ -19,19 +19,20 @@ struct DescriptorAllocatorGrowable
 		float _ratio;
 	};
 
-	void Init(VkDevice aDevice, uint32_t aMaxSets, std::span<PoolSizeRatio> aPoolRatios, const char* aName);
+	void Init(VkDevice aDevice, uint32_t aMaxSets, std::span<PoolSizeRatio> aPoolRatios, const char* aName, VkDescriptorPoolCreateFlags aPoolFlags = 0);
 	void Clear_Pools(VkDevice aDevice);
 	void Destroy_Pools(VkDevice aDevice);
 
 	VkDescriptorSet Allocate(VkDevice aDevice, VkDescriptorSetLayout aLayout, const char* aNewName, const void* a_pNext = nullptr);
 private:
 	VkDescriptorPool Get_Pool(VkDevice aDevice, const char* aNewPoolName);
-	static VkDescriptorPool Create_Pool(VkDevice aDevice, uint32_t aSetCount, std::span<PoolSizeRatio> aPoolRatios, const char* aName);
+	VkDescriptorPool Create_Pool(VkDevice aDevice, uint32_t aSetCount, std::span<PoolSizeRatio> aPoolRatios, const char* aName) const;
 
 	std::vector<PoolSizeRatio> _ratios;
 	std::vector<VkDescriptorPool> _full_pools;
 	std::vector<VkDescriptorPool> _ready_pools;
 	uint32_t _sets_per_pool = 0;
+	VkDescriptorPoolCreateFlags _poolFlags = 0;
 };
 
 struct DescriptorWriter 

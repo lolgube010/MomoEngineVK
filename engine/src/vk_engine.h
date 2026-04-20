@@ -26,6 +26,7 @@ struct FrameData
 
 	DeletionQueue _deletionQueue;
 	DescriptorAllocatorGrowable _frameDescriptors; // [0] storage image, [1] storage buffer, [2] uniform buffer, [3] image/sampler
+	AllocatedBuffer sceneDataBuffer; // persistent HOST_VISIBLE UBO, written each frame
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
@@ -106,12 +107,35 @@ struct MeshNode : Node
 
 struct TextureCache
 {
+    struct ViewSamplerKey
+    {
+        VkImageView imageView;
+        VkSampler   sampler;
+        bool operator==(const ViewSamplerKey&) const = default;
+    };
+    struct ViewSamplerHash
+    {
+        size_t operator()(const ViewSamplerKey& k) const noexcept
+        {
+            const size_t h1 = std::hash<uint64_t>{}(std::bit_cast<uint64_t>(k.imageView));
+            const size_t h2 = std::hash<uint64_t>{}(std::bit_cast<uint64_t>(k.sampler));
+            return h1 ^ (h2 * 2654435761u + 0x9e3779b9u + (h1 << 6) + (h1 >> 2));
+        }
+    };
 
-    std::vector<VkDescriptorImageInfo> Cache;
-    std::unordered_map<std::string, TextureID> NameMap;
+    std::vector<VkDescriptorImageInfo> _cache;
+    std::unordered_map<std::string, TextureID> _nameMap;
+    std::unordered_set<uint32_t> _freeSlots;
+    std::unordered_set<VkImageView> _engineImages;
+    std::unordered_map<ViewSamplerKey, uint32_t, ViewSamplerHash> _lookup;
+
     TextureID AddTexture(const VkImageView& aImage, VkSampler aSampler);
+    void MarkEngineImage(VkImageView aView);
+    // Sets freed slots to aFallback so the descriptor array stays valid, then queues them for reuse.
+    // Engine-owned slots and duplicate IDs are silently skipped.
+    // Call before destroying the underlying images — the fallback must outlive this call.
+    void FreeTextures(std::span<const TextureID> aIDs, const VkDescriptorImageInfo& aFallback);
 };
-
 
 struct EngineStats
 {

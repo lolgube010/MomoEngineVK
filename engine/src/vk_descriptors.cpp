@@ -40,18 +40,19 @@ VkDescriptorSetLayout DescriptorLayoutBuilder::Build(const VkDevice aDevice, con
 	return set;
 }
 
-void DescriptorAllocatorGrowable::Init(const VkDevice aDevice, const uint32_t aMaxSets, const std::span<PoolSizeRatio> aPoolRatios, const char* aName)
+void DescriptorAllocatorGrowable::Init(const VkDevice aDevice, const uint32_t aMaxSets, const std::span<PoolSizeRatio> aPoolRatios, const char* aName, const VkDescriptorPoolCreateFlags aPoolFlags)
 {
 	_ratios.clear();
+	_poolFlags = aPoolFlags;
 
-	for (auto r : aPoolRatios) 
+	for (auto r : aPoolRatios)
 	{
 		_ratios.push_back(r);
 	}
 
 	const VkDescriptorPool newPool = Create_Pool(aDevice, aMaxSets, aPoolRatios, aName);
 
-	_sets_per_pool = static_cast<uint32_t>(static_cast<double>(aMaxSets) * 1.5); //grow it next allocation
+	_sets_per_pool = static_cast<uint32_t>(static_cast<double>(aMaxSets) * 1.5);
 
 	_ready_pools.push_back(newPool);
 }
@@ -138,10 +139,10 @@ VkDescriptorPool DescriptorAllocatorGrowable::Get_Pool(const VkDevice aDevice, [
 
 }
 
-VkDescriptorPool DescriptorAllocatorGrowable::Create_Pool(const VkDevice aDevice, const uint32_t aSetCount, const std::span<PoolSizeRatio> aPoolRatios, [[maybe_unused]] const char* aName)
+VkDescriptorPool DescriptorAllocatorGrowable::Create_Pool(const VkDevice aDevice, const uint32_t aSetCount, const std::span<PoolSizeRatio> aPoolRatios, [[maybe_unused]] const char* aName) const
 {
 	std::vector<VkDescriptorPoolSize> poolSizes;
-	for (const auto [type, ratio] : aPoolRatios) 
+	for (const auto [type, ratio] : aPoolRatios)
 	{
 		poolSizes.push_back(VkDescriptorPoolSize{
 			.type = type,
@@ -151,13 +152,13 @@ VkDescriptorPool DescriptorAllocatorGrowable::Create_Pool(const VkDevice aDevice
 
 	VkDescriptorPoolCreateInfo pool_Info = {};
 	pool_Info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_Info.flags = 0;
+	pool_Info.flags = _poolFlags;
 	pool_Info.maxSets = aSetCount;
 	pool_Info.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
 	pool_Info.pPoolSizes = poolSizes.data();
 
 	VkDescriptorPool newPool;
-	vkCreateDescriptorPool(aDevice, &pool_Info, nullptr, &newPool);
+	VK_CHECK(vkCreateDescriptorPool(aDevice, &pool_Info, nullptr, &newPool));
 
     MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_POOL, newPool, "_Descriptor Pool {}", aName);
 	return newPool;

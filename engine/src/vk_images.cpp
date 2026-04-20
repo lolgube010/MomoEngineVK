@@ -48,7 +48,13 @@ void momo_vkUtil::Transition_Image(const VkCommandBuffer aCmd, const VkImage aIm
 	imageBarrier.oldLayout = aCurrentLayout;
 	imageBarrier.newLayout = aNewLayout;
 
-	const VkImageAspectFlags aspectMask = (aNewLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+	const bool isDepth = (aCurrentLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+	                   || aCurrentLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+	                   || aCurrentLayout == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
+	                   || aNewLayout    == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
+	                   || aNewLayout    == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+	                   || aNewLayout    == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
+	const VkImageAspectFlags aspectMask = isDepth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 	imageBarrier.subresourceRange = momo_vkInit::image_subresource_range(aspectMask);
 	imageBarrier.image = aImg;
 
