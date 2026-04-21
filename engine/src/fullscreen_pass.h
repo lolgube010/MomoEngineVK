@@ -9,7 +9,7 @@ class Fullscreen
     // load images..? (send as args?)
     // static pipeline state that we can just switch into whenever this runs.
     // init unique vars for this shader frag path, (render target format? push constants?)
-}
+};
 
 //class FullscreenPass
 //{

@@ -1,16 +1,9 @@
 ﻿#pragma once 
 #include <vk_types.h>
-#include "vk_debug.h"
 
 // Will contain abstractions for pipelines.
 
 class VulkanEngine;
-
-namespace momo_vkUtil
-{
-	// TODO- simplify usage of, right now is way too spammy with the checking things we do and I don't really like that. todo fix. 
-	bool LoadShaderModule(const char* aFilePath, VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
-};
 
 class PipelineBuilder
 {
@@ -64,6 +57,8 @@ public:
 
 namespace momo_ShaderUtil
 {
+    bool LoadShaderModule(const char* aFilePath, VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
+
 	enum class ShaderType
 	{
 		Vertex,

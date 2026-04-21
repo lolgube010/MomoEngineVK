@@ -1,8 +1,9 @@
 ﻿#include <vk_pipelines.h>
 #include <fstream>
 #include <vk_initializers.h>
+#include "vk_debug.h"
 
-bool momo_vkUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
+bool momo_ShaderUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
 {
 	// open the file. With cursor at the end
 	std::ifstream file(aFilePath, std::ios::ate | std::ios::binary);
@@ -149,8 +150,7 @@ void PipelineBuilder::Set_Shaders(const VkShaderModule aVertexShader, const VkSh
 void PipelineBuilder::Set_Input_Topology(const VkPrimitiveTopology aTopology)
 {
 	_inputAssembly.topology = aTopology;
-	// we are not going to use primitive restart on the entire tutorial so leave it on false
-	_inputAssembly.primitiveRestartEnable = VK_FALSE;
+	_inputAssembly.primitiveRestartEnable = VK_FALSE; // todo- explore
 }
 
 void PipelineBuilder::Set_Polygon_Mode(const VkPolygonMode aMode)
@@ -417,7 +417,7 @@ std::optional<VkShaderModule> momo_ShaderUtil::LoadShader(const std::string& aNa
     VkShaderModule module;
 
     if (VkResult errorCode = {}; 
-		!momo_vkUtil::LoadShaderModule(path.c_str(), aDevice, &module, errorCode))
+		!LoadShaderModule(path.c_str(), aDevice, &module, errorCode))
     {
 		// TODO- load error shader here instead!.. probably
         fmt::print("Error loading shader. Type: {} Name: {} ErrorCode: {}\n", GetShaderExtension(aType), aName, static_cast<int>(errorCode));

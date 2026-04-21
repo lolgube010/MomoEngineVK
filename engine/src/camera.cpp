@@ -22,7 +22,7 @@ glm::mat4 Camera::GetRotationMatrix() const
 }
 
 // TODO:
-// Movement in this code is frame-dependant, as we aren't taking the speed of the engine into account. This is done for simplicity in the case, if you want to improve it, you would need to pass deltaTime (time between frames) to the update() function, and multiply the velocity by that. In the tutorial, we are more or less FPS locked to monitor speed due to the options we have used in the swapchain, and we aren't rendering enough data to slow down the engine.
+// Movement in this code is frame-dependant, as we aren't taking the speed of the engine into account.
 void Camera::Update()
 {
     const auto& input = Input::Instance();

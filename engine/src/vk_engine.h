@@ -1,7 +1,4 @@
-﻿// vulkan_guide.h : Include file for standard system include files,
-// or project specific include files.
-// This will be the main class for the engine, and where most of the code of the tutorial will go
-#pragma once
+﻿#pragma once
 #include <chrono>
 #include <vk_types.h>
 #include <vk_descriptors.h>
@@ -10,7 +7,7 @@
 #include "MomoTracy.h"
 #include "RenderDocWrapper.h"
 #include "vk_debug.h"
-
+#include <unordered_set>
 
 struct FrameData
 {
@@ -217,7 +214,7 @@ public:
 	std::vector<VkSemaphore> ready_for_present_semaphores; // previously called render_semaphore, also called submit semaphores.
 
 	// TODO-
-	// It is common to see engines using 3 queue families. One for drawing the frame, other for async compute, and other for data transfer. In this tutorial, we use a single queue that will run all our commands for simplicity.
+	// It is common to see engines using 3 queue families. One for drawing the frame, other for async compute, and other for data transfer. We use a single queue that will run all our commands for simplicity.
 	VkQueue _graphicsQueue; // what the command buffers submit into
 	uint32_t _graphicsQueueFamily; // what type of graphics queue we want
 

@@ -1,19 +1,13 @@
-﻿// vulkan_guide.h : Include file for standard system include files,
-// or project specific include files.
-#pragma once
+﻿#pragma once
 
 // The entire codebase will include this header. it will provide widely used default structures and includes.
 
 #include <memory>
-#include <optional>
 #include <string>
 #include <vector>
-#include <span>
-#include <array>
 #include <functional>
 #include <deque>
 #include <ranges>
-#include <unordered_set>
 
 #include <Volk/volk.h>
 #include <vulkan/vk_enum_string_helper.h>
@@ -160,9 +154,8 @@ struct ComputeEffect
 
 struct DeletionQueue
 {
-    // Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.For the amount of objects we will
-    // use in this tutorial, it's going to be fine.but if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of
-    // various types such as VkImage, VkBuffer, and so on.And then delete those from a loop.
+    // TODO: Doing callbacks like this is inefficient at scale, because we are storing whole std::functions for every object we are deleting, which is not going to be optimal.
+    // For now, it's going to be fine. But if you need to delete thousands of objects and want them deleted faster, a better implementation would be to store arrays of vulkan handles of various types such as VkImage, VkBuffer, and so on, and then delete those from a loop.
 
     std::deque<std::function<void()>> _deleters;
 
@@ -194,6 +187,6 @@ struct DeletionQueue
 
 struct TextureID
 {
-    uint32_t Index;
+    uint32_t _index;
 };
 

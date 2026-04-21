@@ -5,63 +5,49 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 
-void momo_vkUtil::Transition_Image(const VkCommandBuffer aCmd, const VkImage aImg, const VkImageLayout aCurrentLayout, const VkImageLayout aNewLayout)
+VkImageAspectFlags momo_vkUtil::aspect_flags_from_format(const VkFormat aFormat)
+{
+    switch (aFormat)
+    {
+    case VK_FORMAT_D16_UNORM:
+    case VK_FORMAT_X8_D24_UNORM_PACK32:
+    case VK_FORMAT_D32_SFLOAT:
+        return VK_IMAGE_ASPECT_DEPTH_BIT;
+    case VK_FORMAT_S8_UINT:
+        return VK_IMAGE_ASPECT_STENCIL_BIT;
+    case VK_FORMAT_D16_UNORM_S8_UINT:
+    case VK_FORMAT_D24_UNORM_S8_UINT:
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+    default:
+        return VK_IMAGE_ASPECT_COLOR_BIT;
+    }
+}
+
+void momo_vkUtil::transition_image(const VkCommandBuffer aCmd, const VkImage aImg, const VkImageLayout aCurrentLayout, const VkImageLayout aNewLayout, const VkFormat aFormat)
 {
 	VkImageMemoryBarrier2 imageBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2};
 	imageBarrier.pNext = nullptr;
 
-	// TODO:
-    // In the StageMask, we are doing ALL_COMMANDS.
-    // This is inefficient, as it will stall the GPU pipeline a bit.
-    // For our needs, it's going to be fine as we are only going to do a few transitions per frame.
-    // If you are doing many transitions per frame as part of a post - process chain, you want to avoid doing this, and instead use StageMasks more accurate to what you are doing
-    
-    // AllCommands stage mask on the barrier means that the barrier will stop the gpu commands completely when it arrives at the barrier. 
-    // By using more fine-grained stage masks, it's possible to overlap the GPU pipeline across the barrier a bit. 
-    // AccessMask is similar, it controls how the barrier stops different parts of the GPU. 
-    // We are going to use VK_ACCESS_2_MEMORY_WRITE_BIT for our source, and add VK_ACCESS_2_MEMORY_READ_BIT to our destination. 
-    // Those are generic options that will be fine.
-    
-    // If you want to read about what would be the optimal way of using pipeline barriers for different use cases, you can find a great reference in here 
-    // Khronos Vulkan Documentation: Syncronization examples [https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples]
-    // This layout transition is going to work just fine for the whole tutorial, but if you want, you can add more complicated transition functions that are more accurate/lightweight.
 	imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 	imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
 	imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 	imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
 
-	// SPECIFIC FIX: Handle Presentation Layouts
-	// When transitioning TO present, the destination access must be 0.
-	// (Visibility is handled by the semaphore passed to vkQueuePresentKHR)
+	// Semaphores handle availability/visibility for present transitions, not the barrier itself.
 	if (aNewLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-	{
 		imageBarrier.dstAccessMask = 0;
-	}
-
-	// When transitioning FROM present (e.g. after AcquireNextImage), source access must be 0.
-	// (Availability is handled by the semaphore passed to vkAcquireNextImageKHR)
 	if (aCurrentLayout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR)
-	{
 		imageBarrier.srcAccessMask = 0;
-	}
 
 	imageBarrier.oldLayout = aCurrentLayout;
 	imageBarrier.newLayout = aNewLayout;
-
-	const bool isDepth = (aCurrentLayout == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
-	                   || aCurrentLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-	                   || aCurrentLayout == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL
-	                   || aNewLayout    == VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL
-	                   || aNewLayout    == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-	                   || aNewLayout    == VK_IMAGE_LAYOUT_DEPTH_READ_ONLY_OPTIMAL);
-	const VkImageAspectFlags aspectMask = isDepth ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
-	imageBarrier.subresourceRange = momo_vkInit::image_subresource_range(aspectMask);
+	imageBarrier.subresourceRange = momo_vkInit::image_subresource_range(aspect_flags_from_format(aFormat));
 	imageBarrier.image = aImg;
 
 	VkDependencyInfo depInfo{};
 	depInfo.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO;
 	depInfo.pNext = nullptr;
-
 	depInfo.imageMemoryBarrierCount = 1;
 	depInfo.pImageMemoryBarriers = &imageBarrier;
 
@@ -103,7 +89,7 @@ void momo_vkUtil::copy_image_to_image(const VkCommandBuffer aCmd, const VkImage 
 }
 
 // There are multiple options for generating the mipmaps. We also don't have to generate them at load time, and could use formats like KTX or DDS which can have the mipmaps pregenerated. A popular option is to generate them in a compute shader that generates multiple levels at once, and that can improve performance. The way we are going to do mipmaps is with a chain of VkCmdImageBlit calls.
-void momo_vkUtil::generate_mipmaps(const VkCommandBuffer aCmd, const VkImage aImage, VkExtent2D aImageSize)
+void momo_vkUtil::generate_mipmaps(const VkCommandBuffer aCmd, const VkImage aImage, VkExtent2D aImageSize, const VkFormat aFormat)
 {
 	const int mipLevels = static_cast<int>(std::floor(std::log2(std::max(aImageSize.width, aImageSize.height)))) + 1;
 	for (int mip = 0; mip < mipLevels; mip++) 
@@ -179,5 +165,5 @@ void momo_vkUtil::generate_mipmaps(const VkCommandBuffer aCmd, const VkImage aIm
 	}
 
 	// transition all mip levels into the final read_only layout
-	Transition_Image(aCmd, aImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	transition_image(aCmd, aImage, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, aFormat);
 }

@@ -1,13 +1,13 @@
 #pragma once
 #include <Volk/volk.h>
 
-// This will contain image related vulkan helpers
 namespace momo_vkUtil
 {
-    // For Shader read: VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL. For Compute R/W: VK_IMAGE_LAYOUT_GENERAL. Uses sync2.
-	void Transition_Image(VkCommandBuffer aCmd, VkImage aImg, VkImageLayout aCurrentLayout, VkImageLayout aNewLayout);
+    VkImageAspectFlags aspect_flags_from_format(VkFormat aFormat);
+
+    void transition_image(VkCommandBuffer aCmd, VkImage aImg, VkImageLayout aCurrentLayout, VkImageLayout aNewLayout, VkFormat aFormat);
 
 	void copy_image_to_image(VkCommandBuffer aCmd, VkImage aSource, VkImage aDestination, VkExtent2D aSrcSize, VkExtent2D aDstSize);
 
-	void generate_mipmaps(VkCommandBuffer aCmd, VkImage aImage, VkExtent2D aImageSize);
+	void generate_mipmaps(VkCommandBuffer aCmd, VkImage aImage, VkExtent2D aImageSize, VkFormat aFormat);
 };

@@ -316,8 +316,8 @@ void VulkanEngine::Draw()
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
             // transition our main draw image into general layout so we can write into it.
             // we will overwrite it all so we don't care about what was the older layout
-            momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
-            momo_vkUtil::Transition_Image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+            momo_vkUtil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, _drawImage.imageFormat);
+            momo_vkUtil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage.imageFormat);
             // TEST TO TRIGGER VALIDATION ERROR:
             // momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_UNDEFINED);
         }
@@ -328,14 +328,14 @@ void VulkanEngine::Draw()
         {
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & swapchain img 3");
             //transition the draw image and the swapchain image into their correct transfer layouts
-            momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
-            momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+            momo_vkUtil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _drawImage.imageFormat);
+            momo_vkUtil::transition_image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _swapchain_image_format);
 
             // execute a copy from the draw image into the swapchain
             momo_vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[_swapchainImageIndex], _drawExtent, _swapchain_extent);
 
             // set swapchain image layout to Attachment Optimal so we can draw it
-            momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+            momo_vkUtil::transition_image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _swapchain_image_format);
         }
         {
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw imGui Cmd Buffer");
@@ -346,7 +346,7 @@ void VulkanEngine::Draw()
         {
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition swapchain img 4");
             // set swapchain image layout to Present so we can show it on the screen
-            momo_vkUtil::Transition_Image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+            momo_vkUtil::transition_image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _swapchain_image_format);
         }
         PROFILE_GPU_COLLECT(_tracyVkCtx, cmd)
     } // PROFILE_GPU destructor fires here — end timestamp written while buffer is still recording
@@ -498,8 +498,8 @@ void VulkanEngine::Draw_Main(VkCommandBuffer aCmd)
     }
     {
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "transition draw & depth img 2");
-        momo_vkUtil::Transition_Image(aCmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-        momo_vkUtil::Transition_Image(aCmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+        momo_vkUtil::transition_image(aCmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _drawImage.imageFormat);
+        momo_vkUtil::transition_image(aCmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage.imageFormat);
     }
     {
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Geometry CmdBuff");
@@ -593,7 +593,7 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 
 	Immediate_Submit([&](const VkCommandBuffer aCmd) 
     {
-        momo_vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        momo_vkUtil::transition_image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, new_Image.imageFormat);
 
         VkBufferImageCopy copyRegion = {};
         copyRegion.bufferOffset = 0;
@@ -611,11 +611,11 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 
         if (aMipmapped)
         {
-            momo_vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{.width = new_Image.imageExtent.width, .height = new_Image.imageExtent.height });
+            momo_vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{.width = new_Image.imageExtent.width, .height = new_Image.imageExtent.height }, new_Image.imageFormat);
         }
         else
         {
-            momo_vkUtil::Transition_Image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL); 
+            momo_vkUtil::transition_image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, new_Image.imageFormat);
         }
     });
 
@@ -660,7 +660,9 @@ void VulkanEngine::Init_Vulkan()
 	volkLoadInstance(_instance);
 
     if (USE_VALIDATION_LAYERS)
+    {
         _validationCapture.Init(_instance);
+    }
 
 	//> init_device
 	SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
@@ -1095,9 +1097,6 @@ void VulkanEngine::Init_Pipelines()
     PROFILE_SCOPE_N("Init_Pipelines")
 	// compute pipelines
 	Init_Background_Pipelines();
-
-	// graphics pipelines
-	// Init_Mesh_Pipeline(); // todo- remove / comment out
 
 	metalRoughMaterial.Build_Pipelines();
 }

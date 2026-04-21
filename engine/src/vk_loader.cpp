@@ -215,8 +215,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         {
             for (const auto& p : pendingUploads)
             {
-                momo_vkUtil::Transition_Image(cmd, p.image.image,
-                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+                momo_vkUtil::transition_image(cmd, p.image.image,
+                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, p.image.imageFormat);
 
                 VkBufferImageCopy copyRegion = {};
                 copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -227,7 +227,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
                 // TODO: And in the upload textures GPU batch — replace the generate_mipmaps call with a loop that copies each mip level individually(since they're all in the staging buffer already), and the final layout transition goes straight to SHADER_READ_ONLY_OPTIMAL without going through the blit chain.
                 momo_vkUtil::generate_mipmaps(cmd, p.image.image,
-                    VkExtent2D{.width = p.image.imageExtent.width, .height = p.image.imageExtent.height });
+                    VkExtent2D{.width = p.image.imageExtent.width, .height = p.image.imageExtent.height }, p.image.imageFormat);
             }
         });
 
@@ -307,8 +307,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
             const TextureID colorID = aEngine.texCache.AddTexture(materialResources.colorImage.imageView, materialResources.colorSampler);
             const TextureID metalRoughID = aEngine.texCache.AddTexture(materialResources.metalRoughImage.imageView, materialResources.metalRoughSampler);
-            constants.colorTexID = colorID.Index;
-            constants.metalRoughTexID = metalRoughID.Index;
+            constants.colorTexID = colorID._index;
+            constants.metalRoughTexID = metalRoughID._index;
             file.textureIDs.push_back(colorID);
             file.textureIDs.push_back(metalRoughID);
 
