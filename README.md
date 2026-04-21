@@ -2,15 +2,14 @@
 * This is a Vulkan Game Engine built using [vkguide.dev](https://vkguide.dev/) as a base. The primary purpose is for me to continue learning Graphics Programming. I'll be working on this continuously, adding what I find to be interesting, and eventually making a game out of those parts.
 
 # features
+* Modern Vulkan: Dynamic Rendering, Synchronization2, Buffer Device Address, descriptor indexing.
+* Bindless textures & vertex pulling.
+* GLTF loading (models & textures); parallel texture decode; mipmap generation.
+* PBR material pipeline (Blinn-Phong lighting for now, Cook-Torrance in progress).
+* Frustum culling, draw sorting & compute shaders.
 * HLSL and GLSL shader support.
-* Buffer Device Address and Vertex Pulling.
-* Dynamic rendering, descriptor indexing (bindless) & sync2.
-* GLTF loading (models & textures).
-* Frustum Culling & Draw Sorting
-* bindless textures & material system.
-* Png Texture Loading with Mipmaps. 
-* Everything's annotated in debug & support for the renderdoc API.
-* super basic lighting and pbr.
+* Tracy CPU/GPU profiling & RenderDoc in-app API. Scoped debug labels and validation capture.
+* ImGui integration.
 
 # planned features
 * lots of project structure stuff first and foremost. after that it's adding slang & doing the neural shading course. before slang i'll do this though: https://jcgt.org/published/0015/01/03/
@@ -31,7 +30,7 @@ you might need to enable long paths on your system: `git config --system core.lo
 * make sure TRACY_ON_DEMAND is set to off in cmake, if it's on, rebuild tracy client
 * connect, run game, close game.
 
-# depenency graph / doxygen & graphviz
+# dependency graph / doxygen & graphviz
 * install [doxygen](https://doxygen.nl/download.html) & [graphvis](https://graphviz.org/download/)
 * build the doxygen target
 * open index.html in build/doxygen. 
