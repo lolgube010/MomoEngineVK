@@ -78,12 +78,17 @@ target_precompile_headers(MomoVK PUBLIC
     <filesystem>
     <chrono>
     <format>
+	<vector>
+	<functional>
+	<deque>
     <glm/mat4x4.hpp>
     <glm/vec4.hpp>
     <Volk/volk.h>
     <vulkan/vk_enum_string_helper.h>
     <fmt/core.h>
     <fastgltf/types.hpp>
+    <vma/vk_mem_alloc.h>
+    <ranges>
 )
 
 # ---------------------------------------------------------------------------

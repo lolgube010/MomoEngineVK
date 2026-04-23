@@ -2,19 +2,9 @@
 
 // The entire codebase will include this header. it will provide widely used default structures and includes.
 
-#include <memory>
-#include <string>
 #include <vector>
 #include <functional>
 #include <deque>
-#include <ranges>
-
-#include <Volk/volk.h>
-#include <vulkan/vk_enum_string_helper.h>
-#include <vma/vk_mem_alloc.h>
-
-#include <fmt/core.h>
-// #include <fmt/std.h>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
