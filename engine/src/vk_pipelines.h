@@ -73,7 +73,7 @@ namespace momo_shaderUtil
 		Slang
     };
 
-	std::string GetShaderExtension(ShaderType aType);
-    std::string BuildShaderPath(const std::string& aFileName, ShaderType aType, ShaderLang aShaderLang);
-    std::optional<VkShaderModule> LoadShader(const std::string& aName, momo_shaderUtil::ShaderType aType, ShaderLang aShaderLang, VkDevice aDevice);
+	std::string get_shader_extension(ShaderType aType);
+    std::string build_shader_path(const std::string& aFileName, ShaderType aType, ShaderLang aShaderLang);
+    std::optional<VkShaderModule> load_shader(const std::string& aName, momo_shaderUtil::ShaderType aType, ShaderLang aShaderLang, VkDevice aDevice);
 }

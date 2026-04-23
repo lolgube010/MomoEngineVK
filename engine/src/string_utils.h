@@ -24,15 +24,15 @@ namespace momo_stringUtils
 
     struct StringHash
     {
-        uint32_t computedHash;
+        uint32_t _computedHash;
 
-        explicit constexpr StringHash(const uint32_t aHash) noexcept : computedHash(aHash) {}
+        explicit constexpr StringHash(const uint32_t aHash) noexcept : _computedHash(aHash) {}
 
-        explicit constexpr StringHash(const char* aS) noexcept : computedHash(0) { computedHash = fnv1a_32(aS, const_strlen(aS)); }
-        constexpr StringHash(const char* aS, const std::size_t aCount) noexcept : computedHash(0) { computedHash = fnv1a_32(aS, aCount); }
-        explicit constexpr StringHash(const std::string_view aS) noexcept : computedHash(0) { computedHash = fnv1a_32(aS.data(), aS.size()); }
+        explicit constexpr StringHash(const char* aS) noexcept : _computedHash(0) { _computedHash = fnv1a_32(aS, const_strlen(aS)); }
+        constexpr StringHash(const char* aS, const std::size_t aCount) noexcept : _computedHash(0) { _computedHash = fnv1a_32(aS, aCount); }
+        explicit constexpr StringHash(const std::string_view aS) noexcept : _computedHash(0) { _computedHash = fnv1a_32(aS.data(), aS.size()); }
         StringHash(const StringHash& aOther) = default;
 
-        explicit constexpr operator uint32_t() const noexcept { return computedHash; }
+        explicit constexpr operator uint32_t() const noexcept { return _computedHash; }
     };
 }

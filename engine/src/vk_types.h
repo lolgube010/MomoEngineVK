@@ -27,17 +27,17 @@ struct AllocatedBuffer
 {
 	VkBuffer _buffer;
 	VmaAllocation _allocation; // VkDeviceMemory
-	VmaAllocationInfo info;
+	VmaAllocationInfo _info;
 };
 
 struct GPUSceneData
 {
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::mat4 viewProj;
-    glm::vec4 ambientColor;
-    glm::vec4 sunlightDirection; // w for sun power
-    glm::vec4 sunlightColor;
+    glm::mat4 _view;
+    glm::mat4 _proj;
+    glm::mat4 _viewProj;
+    glm::vec4 _ambientColor;
+    glm::vec4 _sunlightDirection; // w for sun power
+    glm::vec4 _sunlightColor;
 };
 
 enum class MaterialPass
@@ -50,24 +50,24 @@ enum class MaterialPass
 // material shaders, input layout, states etc.
 struct MaterialPipeline
 {
-    VkPipeline pipeline;
-    VkPipelineLayout layout;
+    VkPipeline _pipeline;
+    VkPipelineLayout _layout;
 };
 
 struct MaterialInstance
 {
-    MaterialPipeline* pipeline; // non owning
-    VkDescriptorSet materialSet; // set of multiple bindings, e.g. an image view and a buffer.
-    MaterialPass passType;
+    MaterialPipeline* _pipeline; // non owning
+    VkDescriptorSet _materialSet; // set of multiple bindings, e.g. an image view and a buffer.
+    MaterialPass _passType;
 };
 
 struct Vertex
 {
-	glm::vec3 pos;
-	float uv_x;
-	glm::vec3 normal;
-	float uv_y;
-	glm::vec4 color;
+	glm::vec3 _pos;
+	float _uvX;
+	glm::vec3 _normal;
+	float _uvY;
+	glm::vec4 _color;
 };
 
 struct GPUMeshBuffers
@@ -100,25 +100,25 @@ public:
 struct Node : IRenderable 
 {
     // parent pointer must be a weak pointer to avoid circular dependencies
-    std::weak_ptr<Node> parent;
-    std::vector<std::shared_ptr<Node>> children;
+    std::weak_ptr<Node> _parent;
+    std::vector<std::shared_ptr<Node>> _children;
 
-    glm::mat4 localTransform; // "my" transform
-    glm::mat4 worldTransform; // transform in the world when multiplied by this node's parents.
+    glm::mat4 _localTransform; // "my" transform
+    glm::mat4 _worldTransform; // transform in the world when multiplied by this node's parents.
 
     void RefreshTransform(const glm::mat4& aParentMatrix)
     {
-        worldTransform = aParentMatrix * localTransform;
-        for (const auto& c : children) 
+        _worldTransform = aParentMatrix * _localTransform;
+        for (const auto& c : _children) 
         {
-            c->RefreshTransform(worldTransform);
+            c->RefreshTransform(_worldTransform);
         }
     }
 
     void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override
     {
         // draw children
-        for (const auto& c : children) 
+        for (const auto& c : _children) 
         {
             c->Draw(aTopMatrix, aCtx);
         }
@@ -127,19 +127,19 @@ struct Node : IRenderable
 
 struct ComputePushConstants // max size is 128 bytes
 {
-    glm::vec4 data1 = {};
-    glm::vec4 data2 = {};
-    glm::vec4 data3 = {};
-    glm::vec4 data4 = {};
+    glm::vec4 _data1 = {};
+    glm::vec4 _data2 = {};
+    glm::vec4 _data3 = {};
+    glm::vec4 _data4 = {};
 };
 
 struct ComputeEffect
 {
-    const char* name;
-    VkPipeline pipeline;
-    VkPipelineLayout layout;
+    const char* _name;
+    VkPipeline _pipeline;
+    VkPipelineLayout _layout;
 
-    ComputePushConstants data = {};
+    ComputePushConstants _data = {};
 };
 
 struct DeletionQueue

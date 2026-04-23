@@ -365,7 +365,7 @@ void PipelineBuilder::Set_Multisampling_AlphaToCoverage(const VkSampleCountFlagB
     _multisampling.alphaToOneEnable = VK_FALSE;
 }
 
-std::string momo_shaderUtil::GetShaderExtension(const ShaderType aType)
+std::string momo_shaderUtil::get_shader_extension(const ShaderType aType)
 {
 	switch (aType)
 	{
@@ -376,7 +376,7 @@ std::string momo_shaderUtil::GetShaderExtension(const ShaderType aType)
 	}
 }
 
-std::string momo_shaderUtil::BuildShaderPath(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
+std::string momo_shaderUtil::build_shader_path(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
 {
 	// Base directory (adjust this to match your project structure)
 #ifdef _DEBUG
@@ -385,7 +385,7 @@ std::string momo_shaderUtil::BuildShaderPath(const std::string& aFileName, const
     constexpr std::string_view basePath = "../../shaders/bin/release/";
 #endif
 	// Get standard extension (e.g., ".comp")
-	const std::string stageExt = GetShaderExtension(aType);
+	const std::string stageExt = get_shader_extension(aType);
 
 	// Build the final string
 	// Format: ../../shaders/name.stage[.hlsl].spv
@@ -410,9 +410,9 @@ std::string momo_shaderUtil::BuildShaderPath(const std::string& aFileName, const
 	return fullPath;
 }
 
-std::optional<VkShaderModule> momo_shaderUtil::LoadShader(const std::string& aName, const momo_shaderUtil::ShaderType aType, const ShaderLang aShaderLang, const VkDevice aDevice)
+std::optional<VkShaderModule> momo_shaderUtil::load_shader(const std::string& aName, const momo_shaderUtil::ShaderType aType, const ShaderLang aShaderLang, const VkDevice aDevice)
 {
-    const std::string path = BuildShaderPath(aName, aType, aShaderLang);
+    const std::string path = build_shader_path(aName, aType, aShaderLang);
 
     VkShaderModule module;
 
@@ -420,7 +420,7 @@ std::optional<VkShaderModule> momo_shaderUtil::LoadShader(const std::string& aNa
 		!load_shader_module(path.c_str(), aDevice, &module, errorCode))
     {
 		// TODO- load error shader here instead!.. probably
-        fmt::print("Error loading shader. Type: {} Name: {} ErrorCode: {}\n", GetShaderExtension(aType), aName, static_cast<int>(errorCode));
+        fmt::print("Error loading shader. Type: {} Name: {} ErrorCode: {}\n", get_shader_extension(aType), aName, static_cast<int>(errorCode));
 #ifdef _DEBUG
         throw;
 #else
@@ -428,6 +428,6 @@ std::optional<VkShaderModule> momo_shaderUtil::LoadShader(const std::string& aNa
 #endif
     }
 
-    fmt::print("Shader loaded. Type: {} Name: {}\n", GetShaderExtension(aType), aName);
+    fmt::print("Shader loaded. Type: {} Name: {}\n", get_shader_extension(aType), aName);
     return module;
 }

@@ -67,10 +67,10 @@ void LoadedGLTF::ClearAll()
     }
 }
 
-std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view aFilePath)
+std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_view aFilePath)
 {
     PROFILE_SCOPE_N("load_gltf")
-    auto& aEngine = VulkanEngine::Get();
+    auto& engine = VulkanEngine::Get();
     fmt::print("Loading GLTF: {}\n", aFilePath);
 
     auto scene = std::make_shared<LoadedGLTF>();
@@ -143,7 +143,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     std::string debugNameString = fmt::format("glTF Material, Path: {}", aFilePath);
     debugName = debugNameString.c_str();
 #endif
-    file._descriptorPool.Init(aEngine._device, static_cast<uint32_t>(gltf.materials.size()), sizes, debugName);
+    file._descriptorPool.Init(engine._device, static_cast<uint32_t>(gltf.materials.size()), sizes, debugName);
 
     // load samplers
     for (fastgltf::Sampler& sampler : gltf.samplers)
@@ -154,7 +154,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         VkSamplerCreateInfo samplerCreateInfo = momo_vkInit::sampler_create_info(magFilter, minFilter, VK_LOD_CLAMP_NONE, 0, mipmapMode);
 
         VkSampler newSampler;
-        VK_CHECK(vkCreateSampler(aEngine._device, &samplerCreateInfo, nullptr, &newSampler));
+        VK_CHECK(vkCreateSampler(engine._device, &samplerCreateInfo, nullptr, &newSampler));
         MOMO_VK_SET_DEBUG_NAME(aEngine._device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
 
         file._samplers.push_back(newSampler);
@@ -180,7 +180,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     std::transform(std::execution::par,
         gltf.images.begin(), gltf.images.end(),
         decoded.begin(),
-        [&](fastgltf::Image& image) { return load_image_stbi(gltf, image, aFilePath); });
+        [&](fastgltf::Image& aImage) { return load_image_stbi(gltf, aImage, aFilePath); });
     } // load textures
 
     // Collect results serially — maintains index alignment with gltf.images for material lookups.
@@ -199,7 +199,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         else
         {
             // failed to decode — slot gets a fallback so material indices stay aligned
-            images.push_back(aEngine._errorCheckerboardImage);
+            images.push_back(engine._errorCheckerboardImage);
             fmt::print("gltf failed to load texture {}\n", gltf.images[i].name);
         }
     }
@@ -207,26 +207,26 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     // Phase 2 — GPU: copy all staging buffers and generate mipmaps in one command buffer.
     // Previously this was one Immediate_Submit per texture (N serial CPU-GPU sync points).
     { PROFILE_SCOPE_N("upload textures")
-        aEngine.Immediate_Submit([&](const VkCommandBuffer cmd)
+        engine.Immediate_Submit([&](const VkCommandBuffer aCmd)
         {
             for (const auto& p : pendingUploads)
             {
-                momo_vkUtil::transition_image(cmd, p._image._image,
+                momo_vkUtil::transition_image(aCmd, p._image._image,
                     VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, p._image._imageFormat);
 
                 VkBufferImageCopy copyRegion = momo_vkInit::buffer_image_copy(p._image._imageExtent, p._image._imageFormat);
-                vkCmdCopyBufferToImage(cmd, p._stagingBuffer._buffer, p._image._image,
+                vkCmdCopyBufferToImage(aCmd, p._stagingBuffer._buffer, p._image._image,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
                 // TODO: And in the upload textures GPU batch — replace the generate_mipmaps call with a loop that copies each mip level individually(since they're all in the staging buffer already), and the final layout transition goes straight to SHADER_READ_ONLY_OPTIMAL without going through the blit chain.
-                momo_vkUtil::generate_mipmaps(cmd, p._image._image,
+                momo_vkUtil::generate_mipmaps(aCmd, p._image._image,
                     VkExtent2D{.width = p._image._imageExtent.width, .height = p._image._imageExtent.height }, p._image._imageFormat);
             }
         });
 
         for (auto& p : pendingUploads)
         {
-            aEngine.Destroy_Buffer(p._stagingBuffer);
+            engine.Destroy_Buffer(p._stagingBuffer);
         }
     } // upload textures
 
@@ -240,8 +240,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         {
             // create buffer to hold the material data.
             // was previously VMA_MEMORY_USAGE_CPU_TO_GPU 
-            file._materialDataBuffer = aEngine.Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
-            sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file._materialDataBuffer.info.pMappedData);
+            file._materialDataBuffer = engine.Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
+            sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file._materialDataBuffer._info.pMappedData);
         }
         int data_index = 0;
 
@@ -252,13 +252,13 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             file._materials.push_back(newMat);
 
             GLTFMetallic_Roughness::MaterialConstants constants;
-            constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
-            constants.colorFactors.y = mat.pbrData.baseColorFactor[1];
-            constants.colorFactors.z = mat.pbrData.baseColorFactor[2];
-            constants.colorFactors.w = mat.pbrData.baseColorFactor[3];
+            constants._colorFactors.x = mat.pbrData.baseColorFactor[0];
+            constants._colorFactors.y = mat.pbrData.baseColorFactor[1];
+            constants._colorFactors.z = mat.pbrData.baseColorFactor[2];
+            constants._colorFactors.w = mat.pbrData.baseColorFactor[3];
 
-            constants.metal_rough_factors.x = mat.pbrData.metallicFactor;
-            constants.metal_rough_factors.y = mat.pbrData.roughnessFactor;
+            constants._metalRoughFactors.x = mat.pbrData.metallicFactor;
+            constants._metalRoughFactors.y = mat.pbrData.roughnessFactor;
             
             auto passType = MaterialPass::MainColor;
             if (mat.alphaMode == fastgltf::AlphaMode::Blend)
@@ -269,39 +269,39 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             GLTFMetallic_Roughness::MaterialResources materialResources;
             
             // default the material textures
-            materialResources.colorImage = aEngine._whiteImage;
-            materialResources.colorSampler = aEngine._defaultSamplerLinear;
-            materialResources.metalRoughImage = aEngine._whiteImage;
-            materialResources.metalRoughSampler = aEngine._defaultSamplerLinear;
+            materialResources._colorImage = engine._whiteImage;
+            materialResources._colorSampler = engine._defaultSamplerLinear;
+            materialResources._metalRoughImage = engine._whiteImage;
+            materialResources._metalRoughSampler = engine._defaultSamplerLinear;
 
             // set the uniform buffer for the material data
-            materialResources.dataBuffer = file._materialDataBuffer._buffer;
-            materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
+            materialResources._dataBuffer = file._materialDataBuffer._buffer;
+            materialResources._dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
            
             // grab textures from gltf file
             if (mat.pbrData.baseColorTexture.has_value())
             {
                 const fastgltf::Texture& tex = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex];
                 if (tex.imageIndex.has_value())
-                    materialResources.colorImage = images[tex.imageIndex.value()];
-                materialResources.colorSampler = tex.samplerIndex.has_value()
+                    materialResources._colorImage = images[tex.imageIndex.value()];
+                materialResources._colorSampler = tex.samplerIndex.has_value()
                     ? file._samplers[tex.samplerIndex.value()]
-                    : aEngine._defaultSamplerLinear;
+                    : engine._defaultSamplerLinear;
             }
             if (mat.pbrData.metallicRoughnessTexture.has_value())
             {
                 const fastgltf::Texture& tex = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex];
                 if (tex.imageIndex.has_value())
-                    materialResources.metalRoughImage = images[tex.imageIndex.value()];
-                materialResources.metalRoughSampler = tex.samplerIndex.has_value()
+                    materialResources._metalRoughImage = images[tex.imageIndex.value()];
+                materialResources._metalRoughSampler = tex.samplerIndex.has_value()
                     ? file._samplers[tex.samplerIndex.value()]
-                    : aEngine._defaultSamplerLinear;
+                    : engine._defaultSamplerLinear;
             }
 
-            const TextureID colorID = aEngine._texCache.AddTexture(materialResources.colorImage._imageView, materialResources.colorSampler);
-            const TextureID metalRoughID = aEngine._texCache.AddTexture(materialResources.metalRoughImage._imageView, materialResources.metalRoughSampler);
-            constants.colorTexID = colorID._index;
-            constants.metalRoughTexID = metalRoughID._index;
+            const TextureID colorID = engine._texCache.AddTexture(materialResources._colorImage._imageView, materialResources._colorSampler);
+            const TextureID metalRoughID = engine._texCache.AddTexture(materialResources._metalRoughImage._imageView, materialResources._metalRoughSampler);
+            constants._colorTexID = colorID._index;
+            constants._metalRoughTexID = metalRoughID._index;
             file._textureIDs.push_back(colorID);
             file._textureIDs.push_back(metalRoughID);
 
@@ -315,7 +315,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                 debugName = debugNameString.c_str();
                 newMat.get()->debugName = debugName;
             #endif
-            newMat->_data = aEngine._metalRoughMaterial.Write_Material(aEngine._device, passType, materialResources, file._descriptorPool, debugName);
+            newMat->_data = engine._metalRoughMaterial.Write_Material(engine._device, passType, materialResources, file._descriptorPool, debugName);
             data_index++;
         }
     } // load materials
@@ -374,11 +374,11 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                                                               [&](glm::vec3 v, size_t index)
                                                               {
                                                                   Vertex newVtx;
-                                                                  newVtx.pos = v;
-                                                                  newVtx.normal = {1, 0, 0};
-                                                                  newVtx.color = glm::vec4{1.f};
-                                                                  newVtx.uv_x = 0;
-                                                                  newVtx.uv_y = 0;
+                                                                  newVtx._pos = v;
+                                                                  newVtx._normal = {1, 0, 0};
+                                                                  newVtx._color = glm::vec4{1.f};
+                                                                  newVtx._uvX = 0;
+                                                                  newVtx._uvY = 0;
                                                                   vertices[initial_vtx + index] = newVtx;
                                                                   minPos = glm::min(minPos, v);
                                                                   maxPos = glm::max(maxPos, v);
@@ -392,7 +392,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->accessorIndex],
                                                               [&](glm::vec3 v, size_t index)
                                                               {
-                                                                  vertices[initial_vtx + index].normal = v;
+                                                                  vertices[initial_vtx + index]._normal = v;
                                                               });
             }
 
@@ -403,8 +403,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                 fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->accessorIndex],
                                                               [&](glm::vec2 v, size_t index)
                                                               {
-                                                                  vertices[initial_vtx + index].uv_x = v.x;
-                                                                  vertices[initial_vtx + index].uv_y = v.y;
+                                                                  vertices[initial_vtx + index]._uvX = v.x;
+                                                                  vertices[initial_vtx + index]._uvY = v.y;
                                                               });
             }
 
@@ -415,17 +415,17 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                 fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->accessorIndex],
                                                               [&](glm::vec4 v, size_t index)
                                                               {
-                                                                  vertices[initial_vtx + index].color = v;
+                                                                  vertices[initial_vtx + index]._color = v;
                                                               });
             }
 
             // used to debug normals
-            constexpr bool OverrideColorsWithNormals = false;
-            if (OverrideColorsWithNormals)
+            // ReSharper disable once CppDeclaratorNeverUsed
+            if (constexpr bool overrideColorsWithNormals = false)
             {
                 for (Vertex& vtx : vertices)
                 {
-                    vtx.color = glm::vec4(glm::normalize(vtx.normal) * 0.5f + 0.5f, 1.f);
+                    vtx._color = glm::vec4(glm::normalize(vtx._normal) * 0.5f + 0.5f, 1.f);
                 }
             }
 
@@ -460,7 +460,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         std::string meshName = fmt::format("Mesh Name: {}, Path: {}", newMesh->_name, aFilePath);
         tempMeshName = meshName.c_str();
 #endif
-        newMesh->_meshBuffers = aEngine.UploadMesh(indices, vertices, tempMeshName);
+        newMesh->_meshBuffers = engine.UploadMesh(indices, vertices, tempMeshName);
     }
 
     } // upload meshes
@@ -474,7 +474,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         if (node.meshIndex.has_value())
         {
             newNode = std::make_shared<MeshNode>();
-            dynamic_cast<MeshNode*>(newNode.get())->mesh = meshes[*node.meshIndex];
+            dynamic_cast<MeshNode*>(newNode.get())->_mesh = meshes[*node.meshIndex];
         }
         else
         {
@@ -485,23 +485,23 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         file._nodes[node.name.c_str()] = newNode; // NOTE: not in og vkguide, probably a bug.
         // file.nodes[node.name.c_str()];
 
-        std::visit(fastgltf::visitor{[&](const fastgltf::math::fmat4x4& matrix)
+        std::visit(fastgltf::visitor{[&](const fastgltf::math::fmat4x4& aMatrix)
                                      {
-                                         memcpy(&newNode->localTransform, &matrix, sizeof(matrix));
+                                         memcpy(&newNode->_localTransform, &aMatrix, sizeof(aMatrix));
                                      },
-                                     [&](const fastgltf::TRS& transform)
+                                     [&](const fastgltf::TRS& aTransform)
                                      {
-                                         const glm::vec3 tl(transform.translation[0], transform.translation[1],
-                                                      transform.translation[2]);
-                                         const glm::quat rot(transform.rotation[3], transform.rotation[0], transform.rotation[1],
-                                                       transform.rotation[2]);
-                                         const glm::vec3 sc(transform.scale[0], transform.scale[1], transform.scale[2]);
+                                         const glm::vec3 tl(aTransform.translation[0], aTransform.translation[1],
+                                                      aTransform.translation[2]);
+                                         const glm::quat rot(aTransform.rotation[3], aTransform.rotation[0], aTransform.rotation[1],
+                                                       aTransform.rotation[2]);
+                                         const glm::vec3 sc(aTransform.scale[0], aTransform.scale[1], aTransform.scale[2]);
 
                                          const glm::mat4 tm = glm::translate(glm::mat4(1.f), tl);
                                          const glm::mat4 rm = glm::toMat4(rot);
                                          const glm::mat4 sm = glm::scale(glm::mat4(1.f), sc);
 
-                                         newNode->localTransform = tm * rm * sm;
+                                         newNode->_localTransform = tm * rm * sm;
                                      }},
                    node.transform);
     }
@@ -514,15 +514,15 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
         for (auto& c : node.children)
         {
-            sceneNode->children.push_back(nodes[c]);
-            nodes[c]->parent = sceneNode;
+            sceneNode->_children.push_back(nodes[c]);
+            nodes[c]->_parent = sceneNode;
         }
     }
 
     // find the top nodes, with no parents
     for (auto& node : nodes)
     {
-        if (node->parent.lock() == nullptr)
+        if (node->_parent.lock() == nullptr)
         {
             file._topNodes.push_back(node);
             node->RefreshTransform(glm::mat4{1.f});
@@ -532,7 +532,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
 }
 
-VkFilter momo_GLTF::extract_filter(const fastgltf::Filter aFilter)
+VkFilter momo_vkGLTF::extract_filter(const fastgltf::Filter aFilter)
 {
     switch (aFilter)
     {
@@ -552,7 +552,7 @@ VkFilter momo_GLTF::extract_filter(const fastgltf::Filter aFilter)
 
 }
 
-VkSamplerMipmapMode momo_GLTF::extract_mipmap_mode(const fastgltf::Filter aFilter)
+VkSamplerMipmapMode momo_vkGLTF::extract_mipmap_mode(const fastgltf::Filter aFilter)
 {
     switch (aFilter)
     {
@@ -568,7 +568,7 @@ VkSamplerMipmapMode momo_GLTF::extract_mipmap_mode(const fastgltf::Filter aFilte
 
 }
 
-std::optional<momo_GLTF::PendingTextureUpload> momo_GLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath)
+std::optional<momo_vkGLTF::PendingTextureUpload> momo_vkGLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath)
 {
     // Decodes one GLTF image to RGBA pixels, allocates the VkImage and a host-visible staging
     // buffer, and copies the pixels in. Does NOT submit any GPU work — call site batches uploads.
@@ -587,50 +587,50 @@ std::optional<momo_GLTF::PendingTextureUpload> momo_GLTF::load_image_stbi(fastgl
 
     std::visit(
         fastgltf::visitor{
-            [&](auto& arg)
+            [&](auto& anArg)
             {
                 fmt::print(stderr, "load_image: unhandled source type '{}' for image '{}'\n",
-                           typeid(arg).name(), aImage.name);
+                           typeid(anArg).name(), aImage.name);
             },
-            [&](fastgltf::sources::URI& filePath)
+            [&](const fastgltf::sources::URI& aGLTFImageFilePath)
             {
-                if (filePath.fileByteOffset != 0)
+                if (aGLTFImageFilePath.fileByteOffset != 0)
                 {
                     fmt::print(stderr, "load_image: non-zero byte offset not supported (image '{}')\n", aImage.name);
                     return;
                 }
-                if (!filePath.uri.isLocalPath())
+                if (!aGLTFImageFilePath.uri.isLocalPath())
                 {
                     fmt::print(stderr, "load_image: non-local URI not supported: '{}' (image '{}')\n",
-                               filePath.uri.string(), aImage.name);
+                               aGLTFImageFilePath.uri.string(), aImage.name);
                     return;
                 }
-                const std::string path(filePath.uri.path().begin(), filePath.uri.path().end());
+                const std::string path(aGLTFImageFilePath.uri.path().begin(), aGLTFImageFilePath.uri.path().end());
                 pixels = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
                 if (!pixels)
                     fmt::print(stderr, "load_image: stbi failed to load '{}': {}\n", path, stbi_failure_reason());
             },
-            [&](fastgltf::sources::Array& array)
+            [&](fastgltf::sources::Array& anArray)
             {
-                const auto* bytes = reinterpret_cast<const stbi_uc*>(array.bytes.data());
-                pixels = stbi_load_from_memory(bytes, static_cast<int>(array.bytes.size()),
+                const auto* bytes = reinterpret_cast<const stbi_uc*>(anArray.bytes.data());
+                pixels = stbi_load_from_memory(bytes, static_cast<int>(anArray.bytes.size()),
                                                &width, &height, &nrChannels, 4);
                 if (!pixels)
                     fmt::print(stderr, "load_image: stbi failed to decode embedded array for image '{}': {}\n",
                                aImage.name, stbi_failure_reason());
             },
-            [&](fastgltf::sources::BufferView& view)
+            [&](const fastgltf::sources::BufferView& aView)
             {
-                const auto& bufferView = aAsset.bufferViews[view.bufferViewIndex];
+                const auto& bufferView = aAsset.bufferViews[aView.bufferViewIndex];
                 auto& buffer = aAsset.buffers[bufferView.bufferIndex];
-                std::visit(fastgltf::visitor{[&](auto& arg)
+                std::visit(fastgltf::visitor{[&](auto& anArg)
                                              {
                                                  fmt::print(stderr, "load_image: unhandled buffer source type '{}' for image '{}'\n",
-                                                            typeid(arg).name(), aImage.name);
+                                                            typeid(anArg).name(), aImage.name);
                                              },
-                                             [&](fastgltf::sources::Array& array)
+                                             [&](fastgltf::sources::Array& anArray)
                                              {
-                                                 const auto* bytes = reinterpret_cast<const stbi_uc*>(array.bytes.data() + bufferView.byteOffset);
+                                                 const auto* bytes = reinterpret_cast<const stbi_uc*>(anArray.bytes.data() + bufferView.byteOffset);
                                                  pixels = stbi_load_from_memory(bytes, static_cast<int>(bufferView.byteLength),
                                                                                 &width, &height, &nrChannels, 4);
                                                  if (!pixels)
@@ -657,7 +657,7 @@ std::optional<momo_GLTF::PendingTextureUpload> momo_GLTF::load_image_stbi(fastgl
 
     const size_t dataSize = static_cast<size_t>(width) * height * 4;
     const AllocatedBuffer staging = engine.Create_Buffer(dataSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_AUTO, imgName);
-    memcpy(staging.info.pMappedData, pixels, dataSize);
+    memcpy(staging._info.pMappedData, pixels, dataSize);
     stbi_image_free(pixels);
 
     return PendingTextureUpload{._image = std::move(image), ._stagingBuffer = staging};

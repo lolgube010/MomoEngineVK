@@ -24,7 +24,7 @@ struct FrameData
 
 	DeletionQueue _deletionQueue;
 	DescriptorAllocatorGrowable _frameDescriptors; // [0] storage image, [1] storage buffer, [2] uniform buffer, [3] image/sampler
-	AllocatedBuffer sceneDataBuffer; // persistent HOST_VISIBLE UBO, written each frame
+	AllocatedBuffer _sceneDataBuffer; // persistent HOST_VISIBLE UBO, written each frame
 };
 
 constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in flight
@@ -32,37 +32,37 @@ constexpr unsigned int FRAME_OVERLAP = 2; // also known as number of frames in f
 // written into uniform buffers
 struct GLTFMetallic_Roughness
 {
-	MaterialPipeline opaquePipeline;
-	MaterialPipeline transparentPipeline;
+	MaterialPipeline _opaquePipeline;
+	MaterialPipeline _transparentPipeline;
 
-	VkDescriptorSetLayout materialLayout; // [0] Uniform Buffer (gltfMaterialData), [1] image/sampler (colorTex), [2] image/sampler (metalRoughTex)
+	VkDescriptorSetLayout _materialLayout; // [0] Uniform Buffer (gltfMaterialData), [1] image/sampler (colorTex), [2] image/sampler (metalRoughTex)
 
 	struct MaterialConstants
 	{
-		glm::vec4 colorFactors; // used to multiply the color texture
-		glm::vec4 metal_rough_factors; // metallic and roughness parameters on r and b components, plus two more that are used in other places.
+		glm::vec4 _colorFactors; // used to multiply the color texture
+		glm::vec4 _metalRoughFactors; // metallic and roughness parameters on r and b components, plus two more that are used in other places.
 
-		uint32_t colorTexID;
-        uint32_t metalRoughTexID;
-        uint32_t pad1;
-        uint32_t pad2;
+		uint32_t _colorTexID;
+        uint32_t _metalRoughTexID;
+        uint32_t _pad1;
+        uint32_t _pad2;
 		// We have also a bunch of vec4s for padding. In vulkan, when you want to bind a uniform buffer, it needs to meet a minimum requirement for its alignment. 256 bytes is a good default alignment for this which all the gpus we target meet, so we are adding those vec4s to pad the structure to 256 bytes.
-		glm::vec4 extra[13] = {};
+		glm::vec4 _extra[13] = {};
 	};
 
 	// When we create the descriptor set, there are some textures we want to bind, and the uniform buffer with the color factors and other properties. We will hold those in the MaterialResources struct, so that its easy to send them to the write_material function.
 	struct MaterialResources
 	{
-		AllocatedImage colorImage;
-		VkSampler colorSampler;
-		AllocatedImage metalRoughImage;
-		VkSampler metalRoughSampler;
-		VkBuffer dataBuffer;
-		uint32_t dataBufferOffset;
-		uint32_t padding; // added by me
+		AllocatedImage _colorImage;
+		VkSampler _colorSampler;
+		AllocatedImage _metalRoughImage;
+		VkSampler _metalRoughSampler;
+		VkBuffer _dataBuffer;
+		uint32_t _dataBufferOffset;
+		uint32_t _padding;
 	};
 
-	DescriptorWriter writer;
+	DescriptorWriter _writer;
 
 	void Build_Pipelines();
 	void Clear_Resources(VkDevice aDevice) const;
@@ -75,30 +75,30 @@ static_assert(sizeof(GLTFMetallic_Roughness::MaterialConstants) == 256);
 
 struct RenderObject
 {
-	uint32_t indexCount;
-	uint32_t firstIndex;
-	VkBuffer indexBuffer;
+	uint32_t _indexCount;
+	uint32_t _firstIndex;
+	VkBuffer _indexBuffer;
 
-	MaterialInstance* material;
-	Bounds bounds;
-	glm::mat4 transform;
-	VkDeviceAddress vertexBufferAddress;
+	MaterialInstance* _material;
+	Bounds _bounds;
+	glm::mat4 _transform;
+	VkDeviceAddress _vertexBufferAddress;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    std::string_view matDebugName;
-    std::string_view meshDebugName;
-    const char* combinedDebugLabel = nullptr; //  points into GeoSurface::combinedDebugLabel
+    std::string_view _matDebugName;
+    std::string_view _meshDebugName;
+    const char* _combinedDebugLabel = nullptr; //  points into GeoSurface::combinedDebugLabel
 #endif
 };
 
 struct DrawContext
 {
-	std::vector<RenderObject> opaqueSurfaces;
-	std::vector<RenderObject> transparentSurfaces;
+	std::vector<RenderObject> _opaqueSurfaces;
+	std::vector<RenderObject> _transparentSurfaces;
 };
 
 struct MeshNode : Node 
 {
-	std::shared_ptr<MeshAsset> mesh;
+	std::shared_ptr<MeshAsset> _mesh;
 
 	void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
 };
@@ -107,16 +107,16 @@ struct TextureCache
 {
     struct ViewSamplerKey
     {
-        VkImageView imageView;
-        VkSampler   sampler;
+        VkImageView _imageView;
+        VkSampler   _sampler;
         bool operator==(const ViewSamplerKey&) const = default;
     };
     struct ViewSamplerHash
     {
-        size_t operator()(const ViewSamplerKey& k) const noexcept
+        size_t operator()(const ViewSamplerKey& aKey) const noexcept
         {
-            const size_t h1 = std::hash<uint64_t>{}(std::bit_cast<uint64_t>(k.imageView));
-            const size_t h2 = std::hash<uint64_t>{}(std::bit_cast<uint64_t>(k.sampler));
+            const size_t h1 = std::hash<uint64_t>{}(std::bit_cast<uint64_t>(aKey._imageView));
+            const size_t h2 = std::hash<uint64_t>{}(std::bit_cast<uint64_t>(aKey._sampler));
             return h1 ^ (h2 * 2654435761u + 0x9e3779b9u + (h1 << 6) + (h1 >> 2));
         }
     };
@@ -137,24 +137,24 @@ struct TextureCache
 
 struct EngineStats
 {
-	float frameTime;
-	uint32_t tri_count;
-	int drawCall_count;
-	float scene_update_time;
-	float mesh_draw_time;
-    float filler;
-    uint64_t frequency;
+	float _frameTime;
+	uint32_t _triCount;
+	int _drawCallCount;
+	float _sceneUpdateTime;
+	float _meshDrawTime;
+    float _filler;
+    uint64_t _frequency;
 };
 
 class VulkanEngine
 {
 public:
-	bool _is_initialized{false};
-	bool _freeze_rendering{false};
-	bool _resize_requested = false;
+	bool _isInitialized{false};
+	bool _freezeRendering{false};
+	bool _resizeRequested = false;
 
-	int _frame_number{0};
-	VkExtent2D _windowExtent{ 1700, 900 }; // og was 1700, 900
+	int _frameNumber{0};
+	VkExtent2D _windowExtent{.width = 1700, .height = 900 }; // og was 1700, 900
 
 	SDL_Window* _window{nullptr};
 
@@ -180,12 +180,12 @@ public:
 
 	FrameData& Get_Current_Frame()
 	{
-		return _frames[_frame_number % FRAME_OVERLAP];
+		return _frames[_frameNumber % FRAME_OVERLAP];
 	}
-    FrameData& Get_Last_Frame() { return _frames[(_frame_number - 1) % FRAME_OVERLAP]; }
+    FrameData& Get_Last_Frame() { return _frames[(_frameNumber - 1) % FRAME_OVERLAP]; }
 
 	// Send some commands to the GPU without synchronizing with swapchain or with rendering logic.
-	void Immediate_Submit(const std::function<void(VkCommandBuffer cmd)>& aFunction) const;
+	void Immediate_Submit(const std::function<void(VkCommandBuffer aCmd)>& aFunction) const;
 
 	// TODO:
 	// Note that this pattern is not very efficient, as we are waiting for the GPU command to fully execute before continuing with our CPU side logic. This is something people generally put on a background thread, whose sole job is to execute uploads like this one, and deleting/reusing the staging buffers.

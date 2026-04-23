@@ -69,7 +69,7 @@ private:
     void ClearAll();
 };
 
-namespace momo_GLTF
+namespace momo_vkGLTF
 {
     std::optional<std::shared_ptr<LoadedGLTF>> load_gltf(std::string_view aFilePath);
 

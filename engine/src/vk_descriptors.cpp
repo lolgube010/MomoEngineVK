@@ -180,7 +180,7 @@ VkDescriptorPool DescriptorAllocatorGrowable::Create_Pool(const VkDevice aDevice
 //</param>
 void DescriptorWriter::Write_Image(const int aBinding, const VkImageView aImage, const VkSampler aSampler, const VkImageLayout aLayout, const VkDescriptorType aType)
 {
-	const VkDescriptorImageInfo& info = _image_infos.emplace_back(VkDescriptorImageInfo{
+	const VkDescriptorImageInfo& info = _imageInfos.emplace_back(VkDescriptorImageInfo{
 	.sampler = aSampler,
 	.imageView = aImage,
 	.imageLayout = aLayout
@@ -211,7 +211,7 @@ void DescriptorWriter::Write_Image(const int aBinding, const VkImageView aImage,
 // STORAGE_BUFFER_DYNAMIC,	Read+Write,	Large,					No(dynamic),		(No direct; multiple SRVs / UAVs),		"Many objects, one big SSBO"
 void DescriptorWriter::Write_Buffer(const int aBinding, const VkBuffer aBuffer, const size_t aSize, const size_t aOffset, const VkDescriptorType aType)
 {
-	const VkDescriptorBufferInfo& info = _buffer_infos.emplace_back(VkDescriptorBufferInfo{
+	const VkDescriptorBufferInfo& info = _bufferInfos.emplace_back(VkDescriptorBufferInfo{
 		.buffer = aBuffer,
 		.offset = aOffset,
 		.range = aSize
@@ -230,9 +230,9 @@ void DescriptorWriter::Write_Buffer(const int aBinding, const VkBuffer aBuffer, 
 
 void DescriptorWriter::Clear()
 {
-	_image_infos.clear();
+	_imageInfos.clear();
 	_writes.clear();
-	_buffer_infos.clear();
+	_bufferInfos.clear();
 }
 
 void DescriptorWriter::Update_Set(const VkDevice aDevice, const VkDescriptorSet aSet)
