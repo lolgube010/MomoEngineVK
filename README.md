@@ -32,8 +32,10 @@ you might need to enable long paths on your system: `git config --system core.lo
 # dependency graph / doxygen & graphviz
 * install [doxygen](https://doxygen.nl/download.html) & [graphvis](https://graphviz.org/download/)
 * build the doxygen target
-* open index.html in build/doxygen. 
+* open index.html in build/doxygen.
 
 # dependencies
 * based on vkguide.
 * fastgltf, fmt, glm, imgui, sdl, stb_image, tracy, vkbootstrap, vma, volk, renderdoc. 
+
+to see what the engine had at the end of the tutorial, see [this commit](https://github.com/lolgube010/MomoEngineVK/tree/677acaa5fa7ed86fca45ed986798204cc67e067a)
