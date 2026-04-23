@@ -18,10 +18,10 @@ namespace momo_vkDebug
 
     private:
         static VKAPI_ATTR VkBool32 VKAPI_CALL Callback(
-            VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-            VkDebugUtilsMessageTypeFlagsEXT messageType,
-            const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
-            void* pUserData);
+            VkDebugUtilsMessageSeverityFlagBitsEXT aMessageSeverity,
+            VkDebugUtilsMessageTypeFlagsEXT aMessageType,
+            const VkDebugUtilsMessengerCallbackDataEXT* a_pCallbackData,
+            void* a_pUserData);
 
         VkDebugUtilsMessengerEXT _messenger = VK_NULL_HANDLE;
         std::atomic<bool> _hasErrors{false};

@@ -28,13 +28,13 @@ void ValidationCapture::Destroy(VkInstance aInstance)
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL ValidationCapture::Callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+    VkDebugUtilsMessageSeverityFlagBitsEXT aMessageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
     const VkDebugUtilsMessengerCallbackDataEXT* /*pCallbackData*/,
-    void* pUserData)
+    void* a_pUserData)
 {
-    auto* self = static_cast<ValidationCapture*>(pUserData);
-    if (messageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+    auto* self = static_cast<ValidationCapture*>(a_pUserData);
+    if (aMessageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
         self->_hasErrors.store(true, std::memory_order_relaxed);
     else
         self->_hasWarnings.store(true, std::memory_order_relaxed);

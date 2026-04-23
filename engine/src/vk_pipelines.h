@@ -55,9 +55,9 @@ public:
     void Set_Multisampling_AlphaToCoverage(VkSampleCountFlagBits aSamples); 
 };
 
-namespace momo_ShaderUtil
+namespace momo_shaderUtil
 {
-    bool LoadShaderModule(const char* aFilePath, VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
+    bool load_shader_module(const char* aFilePath, VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
 
 	enum class ShaderType
 	{
@@ -75,5 +75,5 @@ namespace momo_ShaderUtil
 
 	std::string GetShaderExtension(ShaderType aType);
     std::string BuildShaderPath(const std::string& aFileName, ShaderType aType, ShaderLang aShaderLang);
-    std::optional<VkShaderModule> LoadShader(const std::string& aName, momo_ShaderUtil::ShaderType aType, ShaderLang aShaderLang, VkDevice aDevice);
+    std::optional<VkShaderModule> LoadShader(const std::string& aName, momo_shaderUtil::ShaderType aType, ShaderLang aShaderLang, VkDevice aDevice);
 }

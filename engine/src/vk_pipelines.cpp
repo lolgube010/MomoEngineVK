@@ -3,7 +3,7 @@
 #include <vk_initializers.h>
 #include "vk_debug.h"
 
-bool momo_ShaderUtil::LoadShaderModule(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
+bool momo_shaderUtil::load_shader_module(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
 {
 	// open the file. With cursor at the end
 	std::ifstream file(aFilePath, std::ios::ate | std::ios::binary);
@@ -365,7 +365,7 @@ void PipelineBuilder::Set_Multisampling_AlphaToCoverage(const VkSampleCountFlagB
     _multisampling.alphaToOneEnable = VK_FALSE;
 }
 
-std::string momo_ShaderUtil::GetShaderExtension(const ShaderType aType)
+std::string momo_shaderUtil::GetShaderExtension(const ShaderType aType)
 {
 	switch (aType)
 	{
@@ -376,7 +376,7 @@ std::string momo_ShaderUtil::GetShaderExtension(const ShaderType aType)
 	}
 }
 
-std::string momo_ShaderUtil::BuildShaderPath(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
+std::string momo_shaderUtil::BuildShaderPath(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
 {
 	// Base directory (adjust this to match your project structure)
 #ifdef _DEBUG
@@ -410,14 +410,14 @@ std::string momo_ShaderUtil::BuildShaderPath(const std::string& aFileName, const
 	return fullPath;
 }
 
-std::optional<VkShaderModule> momo_ShaderUtil::LoadShader(const std::string& aName, const momo_ShaderUtil::ShaderType aType, const ShaderLang aShaderLang, const VkDevice aDevice)
+std::optional<VkShaderModule> momo_shaderUtil::LoadShader(const std::string& aName, const momo_shaderUtil::ShaderType aType, const ShaderLang aShaderLang, const VkDevice aDevice)
 {
     const std::string path = BuildShaderPath(aName, aType, aShaderLang);
 
     VkShaderModule module;
 
     if (VkResult errorCode = {}; 
-		!LoadShaderModule(path.c_str(), aDevice, &module, errorCode))
+		!load_shader_module(path.c_str(), aDevice, &module, errorCode))
     {
 		// TODO- load error shader here instead!.. probably
         fmt::print("Error loading shader. Type: {} Name: {} ErrorCode: {}\n", GetShaderExtension(aType), aName, static_cast<int>(errorCode));

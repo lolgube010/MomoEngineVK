@@ -25,18 +25,18 @@
 
 struct AllocatedImage
 {
-    VkImage image; // equivalent to ID3D11Resource/ID3D11Texture2D
-    VkImageView imageView; // in vulkan, RTV/SRV/DSV/UAV don't exist, instead this generic one for all of them
-    VmaAllocation allocation; // tracks memory, VkDeviceMemory
-    VkExtent3D imageExtent; // stores width height depth
-    VkFormat imageFormat; // stores format of img, like DXGI_FORMAT_R8G8B8_UNORM
-    std::string name;
+    VkImage _image; // equivalent to ID3D11Resource/ID3D11Texture2D
+    VkImageView _imageView; // in vulkan, RTV/SRV/DSV/UAV don't exist, instead this generic one for all of them
+    VmaAllocation _allocation; // tracks memory, VkDeviceMemory
+    VkExtent3D _imageExtent; // stores width height depth
+    VkFormat _imageFormat; // stores format of img, like DXGI_FORMAT_R8G8B8_UNORM
+    std::string _name;
 };
 
 struct AllocatedBuffer
 {
-	VkBuffer buffer;
-	VmaAllocation allocation; // VkDeviceMemory
+	VkBuffer _buffer;
+	VmaAllocation _allocation; // VkDeviceMemory
 	VmaAllocationInfo info;
 };
 

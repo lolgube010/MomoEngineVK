@@ -122,9 +122,8 @@ struct TextureCache
     };
 
     std::vector<VkDescriptorImageInfo> _cache;
-    std::unordered_map<std::string, TextureID> _nameMap;
-    std::unordered_set<uint32_t> _freeSlots;
-    std::unordered_set<VkImageView> _engineImages;
+    std::unordered_set<uint32_t> _freeSlots; // recycled slots
+    std::unordered_set<VkImageView> _engineDefaultImages;
     std::unordered_map<ViewSamplerKey, uint32_t, ViewSamplerHash> _lookup;
     bool _dirty = true;
 
@@ -193,25 +192,25 @@ public:
 	GPUMeshBuffers UploadMesh(std::span<uint32_t> aIndices, std::span<Vertex> aVertices, const char* aMeshName) const;
 
 	VkInstance _instance; // vulkan library handle - "The Vulkan context, used to access drivers."
-	VkDebugUtilsMessengerEXT _debug_messenger; // vulkan debug output handle
-	VkPhysicalDevice _chosen_GPU; // GPU chosen as the default device. - "A GPU. Used to query physical GPU details, like features, capabilities, memory size, etc."
+	VkDebugUtilsMessengerEXT _debugMessenger; // vulkan debug output handle
+	VkPhysicalDevice _chosenGPU; // GPU chosen as the default device. - "A GPU. Used to query physical GPU details, like features, capabilities, memory size, etc."
 	VkDevice _device; // Vulkan Device for commands - "The “logical” GPU context that you actually execute things on."
 	VkSurfaceKHR _surface; // vulkan window surface, just sent to sdl/swapchain
 
 	// <swapchain
 	// Holds the images for the screen. It allows you to render things into a visible window. The KHR suffix shows that it comes from an extension, which in this case is VK_KHR_swapchain
 	VkSwapchainKHR _swapchain;
-	VkFormat _swapchain_image_format;
-	std::vector<VkImage> _swapchain_images; // A VkImage is a handle to the actual image object to use as texture or to render into. -  "A texture you can write to and read from."
-	std::vector<VkImageView> _swapchain_image_views; // A VkImageView is a wrapper for that image. It allows to do things like swap the colors. We will go into detail about it later.
-	VkExtent2D _swapchain_extent;
+	VkFormat _swapchainImageFormat;
+	std::vector<VkImage> _swapchainImages; // A VkImage is a handle to the actual image object to use as texture or to render into. -  "A texture you can write to and read from."
+	std::vector<VkImageView> _swapchainImageViews; // A VkImageView is a wrapper for that image. It allows to do things like swap the colors. We will go into detail about it later.
+	VkExtent2D _swapchainExtent;
 
 	// <queues
 	FrameData _frames[FRAME_OVERLAP];
 	
     uint32_t _swapchainImageCount{0};
     // uint32_t _swapchainImageIndex;
-	std::vector<VkSemaphore> ready_for_present_semaphores; // previously called render_semaphore, also called submit semaphores.
+	std::vector<VkSemaphore> _readyForPresentSemaphores; // previously called render_semaphore, also called submit semaphores.
 
 	// TODO-
 	// It is common to see engines using 3 queue families. One for drawing the frame, other for async compute, and other for data transfer. We use a single queue that will run all our commands for simplicity.
@@ -235,15 +234,15 @@ public:
 	VkDescriptorSetLayout _drawImageDescriptorLayout; // for compute draw (storage image), bg shader
 
 	// VkPipeline _gradientPipeline;
-	VkPipelineLayout _ComputePipelineLayout; // prev: gradientPipelineLayout
+	VkPipelineLayout _computePipelineLayout; // prev: gradientPipelineLayout
 
 	// immediate submit structures
 	VkFence _immFence;
 	VkCommandBuffer _immCommandBuffer;
 	VkCommandPool _immCommandPool;
 
-	std::vector<ComputeEffect> backgroundEffects;
-	int currentBackgroundEffect{0};
+	std::vector<ComputeEffect> _backgroundEffects;
+	int _currentBackgroundEffect{0};
 
     // momo_vkDebug::Vk_Debug_Info _debugInfo;
 
@@ -279,9 +278,9 @@ public:
 	VkSampler _defaultSamplerLinear;
 	VkSampler _defaultSamplerNearest;
 
-    TextureCache texCache;
+    TextureCache _texCache;
 
-	GLTFMetallic_Roughness metalRoughMaterial;
+	GLTFMetallic_Roughness _metalRoughMaterial;
 
 	DrawContext _mainDrawContext;
 
@@ -295,7 +294,7 @@ public:
 
 	EngineStats _stats = {};
 
-	RenderDocWrapper _render_doc;
+	RenderDocWrapper _renderDoc;
 
 private:
     VulkanEngine() = default;
@@ -322,18 +321,20 @@ private:
 
 	void Draw_ImGui(VkCommandBuffer aCmd, VkImageView aTargetImageView) const;
     void Draw_Main(VkCommandBuffer aCmd);
-	void ImGui_Run();
-    void ImGuiFrame();
+	
+    void ImGui_Run();
+    
+    void ImGui_Update();
 
 	void Resize_Swapchain();
 	void Update_Scene();
 
     void ProcessEvents(bool& aQuit);
 	// temp camera settings
-	float tempCameraFOV = 70.f;
-    glm::vec4 tempAmbientColor = glm::vec4(1.f);
-    glm::vec4 tempSunColor = glm::vec4(1.f);
-    glm::vec4 tempSunDir = glm::vec4(0, 1, 0.5, 1.f);
+	float _tempCameraFov = 70.f;
+    glm::vec4 _tempAmbientColor = glm::vec4(1.f);
+    glm::vec4 _tempSunColor = glm::vec4(1.f);
+    glm::vec4 _tempSunDir = glm::vec4(0, 1, 0.5, 1.f);
 	// int tempBlendModeIndex = 0;
 
     static bool Is_Visible(const RenderObject& aObj, const glm::mat4& aViewProj);
@@ -342,25 +343,28 @@ private:
     static std::string Get_Buffer_Usage_Flag_String(VkBufferUsageFlags aUsageFlag);
     
     template <typename T>
-    std::string FormatWithCommas(T aValue)
-    {
-        std::string str = std::to_string(aValue);
-
-        // If the number is negative, we don't want to insert a comma after the minus sign
-        int limit = (aValue < 0) ? 1 : 0;
-        int insert_idx = static_cast<int>(str.length()) - 3;
-
-        while (insert_idx > limit)
-        {
-            str.insert(insert_idx, ",");
-            insert_idx -= 3;
-        }
-
-        return str;
-    }
+    std::string FormatWithCommas(T aValue);
 
     momo_vkDebug::ValidationCapture _validationCapture;
 
     VmaTotalStatistics _cachedVmaStats{};
     std::chrono::steady_clock::time_point _lastVmaStatsTime{};
 };
+
+template <typename T>
+std::string VulkanEngine::FormatWithCommas(T aValue)
+{
+    std::string str = std::to_string(aValue);
+
+    // If the number is negative, we don't want to insert a comma after the minus sign
+    int limit = (aValue < 0) ? 1 : 0;
+    int insert_idx = static_cast<int>(str.length()) - 3;
+
+    while (insert_idx > limit)
+    {
+        str.insert(insert_idx, ",");
+        insert_idx -= 3;
+    }
+
+    return str;
+}

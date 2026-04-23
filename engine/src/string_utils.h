@@ -6,15 +6,16 @@
 namespace momo_stringUtils
 {
     // FNV-1a 32bit hashing algorithm.
-    constexpr uint32_t fnv1a_32(char const* s, const std::size_t count)
+    // ReSharper disable once CppInconsistentNaming
+    constexpr uint32_t fnv1a_32(char const* aS, const std::size_t aCount)
     {
-        return ((count ? fnv1a_32(s, count - 1) : 2166136261u) ^ s[count]) * 16777619u;
+        return ((aCount ? fnv1a_32(aS, aCount - 1) : 2166136261u) ^ aS[aCount]) * 16777619u;
     }
 
-    constexpr size_t const_strlen(const char* s)
+    constexpr size_t const_strlen(const char* aS)
     {
         size_t size = 0;
-        while (s[size])
+        while (aS[size])
         {
             size++;
         };
@@ -27,10 +28,10 @@ namespace momo_stringUtils
 
         explicit constexpr StringHash(const uint32_t aHash) noexcept : computedHash(aHash) {}
 
-        explicit constexpr StringHash(const char* s) noexcept : computedHash(0) { computedHash = fnv1a_32(s, const_strlen(s)); }
-        constexpr StringHash(const char* s, const std::size_t count) noexcept : computedHash(0) { computedHash = fnv1a_32(s, count); }
-        explicit constexpr StringHash(const std::string_view s) noexcept : computedHash(0) { computedHash = fnv1a_32(s.data(), s.size()); }
-        StringHash(const StringHash& other) = default;
+        explicit constexpr StringHash(const char* aS) noexcept : computedHash(0) { computedHash = fnv1a_32(aS, const_strlen(aS)); }
+        constexpr StringHash(const char* aS, const std::size_t aCount) noexcept : computedHash(0) { computedHash = fnv1a_32(aS, aCount); }
+        explicit constexpr StringHash(const std::string_view aS) noexcept : computedHash(0) { computedHash = fnv1a_32(aS.data(), aS.size()); }
+        StringHash(const StringHash& aOther) = default;
 
         explicit constexpr operator uint32_t() const noexcept { return computedHash; }
     };

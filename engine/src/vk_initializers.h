@@ -44,4 +44,9 @@ namespace momo_vkInit
 	VkDebugUtilsLabelEXT debug_label(const char* aPassName, glm::vec4 aColor = glm::vec4(1.f,1.f,1.f,1.f));
 
 	VkComputePipelineCreateInfo compute_pipeline_create_info(VkPipelineLayout aLayout, const VkPipelineShaderStageCreateInfo& aStageInfo);
+
+	VkSamplerCreateInfo sampler_create_info(VkFilter aFilter);
+	VkSamplerCreateInfo sampler_create_info(VkFilter aMagFilter, VkFilter aMinFilter, float aMaxLod, float aMinLod, VkSamplerMipmapMode aMipMapMode);
+
+	VkBufferImageCopy buffer_image_copy(VkExtent3D anImageExtent, VkFormat anImageFormat);
 } // namespace vkInit

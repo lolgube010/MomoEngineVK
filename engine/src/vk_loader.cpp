@@ -19,7 +19,7 @@
 void LoadedGLTF::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 {
     // create renderables from the scene nodes
-    for (const auto& n : topNodes)
+    for (const auto& n : _topNodes)
     {
         n->Draw(aTopMatrix, aCtx); // most probably MeshNode::Draw
     }
@@ -37,23 +37,23 @@ void LoadedGLTF::ClearAll()
 
     const VkDescriptorImageInfo fallback{
         .sampler     = creator._defaultSamplerLinear,
-        .imageView   = creator._errorCheckerboardImage.imageView,
+        .imageView   = creator._errorCheckerboardImage._imageView,
         .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
     };
-    creator.texCache.FreeTextures(textureIDs, fallback);
+    creator._texCache.FreeTextures(_textureIDs, fallback);
 
-    descriptorPool.Destroy_Pools(dv);
-    creator.Destroy_Buffer(materialDataBuffer);
+    _descriptorPool.Destroy_Pools(dv);
+    creator.Destroy_Buffer(_materialDataBuffer);
 
-    for (const auto& v : meshes)
+    for (const auto& v : _meshes)
     {
-        creator.Destroy_Buffer(v->meshBuffers._indexBuffer);
-        creator.Destroy_Buffer(v->meshBuffers._vertexBuffer);
+        creator.Destroy_Buffer(v->_meshBuffers._indexBuffer);
+        creator.Destroy_Buffer(v->_meshBuffers._vertexBuffer);
     }
 
-    for (auto& v : images)
+    for (auto& v : _images)
     {
-        if (v.image == creator._errorCheckerboardImage.image)
+        if (v._image == creator._errorCheckerboardImage._image)
         {
             // don't destroy the default images
             continue;
@@ -61,7 +61,7 @@ void LoadedGLTF::ClearAll()
         creator.Destroy_Image(v);
     }
 
-    for (const auto& sampler : samplers)
+    for (const auto& sampler : _samplers)
     {
         vkDestroySampler(dv, sampler, nullptr);
     }
@@ -143,25 +143,21 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     std::string debugNameString = fmt::format("glTF Material, Path: {}", aFilePath);
     debugName = debugNameString.c_str();
 #endif
-    file.descriptorPool.Init(aEngine._device, static_cast<uint32_t>(gltf.materials.size()), sizes, debugName);
+    file._descriptorPool.Init(aEngine._device, static_cast<uint32_t>(gltf.materials.size()), sizes, debugName);
 
     // load samplers
     for (fastgltf::Sampler& sampler : gltf.samplers)
     {
-        VkSamplerCreateInfo samplerCreateInfo = {.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO, .pNext = nullptr};
-        samplerCreateInfo.maxLod = VK_LOD_CLAMP_NONE;
-        samplerCreateInfo.minLod = 0;
-
-        samplerCreateInfo.magFilter = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Nearest));
-        samplerCreateInfo.minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
-
-        samplerCreateInfo.mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+        VkFilter magFilter = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Nearest));
+        VkFilter minFilter = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+        VkSamplerMipmapMode mipmapMode = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
+        VkSamplerCreateInfo samplerCreateInfo = momo_vkInit::sampler_create_info(magFilter, minFilter, VK_LOD_CLAMP_NONE, 0, mipmapMode);
 
         VkSampler newSampler;
         VK_CHECK(vkCreateSampler(aEngine._device, &samplerCreateInfo, nullptr, &newSampler));
         MOMO_VK_SET_DEBUG_NAME(aEngine._device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
 
-        file.samplers.push_back(newSampler);
+        file._samplers.push_back(newSampler);
     }
 
     // temporal arrays for all the objects to use while creating the GLTF data
@@ -194,9 +190,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     {
         if (decoded[i].has_value())
         {
-            decoded[i]->image.name = gltf.images[i].name;
-            images.push_back(decoded[i]->image);
-            file.images.push_back(decoded[i]->image);
+            decoded[i]->_image._name = gltf.images[i].name;
+            images.push_back(decoded[i]->_image);
+            file._images.push_back(decoded[i]->_image);
             pendingUploads.push_back(std::move(*decoded[i]));
             // imageIDs.push_back( aEngine.texCache.AddTexture(_materialResources.colorImage.imageView, materialResources.colorSampler, );
         }
@@ -215,25 +211,22 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         {
             for (const auto& p : pendingUploads)
             {
-                momo_vkUtil::transition_image(cmd, p.image.image,
-                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, p.image.imageFormat);
+                momo_vkUtil::transition_image(cmd, p._image._image,
+                    VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, p._image._imageFormat);
 
-                VkBufferImageCopy copyRegion = {};
-                copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-                copyRegion.imageSubresource.layerCount = 1;
-                copyRegion.imageExtent = p.image.imageExtent;
-                vkCmdCopyBufferToImage(cmd, p.stagingBuffer.buffer, p.image.image,
+                VkBufferImageCopy copyRegion = momo_vkInit::buffer_image_copy(p._image._imageExtent, p._image._imageFormat);
+                vkCmdCopyBufferToImage(cmd, p._stagingBuffer._buffer, p._image._image,
                     VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
                 // TODO: And in the upload textures GPU batch — replace the generate_mipmaps call with a loop that copies each mip level individually(since they're all in the staging buffer already), and the final layout transition goes straight to SHADER_READ_ONLY_OPTIMAL without going through the blit chain.
-                momo_vkUtil::generate_mipmaps(cmd, p.image.image,
-                    VkExtent2D{.width = p.image.imageExtent.width, .height = p.image.imageExtent.height }, p.image.imageFormat);
+                momo_vkUtil::generate_mipmaps(cmd, p._image._image,
+                    VkExtent2D{.width = p._image._imageExtent.width, .height = p._image._imageExtent.height }, p._image._imageFormat);
             }
         });
 
         for (auto& p : pendingUploads)
         {
-            aEngine.Destroy_Buffer(p.stagingBuffer);
+            aEngine.Destroy_Buffer(p._stagingBuffer);
         }
     } // upload textures
 
@@ -247,8 +240,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         {
             // create buffer to hold the material data.
             // was previously VMA_MEMORY_USAGE_CPU_TO_GPU 
-            file.materialDataBuffer = aEngine.Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
-            sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file.materialDataBuffer.info.pMappedData);
+            file._materialDataBuffer = aEngine.Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants) * gltf.materials.size(), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, debugName);
+            sceneMaterialConstants = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(file._materialDataBuffer.info.pMappedData);
         }
         int data_index = 0;
 
@@ -256,7 +249,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         {
             auto newMat = std::make_shared<GLTFMaterial>();
             materials.push_back(newMat);
-            file.materials.push_back(newMat);
+            file._materials.push_back(newMat);
 
             GLTFMetallic_Roughness::MaterialConstants constants;
             constants.colorFactors.x = mat.pbrData.baseColorFactor[0];
@@ -282,7 +275,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             materialResources.metalRoughSampler = aEngine._defaultSamplerLinear;
 
             // set the uniform buffer for the material data
-            materialResources.dataBuffer = file.materialDataBuffer.buffer;
+            materialResources.dataBuffer = file._materialDataBuffer._buffer;
             materialResources.dataBufferOffset = data_index * sizeof(GLTFMetallic_Roughness::MaterialConstants);
            
             // grab textures from gltf file
@@ -292,7 +285,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                 if (tex.imageIndex.has_value())
                     materialResources.colorImage = images[tex.imageIndex.value()];
                 materialResources.colorSampler = tex.samplerIndex.has_value()
-                    ? file.samplers[tex.samplerIndex.value()]
+                    ? file._samplers[tex.samplerIndex.value()]
                     : aEngine._defaultSamplerLinear;
             }
             if (mat.pbrData.metallicRoughnessTexture.has_value())
@@ -301,16 +294,16 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                 if (tex.imageIndex.has_value())
                     materialResources.metalRoughImage = images[tex.imageIndex.value()];
                 materialResources.metalRoughSampler = tex.samplerIndex.has_value()
-                    ? file.samplers[tex.samplerIndex.value()]
+                    ? file._samplers[tex.samplerIndex.value()]
                     : aEngine._defaultSamplerLinear;
             }
 
-            const TextureID colorID = aEngine.texCache.AddTexture(materialResources.colorImage.imageView, materialResources.colorSampler);
-            const TextureID metalRoughID = aEngine.texCache.AddTexture(materialResources.metalRoughImage.imageView, materialResources.metalRoughSampler);
+            const TextureID colorID = aEngine._texCache.AddTexture(materialResources.colorImage._imageView, materialResources.colorSampler);
+            const TextureID metalRoughID = aEngine._texCache.AddTexture(materialResources.metalRoughImage._imageView, materialResources.metalRoughSampler);
             constants.colorTexID = colorID._index;
             constants.metalRoughTexID = metalRoughID._index;
-            file.textureIDs.push_back(colorID);
-            file.textureIDs.push_back(metalRoughID);
+            file._textureIDs.push_back(colorID);
+            file._textureIDs.push_back(metalRoughID);
 
             // write material parameters to buffer
             sceneMaterialConstants[data_index] = constants;
@@ -322,7 +315,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
                 debugName = debugNameString.c_str();
                 newMat.get()->debugName = debugName;
             #endif
-            newMat->data = aEngine.metalRoughMaterial.Write_Material(aEngine._device, passType, materialResources, file.descriptorPool, debugName);
+            newMat->_data = aEngine._metalRoughMaterial.Write_Material(aEngine._device, passType, materialResources, file._descriptorPool, debugName);
             data_index++;
         }
     } // load materials
@@ -337,8 +330,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     {
         auto newMesh = std::make_shared<MeshAsset>();
         meshes.push_back(newMesh);
-        file.meshes.push_back(newMesh);
-        newMesh->name = mesh.name;
+        file._meshes.push_back(newMesh);
+        newMesh->_name = mesh.name;
         
         // clear the mesh arrays each mesh, we don't want to merge them by error
         indices.clear();
@@ -353,8 +346,8 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
             }
 
             GeoSurface newSurface;
-            newSurface.startIndex = static_cast<uint32_t>(indices.size());
-            newSurface.count = static_cast<uint32_t>(gltf.accessors[p.indicesAccessor.value()].count);
+            newSurface._startIndex = static_cast<uint32_t>(indices.size());
+            newSurface._count = static_cast<uint32_t>(gltf.accessors[p.indicesAccessor.value()].count);
 
             size_t initial_vtx = vertices.size();
 
@@ -438,36 +431,36 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
 
             if (p.materialIndex.has_value())
             {
-                newSurface.material = materials[p.materialIndex.value()];
+                newSurface._material = materials[p.materialIndex.value()];
             }
             else if (!materials.empty())
             {
-                newSurface.material = materials[0];
+                newSurface._material = materials[0];
             }
 
 
             // calculate origin and extents from the min/max, use extent length for radius
-            newSurface.bounds.origin = (maxPos + minPos) / 2.f;
-            newSurface.bounds.extents = (maxPos - minPos) / 2.f;
-            newSurface.bounds.sphereRadius = glm::length(newSurface.bounds.extents);
+            newSurface._bounds._origin = (maxPos + minPos) / 2.f;
+            newSurface._bounds._extents = (maxPos - minPos) / 2.f;
+            newSurface._bounds._sphereRadius = glm::length(newSurface._bounds._extents);
 
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-            newSurface.combinedDebugLabel = newSurface.material
-                ? fmt::format("Mesh: {}, {}", mesh.name, newSurface.material->debugName)
+            newSurface.combinedDebugLabel = newSurface._material
+                ? fmt::format("Mesh: {}, {}", mesh.name, newSurface._material->debugName)
                 : fmt::format("Mesh: {}", mesh.name);
 #endif
 
-            newMesh->surfaces.push_back(newSurface);
+            newMesh->_surfaces.push_back(newSurface);
         }
 
         // TODO: meshopt right here?
         // from legacy ver: if we ever want to do something with the model data while it still lives on the cpu, THIS is that moment. after this they're gpu only.
         const char* tempMeshName = nullptr;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-        std::string meshName = fmt::format("Mesh Name: {}, Path: {}", newMesh->name, aFilePath);
+        std::string meshName = fmt::format("Mesh Name: {}, Path: {}", newMesh->_name, aFilePath);
         tempMeshName = meshName.c_str();
 #endif
-        newMesh->meshBuffers = aEngine.UploadMesh(indices, vertices, tempMeshName);
+        newMesh->_meshBuffers = aEngine.UploadMesh(indices, vertices, tempMeshName);
     }
 
     } // upload meshes
@@ -489,7 +482,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
         }
 
         nodes.push_back(newNode);
-        file.nodes[node.name.c_str()] = newNode; // NOTE: not in og vkguide, probably a bug.
+        file._nodes[node.name.c_str()] = newNode; // NOTE: not in og vkguide, probably a bug.
         // file.nodes[node.name.c_str()];
 
         std::visit(fastgltf::visitor{[&](const fastgltf::math::fmat4x4& matrix)
@@ -531,7 +524,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_GLTF::load_gltf(std::string_view
     {
         if (node->parent.lock() == nullptr)
         {
-            file.topNodes.push_back(node);
+            file._topNodes.push_back(node);
             node->RefreshTransform(glm::mat4{1.f});
         }
     }
@@ -667,5 +660,5 @@ std::optional<momo_GLTF::PendingTextureUpload> momo_GLTF::load_image_stbi(fastgl
     memcpy(staging.info.pMappedData, pixels, dataSize);
     stbi_image_free(pixels);
 
-    return PendingTextureUpload{.image = std::move(image), .stagingBuffer = staging};
+    return PendingTextureUpload{._image = std::move(image), ._stagingBuffer = staging};
 }

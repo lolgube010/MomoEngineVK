@@ -1,6 +1,8 @@
 #pragma once
 #include "string_utils.h"
 
+// based on https://vkguide.dev/docs/extra-chapter/cvar_system/
+
 namespace momo_cvars
 {
     class CVarParameter;

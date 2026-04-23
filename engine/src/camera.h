@@ -5,16 +5,16 @@
 class Camera 
 {
 public:
-    glm::vec3 velocity;
+    glm::vec3 _velocity;
     // vertical rotation
-    float pitch{ 0.f };
-    glm::vec3 position;
+    float _pitch{ 0.f };
+    glm::vec3 _position;
     // horizontal rotation
-    float yaw{ 0.f };
+    float _yaw{ 0.f };
 
     glm::mat4 GetViewMatrix() const;
     glm::mat4 GetRotationMatrix() const;
 
     void Update();
-    bool isLocked = false;
+    bool _isLocked = false;
 };

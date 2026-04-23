@@ -11,25 +11,28 @@
 
 namespace momo_cvars
 {
-    enum class CVarType : char
+    namespace
     {
-        UNDEFINED,
-        INT,
-        FLOAT,
-        STRING
-    };
+        enum class CVarType : char
+        {
+            Undefined,
+            Int,
+            Float,
+            String
+        };
+    }
 
     class CVarParameter
     {
     public:
         friend class CVarSystemImpl;
         
-        int32_t arrayIndex;
+        int32_t _arrayIndex;
 
-        CVarType type;
-        CVarFlags flags;
-        std::string name;
-        std::string description;
+        CVarType _type;
+        CVarFlags _flags;
+        std::string _name;
+        std::string _description;
     };
 
     template<typename T>
@@ -83,7 +86,7 @@ namespace momo_cvars
             cvars[index].initial = value;
             cvars[index].parameter = param;
 
-            param->arrayIndex = index;
+            param->_arrayIndex = index;
             lastCVar++;
             return index;
         }
@@ -96,7 +99,7 @@ namespace momo_cvars
             cvars[index].initial = aInitialValue;
             cvars[index].parameter = aParam;
 
-            aParam->arrayIndex = index;
+            aParam->_arrayIndex = index;
             lastCVar++;
             return index;
         }
@@ -170,7 +173,7 @@ namespace momo_cvars
             }
             else
             {
-                return GetCVarArray<T>()->GetCurrentPtr(par->arrayIndex);
+                return GetCVarArray<T>()->GetCurrentPtr(par->_arrayIndex);
             }
         }
 
@@ -180,7 +183,7 @@ namespace momo_cvars
             CVarParameter* cvar = GetCVar(static_cast<momo_stringUtils::StringHash>(aNameHash));
             if (cvar)
             {
-                GetCVarArray<T>()->SetCurrent(aValue, cvar->arrayIndex);
+                GetCVarArray<T>()->SetCurrent(aValue, cvar->_arrayIndex);
             }
         }
 
@@ -237,7 +240,7 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
         if (!param)
             return nullptr;
 
-        param->type = CVarType::FLOAT;
+        param->_type = CVarType::Float;
 
         GetCVarArray<double>()->Add(aDefaultValue, aCurrentValue, param);
 
@@ -252,7 +255,7 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
         if (!param)
             return nullptr;
 
-        param->type = CVarType::INT;
+        param->_type = CVarType::Int;
 
         GetCVarArray<int32_t>()->Add(aDefaultValue, aCurrentValue, param);
 
@@ -267,7 +270,7 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
         if (!param)
             return nullptr;
 
-        param->type = CVarType::STRING;
+        param->_type = CVarType::String;
 
         GetCVarArray<std::string>()->Add(aDefaultValue, aCurrentValue, param);
 
@@ -282,8 +285,8 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
 
         CVarParameter& newParam = savedCVars[namehash];
 
-        newParam.name = name;
-        newParam.description = description;
+        newParam._name = name;
+        newParam._description = description;
 
         return &newParam;
     }
@@ -291,8 +294,8 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
     AutoCVar_Float::AutoCVar_Float(const char* name, const char* description, double defaultValue, CVarFlags flags)
     {
         CVarParameter* cvar = CVarSystem::Get()->CreateFloatCVar(name, description, defaultValue, defaultValue);
-        cvar->flags = flags;
-        _index = cvar->arrayIndex;
+        cvar->_flags = flags;
+        _index = cvar->_arrayIndex;
     }
 
     template <typename T>
@@ -331,8 +334,8 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
     AutoCVar_Int::AutoCVar_Int(const char* name, const char* description, int32_t defaultValue, CVarFlags flags)
     {
         CVarParameter* cvar = CVarSystem::Get()->CreateIntCVar(name, description, defaultValue, defaultValue);
-        cvar->flags = flags;
-        _index = cvar->arrayIndex;
+        cvar->_flags = flags;
+        _index = cvar->_arrayIndex;
     }
 
     int32_t AutoCVar_Int::Get() { return GetCVarCurrentByIndex<CVarType>(_index); }
@@ -351,8 +354,8 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
     AutoCVar_String::AutoCVar_String(const char* name, const char* description, const char* defaultValue, CVarFlags flags)
     {
         CVarParameter* cvar = CVarSystem::Get()->CreateStringCVar(name, description, defaultValue, defaultValue);
-        cvar->flags = flags;
-        _index = cvar->arrayIndex;
+        cvar->_flags = flags;
+        _index = cvar->_arrayIndex;
     }
 
     const char* AutoCVar_String::Get() { return GetCVarCurrentByIndex<CVarType>(_index).c_str(); };
@@ -372,12 +375,12 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
 
         auto addToEditList = [&](auto parameter)
         {
-            bool bHidden = ((uint32_t)parameter->flags & (uint32_t)CVarFlags::NoEdit);
-            bool bIsAdvanced = ((uint32_t)parameter->flags & (uint32_t)CVarFlags::Advanced);
+            bool bHidden = ((uint32_t)parameter->_flags & (uint32_t)CVarFlags::NoEdit);
+            bool bIsAdvanced = ((uint32_t)parameter->_flags & (uint32_t)CVarFlags::Advanced);
 
             if (!bHidden)
             {
-                if (!(!bShowAdvanced && bIsAdvanced) && parameter->name.find(searchText) != std::string::npos)
+                if (!(!bShowAdvanced && bIsAdvanced) && parameter->_name.find(searchText) != std::string::npos)
                 {
                     cachedEditParameters.push_back(parameter);
                 };
@@ -406,9 +409,9 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
             {
                 int dotPos = -1;
                 // find where the first dot is to categorize
-                for (int i = 0; i < p->name.length(); i++)
+                for (int i = 0; i < p->_name.length(); i++)
                 {
-                    if (p->name[i] == '.')
+                    if (p->_name[i] == '.')
                     {
                         dotPos = i;
                         break;
@@ -417,7 +420,7 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
                 std::string category = "";
                 if (dotPos != -1)
                 {
-                    category = p->name.substr(0, dotPos);
+                    category = p->_name.substr(0, dotPos);
                 }
 
                 auto it = categorizedParams.find(category);
@@ -432,7 +435,7 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
             for (auto [category, parameters] : categorizedParams)
             {
                 // alphabetical sort
-                std::sort(parameters.begin(), parameters.end(), [](CVarParameter* A, CVarParameter* B) { return A->name < B->name; });
+                std::sort(parameters.begin(), parameters.end(), [](CVarParameter* A, CVarParameter* B) { return A->_name < B->_name; });
 
                 if (ImGui::BeginMenu(category.c_str()))
                 {
@@ -440,7 +443,7 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
 
                     for (auto p : parameters)
                     {
-                        maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->name.c_str()).x);
+                        maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->_name.c_str()).x);
                     }
                     for (auto p : parameters)
                     {
@@ -454,11 +457,11 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
         else
         {
             // alphabetical sort
-            std::sort(cachedEditParameters.begin(), cachedEditParameters.end(), [](CVarParameter* A, CVarParameter* B) { return A->name < B->name; });
+            std::sort(cachedEditParameters.begin(), cachedEditParameters.end(), [](CVarParameter* A, CVarParameter* B) { return A->_name < B->_name; });
             float maxTextWidth = 0;
             for (auto p : cachedEditParameters)
             {
-                maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->name.c_str()).x);
+                maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->_name.c_str()).x);
             }
             for (auto p : cachedEditParameters)
             {
@@ -491,82 +494,82 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
     }
     void CVarSystemImpl::EditParameter(CVarParameter* p, float textWidth)
     {
-        const bool readonlyFlag = ((uint32_t)p->flags & (uint32_t)CVarFlags::EditReadOnly);
-        const bool checkboxFlag = ((uint32_t)p->flags & (uint32_t)CVarFlags::EditCheckbox);
-        const bool dragFlag = ((uint32_t)p->flags & (uint32_t)CVarFlags::EditFloatDrag);
+        const bool readonlyFlag = ((uint32_t)p->_flags & (uint32_t)CVarFlags::EditReadOnly);
+        const bool checkboxFlag = ((uint32_t)p->_flags & (uint32_t)CVarFlags::EditCheckbox);
+        const bool dragFlag = ((uint32_t)p->_flags & (uint32_t)CVarFlags::EditFloatDrag);
 
 
-        switch (p->type)
+        switch (p->_type)
         {
-        case CVarType::INT:
+        case CVarType::Int:
 
             if (readonlyFlag)
             {
-                std::string displayFormat = p->name + "= %i";
-                ImGui::Text(displayFormat.c_str(), GetCVarArray<int32_t>()->GetCurrent(p->arrayIndex));
+                std::string displayFormat = p->_name + "= %i";
+                ImGui::Text(displayFormat.c_str(), GetCVarArray<int32_t>()->GetCurrent(p->_arrayIndex));
             }
             else
             {
                 if (checkboxFlag)
                 {
-                    bool bCheckbox = GetCVarArray<int32_t>()->GetCurrent(p->arrayIndex) != 0;
-                    Label(p->name.c_str(), textWidth);
+                    bool bCheckbox = GetCVarArray<int32_t>()->GetCurrent(p->_arrayIndex) != 0;
+                    Label(p->_name.c_str(), textWidth);
 
-                    ImGui::PushID(p->name.c_str());
+                    ImGui::PushID(p->_name.c_str());
 
                     if (ImGui::Checkbox("", &bCheckbox))
                     {
-                        GetCVarArray<int32_t>()->SetCurrent(bCheckbox ? 1 : 0, p->arrayIndex);
+                        GetCVarArray<int32_t>()->SetCurrent(bCheckbox ? 1 : 0, p->_arrayIndex);
                     }
                     ImGui::PopID();
                 }
                 else
                 {
-                    Label(p->name.c_str(), textWidth);
-                    ImGui::PushID(p->name.c_str());
-                    ImGui::InputInt("", GetCVarArray<int32_t>()->GetCurrentPtr(p->arrayIndex));
+                    Label(p->_name.c_str(), textWidth);
+                    ImGui::PushID(p->_name.c_str());
+                    ImGui::InputInt("", GetCVarArray<int32_t>()->GetCurrentPtr(p->_arrayIndex));
                     ImGui::PopID();
                 }
             }
             break;
 
-        case CVarType::FLOAT:
+        case CVarType::Float:
 
             if (readonlyFlag)
             {
-                std::string displayFormat = p->name + "= %f";
-                ImGui::Text(displayFormat.c_str(), GetCVarArray<double>()->GetCurrent(p->arrayIndex));
+                std::string displayFormat = p->_name + "= %f";
+                ImGui::Text(displayFormat.c_str(), GetCVarArray<double>()->GetCurrent(p->_arrayIndex));
             }
             else
             {
-                Label(p->name.c_str(), textWidth);
-                ImGui::PushID(p->name.c_str());
+                Label(p->_name.c_str(), textWidth);
+                ImGui::PushID(p->_name.c_str());
                 if (dragFlag)
                 {
-                    ImGui::InputDouble("", GetCVarArray<double>()->GetCurrentPtr(p->arrayIndex), 0, 0, "%.3f");
+                    ImGui::InputDouble("", GetCVarArray<double>()->GetCurrentPtr(p->_arrayIndex), 0, 0, "%.3f");
                 }
                 else
                 {
-                    ImGui::InputDouble("", GetCVarArray<double>()->GetCurrentPtr(p->arrayIndex), 0, 0, "%.3f");
+                    ImGui::InputDouble("", GetCVarArray<double>()->GetCurrentPtr(p->_arrayIndex), 0, 0, "%.3f");
                 }
                 ImGui::PopID();
             }
             break;
 
-        case CVarType::STRING:
+        case CVarType::String:
 
             if (readonlyFlag)
             {
-                std::string displayFormat = p->name + "= %s";
-                ImGui::PushID(p->name.c_str());
-                ImGui::Text(displayFormat.c_str(), GetCVarArray<std::string>()->GetCurrent(p->arrayIndex));
+                std::string displayFormat = p->_name + "= %s";
+                ImGui::PushID(p->_name.c_str());
+                ImGui::Text(displayFormat.c_str(), GetCVarArray<std::string>()->GetCurrent(p->_arrayIndex));
 
                 ImGui::PopID();
             }
             else
             {
-                Label(p->name.c_str(), textWidth);
-                ImGui::InputText("", GetCVarArray<std::string>()->GetCurrentPtr(p->arrayIndex));
+                Label(p->_name.c_str(), textWidth);
+                ImGui::InputText("", GetCVarArray<std::string>()->GetCurrentPtr(p->_arrayIndex));
 
                 ImGui::PopID();
             }
@@ -578,7 +581,7 @@ double* CVarSystemImpl::GetFloatCVar(momo_stringUtils::StringHash aHash) {return
 
         if (ImGui::IsItemHovered())
         {
-            ImGui::SetTooltip(p->description.c_str());
+            ImGui::SetTooltip(p->_description.c_str());
         }
     }
 }

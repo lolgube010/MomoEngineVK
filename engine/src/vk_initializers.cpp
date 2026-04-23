@@ -1,9 +1,11 @@
 ﻿#include <vk_initializers.h>
 
+#include "vk_images.h"
+
 //> init_cmd
 VkCommandPoolCreateInfo momo_vkInit::command_pool_create_info(const uint32_t aQueueFamilyIndex, const VkCommandPoolCreateFlags aFlags /*= 0*/)
 {
-	VkCommandPoolCreateInfo info = {};
+	VkCommandPoolCreateInfo info;
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
 	info.pNext = nullptr;
 	info.queueFamilyIndex = aQueueFamilyIndex;
@@ -14,7 +16,7 @@ VkCommandPoolCreateInfo momo_vkInit::command_pool_create_info(const uint32_t aQu
 
 VkCommandBufferAllocateInfo momo_vkInit::command_buffer_allocate_info(const VkCommandPool aPool, const uint32_t aCount /*= 1*/)
 {
-	VkCommandBufferAllocateInfo info = {};
+	VkCommandBufferAllocateInfo info;
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	info.pNext = nullptr;
 
@@ -29,7 +31,7 @@ VkCommandBufferAllocateInfo momo_vkInit::command_buffer_allocate_info(const VkCo
 //> init_cmd_draw
 VkCommandBufferBeginInfo momo_vkInit::command_buffer_begin_info(const VkCommandBufferUsageFlags aFlags /*= 0*/)
 {
-	VkCommandBufferBeginInfo info = {};
+	VkCommandBufferBeginInfo info;
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 	info.pNext = nullptr;
 
@@ -43,7 +45,7 @@ VkCommandBufferBeginInfo momo_vkInit::command_buffer_begin_info(const VkCommandB
 //> init_sync
 VkFenceCreateInfo momo_vkInit::fence_create_info(const VkFenceCreateFlags aFlags /*= 0*/)
 {
-	VkFenceCreateInfo info = {};
+	VkFenceCreateInfo info;
 	info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 	info.pNext = nullptr;
 
@@ -54,7 +56,7 @@ VkFenceCreateInfo momo_vkInit::fence_create_info(const VkFenceCreateFlags aFlags
 
 VkSemaphoreCreateInfo momo_vkInit::semaphore_create_info(const VkSemaphoreCreateFlags aFlags /*= 0*/)
 {
-	VkSemaphoreCreateInfo info = {};
+	VkSemaphoreCreateInfo info;
 	info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
 	info.pNext = nullptr;
 	info.flags = aFlags;
@@ -65,7 +67,7 @@ VkSemaphoreCreateInfo momo_vkInit::semaphore_create_info(const VkSemaphoreCreate
 
 VkCommandBufferSubmitInfo momo_vkInit::command_buffer_submit_info(const VkCommandBuffer aCmd)
 {
-	VkCommandBufferSubmitInfo info{};
+	VkCommandBufferSubmitInfo info;
 	info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO;
 	info.pNext = nullptr;
 	info.commandBuffer = aCmd;
@@ -94,7 +96,7 @@ VkSubmitInfo2 momo_vkInit::submit_info(const VkCommandBufferSubmitInfo* aCmd, co
 
 VkSemaphoreSubmitInfo momo_vkInit::semaphore_submit_info(const VkPipelineStageFlags2 aStageMask, const VkSemaphore aSemaphore)
 {
-	VkSemaphoreSubmitInfo submitInfo{};
+	VkSemaphoreSubmitInfo submitInfo;
 	submitInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO;
 	submitInfo.pNext = nullptr;
 	submitInfo.semaphore = aSemaphore;
@@ -171,7 +173,7 @@ VkRenderingInfo momo_vkInit::rendering_info(const VkExtent2D aRenderExtent, cons
 }
 VkImageSubresourceRange momo_vkInit::image_subresource_range(const VkImageAspectFlags anAspectMask)
 {
-	VkImageSubresourceRange subImage{};
+	VkImageSubresourceRange subImage;
 	subImage.aspectMask = anAspectMask;
 	subImage.baseMipLevel = 0;
 	subImage.levelCount = VK_REMAINING_MIP_LEVELS;
@@ -184,19 +186,19 @@ VkImageSubresourceRange momo_vkInit::image_subresource_range(const VkImageAspect
 
 VkDescriptorSetLayoutBinding momo_vkInit::descriptor_set_layout_binding(const VkDescriptorType aType, const VkShaderStageFlags aStageFlags, const uint32_t aBinding)
 {
-	VkDescriptorSetLayoutBinding setbind = {};
-	setbind.binding = aBinding;
-	setbind.descriptorCount = 1;
-	setbind.descriptorType = aType;
-	setbind.pImmutableSamplers = nullptr;
-	setbind.stageFlags = aStageFlags;
+	VkDescriptorSetLayoutBinding setBind;
+	setBind.binding = aBinding;
+	setBind.descriptorCount = 1;
+	setBind.descriptorType = aType;
+	setBind.pImmutableSamplers = nullptr;
+	setBind.stageFlags = aStageFlags;
 
-	return setbind;
+	return setBind;
 }
 
 VkDescriptorSetLayoutCreateInfo momo_vkInit::descriptor_set_layout_create_info(const VkDescriptorSetLayoutBinding* aBindings, const uint32_t aBindingCount)
 {
-	VkDescriptorSetLayoutCreateInfo info = {};
+	VkDescriptorSetLayoutCreateInfo info;
 	info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	info.pNext = nullptr;
 
@@ -239,11 +241,11 @@ VkWriteDescriptorSet momo_vkInit::write_descriptor_buffer(const VkDescriptorType
 
 VkDescriptorBufferInfo momo_vkInit::buffer_info(const VkBuffer aBuffer, const VkDeviceSize aOffset, const VkDeviceSize aRange)
 {
-	VkDescriptorBufferInfo binfo{};
-	binfo.buffer = aBuffer;
-	binfo.offset = aOffset;
-	binfo.range = aRange;
-	return binfo;
+	VkDescriptorBufferInfo info;
+	info.buffer = aBuffer;
+	info.offset = aOffset;
+	info.range = aRange;
+	return info;
 }
 
 //> image_set
@@ -293,7 +295,7 @@ VkImageViewCreateInfo momo_vkInit::imageview_create_info(const VkFormat aFormat,
 //< image_set
 VkPipelineLayoutCreateInfo momo_vkInit::pipeline_layout_create_info()
 {
-	VkPipelineLayoutCreateInfo info{};
+	VkPipelineLayoutCreateInfo info;
 	info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
 	info.pNext = nullptr;
 
@@ -343,5 +345,57 @@ VkComputePipelineCreateInfo momo_vkInit::compute_pipeline_create_info(const VkPi
     info.pNext = nullptr;
     info.layout = aLayout;
     info.stage = aStageInfo;
+    return info;
+}
+
+VkSamplerCreateInfo momo_vkInit::sampler_create_info(const VkFilter aFilter)
+{
+    VkSamplerCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.magFilter = aFilter; // magnification filter, how a texel gets stretched
+    info.minFilter = aFilter; // minification filter, how a texel gets collapsed
+    info.pNext = nullptr;
+    return info;
+}
+
+VkSamplerCreateInfo momo_vkInit::sampler_create_info(const VkFilter aMagFilter, const VkFilter aMinFilter, const float aMaxLod, const float aMinLod, const VkSamplerMipmapMode aMipMapMode)
+{
+	VkSamplerCreateInfo info = {};
+    info.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    info.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    info.magFilter = aMagFilter; // magnification filter, how a texel gets stretched
+    info.minFilter = aMinFilter; // minification filter, how a texel gets collapsed
+    info.pNext = nullptr;
+    info.maxLod = aMaxLod;
+    info.minLod = aMinLod;
+    info.mipmapMode = aMipMapMode;
+	// info.mipLodBias
+	// info.anisotropyEnable
+    // info.borderColor
+    // info.compareEnable
+    // info.compareOp
+	// info.maxAnisotropy
+	// info.unnormalizedCoordinates
+    return info;
+}
+
+VkBufferImageCopy momo_vkInit::buffer_image_copy(const VkExtent3D anImageExtent, const VkFormat anImageFormat)
+{
+	VkBufferImageCopy info;
+    info.bufferImageHeight = 0;
+    info.bufferOffset = 0;
+    info.bufferRowLength = 0;
+    info.imageOffset = VkOffset3D();
+    info.imageExtent = anImageExtent;
+    
+    info.imageSubresource.aspectMask = momo_vkUtil::aspect_flags_from_format(anImageFormat);
+    info.imageSubresource.baseArrayLayer = 0;
+    info.imageSubresource.layerCount = 1;
+    info.imageSubresource.mipLevel = 0;
     return info;
 }

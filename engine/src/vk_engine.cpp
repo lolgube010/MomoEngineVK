@@ -63,9 +63,9 @@ void GLTFMetallic_Roughness::Build_Pipelines()
 	opaquePipeline.layout = newLayout;
 	transparentPipeline.layout = newLayout;
 
-	constexpr auto useHLSL = momo_ShaderUtil::ShaderLang::GLSL;
-    auto meshFragShader = momo_ShaderUtil::LoadShader("mesh_pbr", momo_ShaderUtil::ShaderType::Fragment, useHLSL, aEngine._device);
-    auto meshVertexShader = momo_ShaderUtil::LoadShader("mesh", momo_ShaderUtil::ShaderType::Vertex, useHLSL, aEngine._device);
+	constexpr auto useHLSL = momo_shaderUtil::ShaderLang::GLSL;
+    auto meshFragShader = momo_shaderUtil::LoadShader("mesh_pbr", momo_shaderUtil::ShaderType::Fragment, useHLSL, aEngine._device);
+    auto meshVertexShader = momo_shaderUtil::LoadShader("mesh", momo_shaderUtil::ShaderType::Vertex, useHLSL, aEngine._device);
 
 	// build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
 	PipelineBuilder pipelineBuilder;
@@ -79,8 +79,8 @@ void GLTFMetallic_Roughness::Build_Pipelines()
 	pipelineBuilder.Enable_DepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 
 	//render format
-	pipelineBuilder.Set_Color_Attachment_Format(aEngine._drawImage.imageFormat);
-	pipelineBuilder.Set_Depth_Format(aEngine._depthImage.imageFormat);
+	pipelineBuilder.Set_Color_Attachment_Format(aEngine._drawImage._imageFormat);
+	pipelineBuilder.Set_Depth_Format(aEngine._depthImage._imageFormat);
 
 	// use the triangle layout we created
 	pipelineBuilder._pipelineLayout = newLayout;
@@ -138,22 +138,22 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 {
 	const glm::mat4 nodeMatrix = aTopMatrix * worldTransform;
 
-	for (const auto& s : mesh->surfaces) // a mesh can have multiple surfaces with different materials.
+	for (const auto& s : mesh->_surfaces) // a mesh can have multiple surfaces with different materials.
 	{
 		RenderObject def;
-		def.indexCount = s.count;
-		def.firstIndex = s.startIndex;
-		def.indexBuffer = mesh->meshBuffers._indexBuffer.buffer;
-		def.material = &s.material->data;
-		def.bounds = s.bounds;
+		def.indexCount = s._count;
+		def.firstIndex = s._startIndex;
+		def.indexBuffer = mesh->_meshBuffers._indexBuffer._buffer;
+		def.material = &s._material->_data;
+		def.bounds = s._bounds;
 		def.transform = nodeMatrix;
-		def.vertexBufferAddress = mesh->meshBuffers._vertexBufferAddress;
+		def.vertexBufferAddress = mesh->_meshBuffers._vertexBufferAddress;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-        def.matDebugName = s.material->debugName;
-        def.meshDebugName = mesh->name;
+        def.matDebugName = s._material->debugName;
+        def.meshDebugName = mesh->_name;
         def.combinedDebugLabel = s.combinedDebugLabel.c_str();
 #endif
-		switch (s.material->data.passType)
+		switch (s._material->_data.passType)
 		{
 		case MaterialPass::MainColor:
 			aCtx.opaqueSurfaces.push_back(def);
@@ -175,7 +175,9 @@ TextureID TextureCache::AddTexture(const VkImageView& aImage, const VkSampler aS
     const ViewSamplerKey key{.imageView = aImage, .sampler = aSampler};
 
     if (const auto it = _lookup.find(key); it != _lookup.end())
+    {
         return TextureID{it->second};
+    }
 
     const VkDescriptorImageInfo info{.sampler = aSampler, .imageView = aImage, .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL};
 
@@ -199,14 +201,14 @@ TextureID TextureCache::AddTexture(const VkImageView& aImage, const VkSampler aS
 
 void TextureCache::MarkEngineImage(const VkImageView aView)
 {
-    _engineImages.insert(aView);
+    _engineDefaultImages.insert(aView);
 }
 
 void TextureCache::FreeTextures(const std::span<const TextureID> aIDs, const VkDescriptorImageInfo& aFallback)
 {
     for (const auto [Index] : aIDs)
     {
-        if (_engineImages.contains(_cache[Index].imageView))
+        if (_engineDefaultImages.contains(_cache[Index].imageView))
             continue;
         if (_freeSlots.contains(Index))
             continue;
@@ -240,10 +242,10 @@ void VulkanEngine::Init()
 		window_flags
 	);
 	
-	_render_doc.Load();  // NOLINT(readability-static-accessed-through-instance)
+	_renderDoc.Load();  // NOLINT(readability-static-accessed-through-instance)
 	Init_Vulkan();
 	Init_Swapchain();
-    _render_doc.Set_Window(_instance, _window); // NOLINT(readability-static-accessed-through-instance)
+    _renderDoc.Set_Window(_instance, _window); // NOLINT(readability-static-accessed-through-instance)
 	Init_Commands();
 	Init_Sync_Structures();
 	Init_Descriptors();
@@ -304,8 +306,8 @@ void VulkanEngine::Draw()
 	    //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
 	    const VkCommandBufferBeginInfo cmdBeginInfo = momo_vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-	    _drawExtent.height = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.height, _drawImage.imageExtent.height)));
-	    _drawExtent.width = static_cast<uint32_t>(static_cast<float>(std::min(_swapchain_extent.width, _drawImage.imageExtent.width)));
+	    _drawExtent.height = static_cast<uint32_t>(static_cast<float>(std::min(_swapchainExtent.height, _drawImage._imageExtent.height)));
+	    _drawExtent.width = static_cast<uint32_t>(static_cast<float>(std::min(_swapchainExtent.width, _drawImage._imageExtent.width)));
 	    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
 	}
     {
@@ -316,8 +318,8 @@ void VulkanEngine::Draw()
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
             // transition our main draw image into general layout so we can write into it.
             // we will overwrite it all so we don't care about what was the older layout
-            momo_vkUtil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, _drawImage.imageFormat);
-            momo_vkUtil::transition_image(cmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage.imageFormat);
+            momo_vkUtil::transition_image(cmd, _drawImage._image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, _drawImage._imageFormat);
+            momo_vkUtil::transition_image(cmd, _depthImage._image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage._imageFormat);
             // TEST TO TRIGGER VALIDATION ERROR:
             // momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_UNDEFINED);
         }
@@ -328,25 +330,25 @@ void VulkanEngine::Draw()
         {
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & swapchain img 3");
             //transition the draw image and the swapchain image into their correct transfer layouts
-            momo_vkUtil::transition_image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _drawImage.imageFormat);
-            momo_vkUtil::transition_image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _swapchain_image_format);
+            momo_vkUtil::transition_image(cmd, _drawImage._image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _drawImage._imageFormat);
+            momo_vkUtil::transition_image(cmd, _swapchainImages[_swapchainImageIndex], VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _swapchainImageFormat);
 
             // execute a copy from the draw image into the swapchain
-            momo_vkUtil::copy_image_to_image(cmd, _drawImage.image, _swapchain_images[_swapchainImageIndex], _drawExtent, _swapchain_extent);
+            momo_vkUtil::copy_image_to_image(cmd, _drawImage._image, _swapchainImages[_swapchainImageIndex], _drawExtent, _swapchainExtent);
 
             // set swapchain image layout to Attachment Optimal so we can draw it
-            momo_vkUtil::transition_image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _swapchain_image_format);
+            momo_vkUtil::transition_image(cmd, _swapchainImages[_swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _swapchainImageFormat);
         }
         {
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw imGui Cmd Buffer");
             MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw imGui Graphics Queue");
             // draw imgui into the swapchain image
-            Draw_ImGui(cmd, _swapchain_image_views[_swapchainImageIndex]);
+            Draw_ImGui(cmd, _swapchainImageViews[_swapchainImageIndex]);
         }
         {
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition swapchain img 4");
             // set swapchain image layout to Present so we can show it on the screen
-            momo_vkUtil::transition_image(cmd, _swapchain_images[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _swapchain_image_format);
+            momo_vkUtil::transition_image(cmd, _swapchainImages[_swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _swapchainImageFormat);
         }
         PROFILE_GPU_COLLECT(_tracyVkCtx, cmd)
     } // PROFILE_GPU destructor fires here — end timestamp written while buffer is still recording
@@ -365,7 +367,7 @@ void VulkanEngine::Draw()
 
 	    const VkSemaphoreSubmitInfo waitInfo = momo_vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR, Get_Current_Frame()._swapchainSemaphore);
 	    //VkSemaphoreSubmitInfo signalInfo = vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, Get_Current_Frame()._renderSemaphore);
-        const VkSemaphoreSubmitInfo signalInfo = momo_vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, ready_for_present_semaphores[_swapchainImageIndex]);
+        const VkSemaphoreSubmitInfo signalInfo = momo_vkInit::semaphore_submit_info(VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, _readyForPresentSemaphores[_swapchainImageIndex]);
 
 	    const VkSubmitInfo2 submit = momo_vkInit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
 
@@ -379,7 +381,7 @@ void VulkanEngine::Draw()
 	    // this will put the image we just rendered to into the visible window.
 	    // we want to wait on the _renderSemaphore for that, 
 	    // as its necessary that drawing commands have finished before the image is displayed to the user
-        const VkPresentInfoKHR presentInfo = momo_vkInit::present_info(&_swapchain, &ready_for_present_semaphores[_swapchainImageIndex], &_swapchainImageIndex);
+        const VkPresentInfoKHR presentInfo = momo_vkInit::present_info(&_swapchain, &_readyForPresentSemaphores[_swapchainImageIndex], &_swapchainImageIndex);
 
 	    if (const VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo); 
 		    presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) 
@@ -421,7 +423,7 @@ void VulkanEngine::Run()
 			Resize_Swapchain();
 		}
 
-		ImGuiFrame();
+		ImGui_Update();
         Update_Scene();
         {
 	        Draw();
@@ -462,7 +464,7 @@ void VulkanEngine::Cleanup()
 		// 	Destroy_Buffer(mesh->meshBuffers._vertexBuffer);
 		// }
 
-		metalRoughMaterial.Clear_Resources(_device);
+		_metalRoughMaterial.Clear_Resources(_device);
 		_mainDeletionQueue.Flush();
 
 		Destroy_Swapchain();
@@ -470,7 +472,7 @@ void VulkanEngine::Cleanup()
 		vkDestroySurfaceKHR(_instance, _surface, nullptr);
 
 		vkDestroyDevice(_device, nullptr);
-		vkb::destroy_debug_utils_messenger(_instance, _debug_messenger);
+		vkb::destroy_debug_utils_messenger(_instance, _debugMessenger);
         _validationCapture.Destroy(_instance);
 		vkDestroyInstance(_instance, nullptr);
 
@@ -481,7 +483,7 @@ void VulkanEngine::Cleanup()
 void VulkanEngine::Draw_ImGui(const VkCommandBuffer aCmd, const VkImageView aTargetImageView) const
 {
 	const VkRenderingAttachmentInfo colorAttachment = momo_vkInit::attachment_info(aTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	const VkRenderingInfo renderInfo = momo_vkInit::rendering_info(_swapchain_extent, &colorAttachment, nullptr);
+	const VkRenderingInfo renderInfo = momo_vkInit::rendering_info(_swapchainExtent, &colorAttachment, nullptr);
 
 	vkCmdBeginRendering(aCmd, &renderInfo);
 
@@ -498,8 +500,8 @@ void VulkanEngine::Draw_Main(VkCommandBuffer aCmd)
     }
     {
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "transition draw & depth img 2");
-        momo_vkUtil::transition_image(aCmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _drawImage.imageFormat);
-        momo_vkUtil::transition_image(aCmd, _depthImage.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage.imageFormat);
+        momo_vkUtil::transition_image(aCmd, _drawImage._image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _drawImage._imageFormat);
+        momo_vkUtil::transition_image(aCmd, _depthImage._image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage._imageFormat);
     }
     {
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Geometry CmdBuff");
@@ -538,8 +540,8 @@ void VulkanEngine::Immediate_Submit(const std::function<void(VkCommandBuffer aCm
 AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const char* aName, const bool aMipmapped) const
 {
 	AllocatedImage newImage;
-	newImage.imageFormat = aFormat;
-	newImage.imageExtent = aSize;
+	newImage._imageFormat = aFormat;
+	newImage._imageExtent = aSize;
 
 	VkImageCreateInfo img_Info = momo_vkInit::image_create_info(aFormat, aUsage, aSize);
 	if (aMipmapped) 
@@ -553,7 +555,7 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 	allocInfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	// allocate and create the image
-	VK_CHECK(vmaCreateImage(_allocator, &img_Info, &allocInfo, &newImage.image, &newImage.allocation, nullptr));
+	VK_CHECK(vmaCreateImage(_allocator, &img_Info, &allocInfo, &newImage._image, &newImage._allocation, nullptr));
 
 	// if the format is a depth format, we will need to have it use the correct
 	// aspect flag
@@ -564,14 +566,14 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 	}
 
 	// build an image-view for the image
-	VkImageViewCreateInfo view_Info = momo_vkInit::imageview_create_info(aFormat, newImage.image, aspectFlag);
+	VkImageViewCreateInfo view_Info = momo_vkInit::imageview_create_info(aFormat, newImage._image, aspectFlag);
 	view_Info.subresourceRange.levelCount = img_Info.mipLevels;
 
-	VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage._imageView));
 
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, newImage.image, "_Image Name: {}", aName);
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage.imageView, "_ImageView Name: {}", aName);
-    vmaSetAllocationName(_allocator, newImage.allocation, aName);
+    vmaSetAllocationName(_allocator, newImage._allocation, aName);
 	return newImage;
 }
 
@@ -593,29 +595,20 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 
 	Immediate_Submit([&](const VkCommandBuffer aCmd) 
     {
-        momo_vkUtil::transition_image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, new_Image.imageFormat);
+        momo_vkUtil::transition_image(aCmd, new_Image._image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, new_Image._imageFormat);
 
-        VkBufferImageCopy copyRegion = {};
-        copyRegion.bufferOffset = 0;
-        copyRegion.bufferRowLength = 0;
-        copyRegion.bufferImageHeight = 0;
-
-        copyRegion.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        copyRegion.imageSubresource.mipLevel = 0;
-        copyRegion.imageSubresource.baseArrayLayer = 0;
-        copyRegion.imageSubresource.layerCount = 1;
-        copyRegion.imageExtent = aSize;
+        const VkBufferImageCopy copyRegion = momo_vkInit::buffer_image_copy(aSize, new_Image._imageFormat);
 
         // copy the buffer into the image
-        vkCmdCopyBufferToImage(aCmd, uploadBuffer.buffer, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        vkCmdCopyBufferToImage(aCmd, uploadBuffer._buffer, new_Image._image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
 
         if (aMipmapped)
         {
-            momo_vkUtil::generate_mipmaps(aCmd, new_Image.image, VkExtent2D{.width = new_Image.imageExtent.width, .height = new_Image.imageExtent.height }, new_Image.imageFormat);
+            momo_vkUtil::generate_mipmaps(aCmd, new_Image._image, VkExtent2D{.width = new_Image._imageExtent.width, .height = new_Image._imageExtent.height }, new_Image._imageFormat);
         }
         else
         {
-            momo_vkUtil::transition_image(aCmd, new_Image.image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, new_Image.imageFormat);
+            momo_vkUtil::transition_image(aCmd, new_Image._image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, new_Image._imageFormat);
         }
     });
 
@@ -625,8 +618,8 @@ AllocatedImage VulkanEngine::Create_Image(const void* aData, const VkExtent3D aS
 
 void VulkanEngine::Destroy_Image(const AllocatedImage& aImg) const
 {
-	vkDestroyImageView(_device, aImg.imageView, nullptr);
-	vmaDestroyImage(_allocator, aImg.image, aImg.allocation);
+	vkDestroyImageView(_device, aImg._imageView, nullptr);
+	vmaDestroyImage(_allocator, aImg._image, aImg._allocation);
 }
 
 void VulkanEngine::Init_Vulkan()
@@ -654,7 +647,7 @@ void VulkanEngine::Init_Vulkan()
 
 	// grab the instance 
 	_instance = vkb_inst.instance;
-	_debug_messenger = vkb_inst.debug_messenger;
+	_debugMessenger = vkb_inst.debug_messenger;
 	//< init_instance
 
 	volkLoadInstance(_instance);
@@ -717,7 +710,7 @@ void VulkanEngine::Init_Vulkan()
 
 	// Get the VkDevice handle used in the rest of a vulkan application
 	_device = vkbDevice.device;
-    _chosen_GPU = physicalDevice.physical_device;
+    _chosenGPU = physicalDevice.physical_device;
 	
 	volkLoadDevice(_device);
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_DEVICE, _device, "_Logical Device");
@@ -737,7 +730,7 @@ void VulkanEngine::Init_Vulkan()
         deviceProps2.pNext = &driverProps;
 
         // Assuming 'physicalDevice' is the vkb::PhysicalDevice returned by your vkb::DeviceBuilder
-        vkGetPhysicalDeviceProperties2(_chosen_GPU, &deviceProps2);
+        vkGetPhysicalDeviceProperties2(_chosenGPU, &deviceProps2);
 
 	    const VkPhysicalDeviceProperties& props2 = deviceProps2.properties;
         // fmt::print("\x1b[2J\x1b[H"); // NOTE: THIS CLEARS THE CONSOLE! ANY ERROR MESSAGE BEFORE THIS WILL NOT BE SEEN!
@@ -786,7 +779,7 @@ void VulkanEngine::Init_Vulkan()
 	// initialize the memory allocator
 
 	VmaAllocatorCreateInfo allocatorInfo = {};
-	allocatorInfo.physicalDevice = _chosen_GPU;
+	allocatorInfo.physicalDevice = _chosenGPU;
 	allocatorInfo.device = _device;
 	allocatorInfo.instance = _instance;
 	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; // used for BDA
@@ -821,8 +814,8 @@ void VulkanEngine::Init_Swapchain()
 
 	// hardcoding the draw format to 16-bit float 
 	// this is set as 16 in the guide and gives validation errors unless it is // momo comment
-	_drawImage.imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
-	_drawImage.imageExtent = drawImageExtent;
+	_drawImage._imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+	_drawImage._imageExtent = drawImageExtent;
 
 	VkImageUsageFlags drawImageUsages{};
 	drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
@@ -830,7 +823,7 @@ void VulkanEngine::Init_Swapchain()
 	drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
 	drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-	const VkImageCreateInfo rimg_info = momo_vkInit::image_create_info(_drawImage.imageFormat, drawImageUsages, drawImageExtent);
+	const VkImageCreateInfo rimg_info = momo_vkInit::image_create_info(_drawImage._imageFormat, drawImageUsages, drawImageExtent);
 
 	//for the draw image, we want to allocate it from gpu local memory
 	VmaAllocationCreateInfo rimg_allocinfo = {};
@@ -838,31 +831,31 @@ void VulkanEngine::Init_Swapchain()
 	rimg_allocinfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
 	// allocate and create the image
-	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage.image, &_drawImage.allocation, nullptr);
+	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage._image, &_drawImage._allocation, nullptr);
 
 	// build an image-view for the draw image to use for rendering
-	const VkImageViewCreateInfo rview_info = momo_vkInit::imageview_create_info(_drawImage.imageFormat, _drawImage.image, VK_IMAGE_ASPECT_COLOR_BIT);
+	const VkImageViewCreateInfo rview_info = momo_vkInit::imageview_create_info(_drawImage._imageFormat, _drawImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
 
-	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage._imageView));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Image Main Draw ");
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage.imageView, "_Image View Main Draw");
 	//< create image
 
 	//> create depth
-	_depthImage.imageFormat = VK_FORMAT_D32_SFLOAT;
-	_depthImage.imageExtent = drawImageExtent;
+	_depthImage._imageFormat = VK_FORMAT_D32_SFLOAT;
+	_depthImage._imageExtent = drawImageExtent;
 	VkImageUsageFlags depthImageUsages{};
 	depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-	const VkImageCreateInfo dimg_info = momo_vkInit::image_create_info(_depthImage.imageFormat, depthImageUsages, drawImageExtent);
+	const VkImageCreateInfo dimg_info = momo_vkInit::image_create_info(_depthImage._imageFormat, depthImageUsages, drawImageExtent);
 
 	//allocate and create the image
-	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage.image, &_depthImage.allocation, nullptr);
+	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage._image, &_depthImage._allocation, nullptr);
 
 	//build an image-view for the draw image to use for rendering
-	const VkImageViewCreateInfo dview_info = momo_vkInit::imageview_create_info(_depthImage.imageFormat, _depthImage.image, VK_IMAGE_ASPECT_DEPTH_BIT);
+	const VkImageViewCreateInfo dview_info = momo_vkInit::imageview_create_info(_depthImage._imageFormat, _depthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
-	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage.imageView));
+	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage._imageView));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Image Main Depth");
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage.imageView, "_Image View Main Depth");
 	//< create depth
@@ -872,12 +865,12 @@ void VulkanEngine::Init_Swapchain()
 	_mainDeletionQueue.Push_Function([this]
 	{
 		// main img
-		vkDestroyImageView(_device, _drawImage.imageView, nullptr);
-		vmaDestroyImage(_allocator, _drawImage.image, _drawImage.allocation);
+		vkDestroyImageView(_device, _drawImage._imageView, nullptr);
+		vmaDestroyImage(_allocator, _drawImage._image, _drawImage._allocation);
 		
 		// depth img
-		vkDestroyImageView(_device, _depthImage.imageView, nullptr);
-		vmaDestroyImage(_allocator, _depthImage.image, _depthImage.allocation);
+		vkDestroyImageView(_device, _depthImage._imageView, nullptr);
+		vmaDestroyImage(_allocator, _depthImage._image, _depthImage._allocation);
 	});
 }
 
@@ -937,15 +930,15 @@ void VulkanEngine::Init_Sync_Structures()
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, "_Semaphore Frame Swapchain, FIF:{}", i);
     }
 	
-    ready_for_present_semaphores.resize(_swapchainImageCount);
+    _readyForPresentSemaphores.resize(_swapchainImageCount);
 	
     for (size_t i = 0; i < _swapchainImageCount; ++i)
 	{
-		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &ready_for_present_semaphores[i]));
+		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_readyForPresentSemaphores[i]));
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, ready_for_present_semaphores[i], "_Semaphore Ready For Present, SwapchainImgCount:{}", i);
         _mainDeletionQueue.Push_Function([this, i]
         {
-            vkDestroySemaphore(_device, ready_for_present_semaphores[i], nullptr);
+            vkDestroySemaphore(_device, _readyForPresentSemaphores[i], nullptr);
         });
 	}
     
@@ -999,7 +992,7 @@ void VulkanEngine::Init_Descriptors()
 	_drawImageDescriptors = _globalDescriptorAllocator.Allocate(_device, _drawImageDescriptorLayout, "drawImage");
 	{
 		DescriptorWriter writer;
-		writer.Write_Image(0, _drawImage.imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+		writer.Write_Image(0, _drawImage._imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
 		writer.Update_Set(_device, _drawImageDescriptors);
 	}
 	
@@ -1081,7 +1074,7 @@ void VulkanEngine::Init_Descriptors()
         for (uint32_t i = 0; i < FRAME_OVERLAP; i++)
         {
             DescriptorWriter writer;
-            writer.Write_Buffer(0, _frames[i].sceneDataBuffer.buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+            writer.Write_Buffer(0, _frames[i].sceneDataBuffer._buffer, sizeof(GPUSceneData), 0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
             writer.Update_Set(_device, _persistentGlobalDescriptors[i]);
         }
 
@@ -1098,7 +1091,7 @@ void VulkanEngine::Init_Pipelines()
 	// compute pipelines
 	Init_Background_Pipelines();
 
-	metalRoughMaterial.Build_Pipelines();
+	_metalRoughMaterial.Build_Pipelines();
 }
 
 void VulkanEngine::Init_Background_Pipelines()
@@ -1115,19 +1108,19 @@ void VulkanEngine::Init_Background_Pipelines()
 	computeLayout.pPushConstantRanges = &pushConstant;
 	computeLayout.pushConstantRangeCount = 1;
 
-	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_ComputePipelineLayout));
+	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_computePipelineLayout));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _ComputePipelineLayout, "_Pipeline Layout Compute Background");
 
-	constexpr auto useHLSL = momo_ShaderUtil::ShaderLang::GLSL;
-    auto gradientShader = momo_ShaderUtil::LoadShader("gradient_color", momo_ShaderUtil::ShaderType::Compute, useHLSL, _device);
-    auto skyShader = momo_ShaderUtil::LoadShader("sky", momo_ShaderUtil::ShaderType::Compute, useHLSL, _device);
+	constexpr auto useHLSL = momo_shaderUtil::ShaderLang::GLSL;
+    auto gradientShader = momo_shaderUtil::LoadShader("gradient_color", momo_shaderUtil::ShaderType::Compute, useHLSL, _device);
+    auto skyShader = momo_shaderUtil::LoadShader("sky", momo_shaderUtil::ShaderType::Compute, useHLSL, _device);
 
 	VkPipelineShaderStageCreateInfo stageInfo = momo_vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, gradientShader.value());
 
-	VkComputePipelineCreateInfo computePipelineCreateInfo = momo_vkInit::compute_pipeline_create_info(_ComputePipelineLayout, stageInfo);
+	VkComputePipelineCreateInfo computePipelineCreateInfo = momo_vkInit::compute_pipeline_create_info(_computePipelineLayout, stageInfo);
 
 	ComputeEffect gradient{};
-	gradient.layout = _ComputePipelineLayout;
+	gradient.layout = _computePipelineLayout;
 	gradient.name = "gradient";
 	gradient.data = {};
 
@@ -1137,13 +1130,13 @@ void VulkanEngine::Init_Background_Pipelines()
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient.pipeline));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE, gradient.pipeline, "_Pipeline Compute Gradient");
-	backgroundEffects.push_back(gradient);
+	_backgroundEffects.push_back(gradient);
 
 	//change the shader module only to create the sky shader
 	computePipelineCreateInfo.stage.module = skyShader.value();
 
 	ComputeEffect sky{};
-	sky.layout = _ComputePipelineLayout;
+	sky.layout = _computePipelineLayout;
 	sky.name = "sky";
 	sky.data = {};
 	//default sky parameters
@@ -1153,14 +1146,14 @@ void VulkanEngine::Init_Background_Pipelines()
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE, sky.pipeline, "_Pipeline Compute Sky");
 	
     //add the 2 background effects into the array
-	backgroundEffects.push_back(sky);
+	_backgroundEffects.push_back(sky);
 
 	//destroy structures properly
 	vkDestroyShaderModule(_device, gradientShader.value(), nullptr);
 	vkDestroyShaderModule(_device, skyShader.value(), nullptr);
 	_mainDeletionQueue.Push_Function([this, sky, gradient]
 	{
-		vkDestroyPipelineLayout(_device, _ComputePipelineLayout, nullptr);
+		vkDestroyPipelineLayout(_device, _computePipelineLayout, nullptr);
 		vkDestroyPipeline(_device, sky.pipeline, nullptr);
 		vkDestroyPipeline(_device, gradient.pipeline, nullptr);
 	});
@@ -1217,7 +1210,7 @@ void VulkanEngine::Init_ImGui()
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo init_info = {};
 	init_info.Instance = _instance;
-	init_info.PhysicalDevice = _chosen_GPU;
+	init_info.PhysicalDevice = _chosenGPU;
 	init_info.Device = _device;
 	init_info.Queue = _graphicsQueue;
 	init_info.DescriptorPool = imGuiPool;
@@ -1228,7 +1221,7 @@ void VulkanEngine::Init_ImGui()
 	//dynamic rendering parameters for imgui to use
 	init_info.PipelineInfoMain.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
 	init_info.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-	init_info.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchain_image_format;
+	init_info.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &_swapchainImageFormat;
 
 	init_info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
@@ -1266,7 +1259,7 @@ void VulkanEngine::Init_Tracy()
 	// Tracy manages vkBeginCommandBuffer / record / vkEndCommandBuffer / submit internally.
 	// Wrapping in Immediate_Submit pre-begins the buffer, causing a double-begin crash.
 	VK_CHECK(vkResetCommandBuffer(_immCommandBuffer, 0));
-	_tracyVkCtx = TracyVkContext(_chosen_GPU, _device, _graphicsQueue, _immCommandBuffer)
+	_tracyVkCtx = TracyVkContext(_chosenGPU, _device, _graphicsQueue, _immCommandBuffer)
 	TracyVkContextName(_tracyVkCtx, "_Main Graphics Queue", sizeof("_Main Graphics Queue") - 1)
 #endif
 }
@@ -1306,12 +1299,12 @@ void VulkanEngine::Init_Default_Data()
 	// });
     _stats.frequency = SDL_GetPerformanceFrequency();
 
-	_mainCamera.velocity = glm::vec3(0.f);
+	_mainCamera._velocity = glm::vec3(0.f);
 	// _mainCamera.position = glm::vec3(30.f, -00.f, -085.f); // for structure
-	_mainCamera.position = glm::vec3(0.f, 5.f, 0.f);
+	_mainCamera._position = glm::vec3(0.f, 5.f, 0.f);
 
-	_mainCamera.pitch = 0;
-	_mainCamera.yaw = 0;
+	_mainCamera._pitch = 0;
+	_mainCamera._yaw = 0;
 
 	const uint32_t white = glm::packUnorm4x8(glm::vec4(1, 1, 1, 1));
     _whiteImage = Create_Image(&white, VkExtent3D{.width = 1, .height = 1, .depth = 1}, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_White");
@@ -1331,18 +1324,12 @@ void VulkanEngine::Init_Default_Data()
 	}
 	_errorCheckerboardImage = Create_Image(pixels.data(), VkExtent3D{.width = 16, .height = 16, .depth = 1 }, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT, "Default_ErrorCheckerboard");
 
-    texCache.MarkEngineImage(_whiteImage.imageView);
-    texCache.MarkEngineImage(_greyImage.imageView);
-    texCache.MarkEngineImage(_blackImage.imageView);
-    texCache.MarkEngineImage(_errorCheckerboardImage.imageView);
+    _texCache.MarkEngineImage(_whiteImage._imageView);
+    _texCache.MarkEngineImage(_greyImage._imageView);
+    _texCache.MarkEngineImage(_blackImage._imageView);
+    _texCache.MarkEngineImage(_errorCheckerboardImage._imageView);
 
-	VkSamplerCreateInfo sampler = {};
-    sampler.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-
-	// nearest gives pixelated look
-	sampler.magFilter = VK_FILTER_NEAREST;
-	sampler.minFilter = VK_FILTER_NEAREST;
-
+	VkSamplerCreateInfo sampler = momo_vkInit::sampler_create_info(VK_FILTER_NEAREST);
 	VK_CHECK(vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerNearest, "_Sampler Default Nearest");
 
@@ -1386,7 +1373,7 @@ void VulkanEngine::Init_Default_Data()
 		Destroy_Buffer(materialConstants);
 	});
 
-	materialResources.dataBuffer = materialConstants.buffer;
+	materialResources.dataBuffer = materialConstants._buffer;
 	materialResources.dataBufferOffset = 0;
 }
 
@@ -1403,14 +1390,14 @@ void VulkanEngine::Init_Models()
 
 void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeight)
 {
-	vkb::SwapchainBuilder swapchainBuilder{_chosen_GPU, _device, _surface};
+	vkb::SwapchainBuilder swapchainBuilder{_chosenGPU, _device, _surface};
 
-	_swapchain_image_format = VK_FORMAT_B8G8R8A8_UNORM;
+	_swapchainImageFormat = VK_FORMAT_B8G8R8A8_UNORM;
 
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
 		//.use_default_format_selection()
 		.set_desired_format(VkSurfaceFormatKHR{
-		  .format = _swapchain_image_format,
+		  .format = _swapchainImageFormat,
 		  .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR
 		})
 		//use vsync present mode
@@ -1421,11 +1408,11 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 		.build()
 		.value();
 
-	_swapchain_extent = vkbSwapchain.extent;
+	_swapchainExtent = vkbSwapchain.extent;
 	//store swapchain and its related images
 	_swapchain = vkbSwapchain.swapchain;
-	_swapchain_images = vkbSwapchain.get_images().value();
-	_swapchain_image_views = vkbSwapchain.get_image_views().value();
+	_swapchainImages = vkbSwapchain.get_images().value();
+	_swapchainImageViews = vkbSwapchain.get_image_views().value();
 
 	// Set _swapchainImageCount to the amount of swapchain images. 
 	// used to initialize the same amount of _readyForPresentSemaphores in init_sync_structures
@@ -1433,7 +1420,7 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 
 	MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SWAPCHAIN_KHR, _swapchain, "_Swapchain");
 
-    for (size_t i = 0; i < _swapchain_images.size(); ++i)
+    for (size_t i = 0; i < _swapchainImages.size(); ++i)
     {
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _swapchain_images[i], "_Image Swapchain {}", i);
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchain_image_views[i], "_Image View Swapchain {}", i);
@@ -1445,7 +1432,7 @@ void VulkanEngine::Destroy_Swapchain() const
 	vkDestroySwapchainKHR(_device, _swapchain, nullptr);
 
 	// destroy swapchain resources
-	for (const auto& swapchainImageView : _swapchain_image_views)
+	for (const auto& swapchainImageView : _swapchainImageViews)
 	{
 		vkDestroyImageView(_device, swapchainImageView, nullptr);
 	}
@@ -1463,15 +1450,15 @@ void VulkanEngine::Draw_Background(const VkCommandBuffer aCmd) const
 	//clear image
 	//vkCmdClearColorImage(aCmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, &clearValue, 1, &clearRange);
 
-	const ComputeEffect& effect = backgroundEffects[currentBackgroundEffect];
+	const ComputeEffect& effect = _backgroundEffects[_currentBackgroundEffect];
 
 	// bind the gradient drawing compute pipeline
 	vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect.pipeline);
 
 	// bind the descriptor set containing the draw image for the compute pipeline
-	vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_COMPUTE, _ComputePipelineLayout, 0, 1, &_drawImageDescriptors, 0, nullptr);
+	vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_COMPUTE, _computePipelineLayout, 0, 1, &_drawImageDescriptors, 0, nullptr);
 
-	vkCmdPushConstants(aCmd, _ComputePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
+	vkCmdPushConstants(aCmd, _computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect.data);
 
 	// execute the compute pipeline dispatch. We are using 16x16 workgroup size so we need to divide by it
 	vkCmdDispatch(aCmd, static_cast<uint32_t>(std::ceil(_drawExtent.width / 16.0)), static_cast<uint32_t>(std::ceil(_drawExtent.height / 16.0)), 1);
@@ -1483,26 +1470,26 @@ void VulkanEngine::ImGui_Run()
 	{
         _validationCapture.DrawImGui();
 
-		ComputeEffect& selected = backgroundEffects[currentBackgroundEffect];
+		ComputeEffect& selected = _backgroundEffects[_currentBackgroundEffect];
 
 		ImGui::Text("Selected effect: %s", selected.name);
 
-		ImGui::SliderInt("Effect Index", &currentBackgroundEffect, 0, static_cast<int>(backgroundEffects.size() - 1));
+		ImGui::SliderInt("Effect Index", &_currentBackgroundEffect, 0, static_cast<int>(_backgroundEffects.size() - 1));
 
 		ImGui::ColorEdit4("data1", reinterpret_cast<float*>(&selected.data.data1));
 		ImGui::ColorEdit4("data2", reinterpret_cast<float*>(&selected.data.data2));
 		ImGui::ColorEdit4("data3", reinterpret_cast<float*>(&selected.data.data3));
 		ImGui::ColorEdit4("data4", reinterpret_cast<float*>(&selected.data.data4));
 		ImGui::Separator();
-		ImGui::SliderFloat("camera fov", &tempCameraFOV, 1, 180);
+		ImGui::SliderFloat("camera fov", &_tempCameraFov, 1, 180);
 		// ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
 		// ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 2.f);
-		ImGui::Value("cameraPitchRad", _mainCamera.pitch);
+		ImGui::Value("cameraPitchRad", _mainCamera._pitch);
         ImGui::Separator();
-		ImGui::ColorEdit4("SunColor", reinterpret_cast<float*>(&tempSunColor));
+		ImGui::ColorEdit4("SunColor", reinterpret_cast<float*>(&_tempSunColor));
 		// ImGui::ColorEdit4("AmbientColor", reinterpret_cast<float*>(&tempAmbientColor));
-        ImGui::DragFloat4("ambient col", reinterpret_cast<float*>(&tempAmbientColor), 0, 2.f);
-		ImGui::DragFloat4("SunDir1", reinterpret_cast<float*>(&tempSunDir), 0.1f);
+        ImGui::DragFloat4("ambient col", reinterpret_cast<float*>(&_tempAmbientColor), 0, 2.f);
+		ImGui::DragFloat4("SunDir1", reinterpret_cast<float*>(&_tempSunDir), 0.1f);
 
 		if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
         {
@@ -1510,13 +1497,17 @@ void VulkanEngine::ImGui_Run()
 		    ImGui::Text("draw time %f ms", _stats.mesh_draw_time);
 		    ImGui::Text("update time %f ms", _stats.scene_update_time);
             ImGui::Separator();
-    #ifdef _DEBUG
+            #ifdef _DEBUG
             ImGui::Text("triangles %s", FormatWithCommas(_stats.tri_count).c_str());
             ImGui::Text("draws %s", FormatWithCommas(_stats.drawCall_count).c_str());
-    #else
+            #else
             ImGui::Text("triangles %u", _stats.tri_count);
             ImGui::Text("draws %i", _stats.drawCall_count);
-    #endif
+            #endif
+            ImGui::Text("Texture Cache %llu", _texCache._cache.size());
+            ImGui::Text("Texture Engine Default %llu", _texCache._engineDefaultImages.size());
+            ImGui::Text("Textures3 %llu", _texCache._freeSlots.size());
+            ImGui::Text("Textures5 %llu", _texCache._lookup.size());
             if (ImGui::CollapsingHeader("VMA", ImGuiTreeNodeFlags_DefaultOpen))
             {
                 const auto now = std::chrono::steady_clock::now();
@@ -1578,13 +1569,13 @@ void VulkanEngine::ImGui_Run()
 
         if (ImGui::CollapsingHeader("RenderDoc"))
         {
-            if (_render_doc.Is_Loaded()) // NOLINT(readability-static-accessed-through-instance)
+            if (_renderDoc.Is_Loaded()) // NOLINT(readability-static-accessed-through-instance)
             {
                 if (ImGui::Button("Trigger Capture"))
-                    _render_doc.Trigger_Capture(); // NOLINT(readability-static-accessed-through-instance)
+                    _renderDoc.Trigger_Capture(); // NOLINT(readability-static-accessed-through-instance)
                 ImGui::SameLine();
                 if (ImGui::Button("Open in RenderDoc"))
-                    _render_doc.Launch_Replay_UI();  // NOLINT(readability-static-accessed-through-instance)
+                    _renderDoc.Launch_Replay_UI();  // NOLINT(readability-static-accessed-through-instance)
             }
             else
             {
@@ -1597,7 +1588,7 @@ void VulkanEngine::ImGui_Run()
 	}
 }
 
-void VulkanEngine::ImGuiFrame()
+void VulkanEngine::ImGui_Update()
 {
     PROFILE_SCOPE_N("ImGuiFrame")
     // imgui new frame
@@ -1685,25 +1676,25 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
 		// material first, then depth within material group (slop)
 
-		const RenderObject& A = _mainDrawContext.transparentSurfaces[iA];
-		const RenderObject& B = _mainDrawContext.transparentSurfaces[iB];
-		if (A.material != B.material) 
+		const RenderObject& a = _mainDrawContext.transparentSurfaces[iA];
+		const RenderObject& b = _mainDrawContext.transparentSurfaces[iB];
+		if (a.material != b.material) 
 		{
-			return A.material < B.material;  // Batch materials.
+			return a.material < b.material;  // Batch materials.
 		}
 		const glm::vec3 cameraPos = _sceneData.view[3];
-		const float distSqA = distance2(cameraPos, A.bounds.origin);
-		const float distSqB = distance2(cameraPos, B.bounds.origin);
+		const float distSqA = distance2(cameraPos, a.bounds._origin);
+		const float distSqB = distance2(cameraPos, b.bounds._origin);
 		if (distSqA > distSqB) return true;
 		if (distSqA < distSqB) return false;
 
 		// Tertiary: stable tie-breaker
-		return A.indexBuffer < B.indexBuffer;	
+		return a.indexBuffer < b.indexBuffer;	
 	});
 
 	//begin a render pass  connected to our draw image
-	const VkRenderingAttachmentInfo colorAttachment = momo_vkInit::attachment_info(_drawImage.imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-	const VkRenderingAttachmentInfo depthAttachment = momo_vkInit::depth_attachment_info(_depthImage.imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
+	const VkRenderingAttachmentInfo colorAttachment = momo_vkInit::attachment_info(_drawImage._imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+	const VkRenderingAttachmentInfo depthAttachment = momo_vkInit::depth_attachment_info(_depthImage._imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
 
 	const VkRenderingInfo renderInfo = momo_vkInit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
 	vkCmdBeginRendering(aCmd, &renderInfo);
@@ -1731,15 +1722,15 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 
     *static_cast<GPUSceneData*>(Get_Current_Frame().sceneDataBuffer.info.pMappedData) = _sceneData;
 
-    if (texCache._dirty && !texCache._cache.empty())
+    if (_texCache._dirty && !_texCache._cache.empty())
     {
         const VkWriteDescriptorSet arrayWrite{
             .sType           = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstBinding      = 1,
             .dstArrayElement = 0,
-            .descriptorCount = static_cast<uint32_t>(texCache._cache.size()),
+            .descriptorCount = static_cast<uint32_t>(_texCache._cache.size()),
             .descriptorType  = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .pImageInfo      = texCache._cache.data(),
+            .pImageInfo      = _texCache._cache.data(),
         };
         for (VkDescriptorSet set : _persistentGlobalDescriptors)
         {
@@ -1747,7 +1738,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
             write.dstSet = set;
             vkUpdateDescriptorSets(_device, 1, &write, 0, nullptr);
         }
-        texCache._dirty = false;
+        _texCache._dirty = false;
     }
 
     const VkDescriptorSet globalDescriptor = _persistentGlobalDescriptors[_frame_number % FRAME_OVERLAP];
@@ -1791,9 +1782,9 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
             {
                 const char* const passStr = (r.material->passType == MaterialPass::Transparent) ? "transparent" : "opaque";
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-                _render_doc.Annotate_Draw(aCmd, r.matDebugName.data(), r.meshDebugName.data(), passStr);
+                _renderDoc.Annotate_Draw(aCmd, r.matDebugName.data(), r.meshDebugName.data(), passStr);
 #else
-                _render_doc.Annotate_Draw(aCmd, nullptr, nullptr, passStr);
+                _renderDoc.Annotate_Draw(aCmd, nullptr, nullptr, passStr);
 #endif
             }
 #endif
@@ -1850,20 +1841,20 @@ AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBu
 	AllocatedBuffer newBuffer;
 
 	// allocate the buffer
-	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaAllocInfo, &newBuffer.buffer, &newBuffer.allocation,
+	VK_CHECK(vmaCreateBuffer(_allocator, &bufferInfo, &vmaAllocInfo, &newBuffer._buffer, &newBuffer._allocation,
 		&newBuffer.info));
 
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
 	const std::string buffName = fmt::format("_Buffer {}, {}", Get_Buffer_Usage_Flag_String(aUsage), aName);
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_BUFFER, newBuffer.buffer, buffName);
-    vmaSetAllocationName(_allocator, newBuffer.allocation, buffName.c_str());
+    vmaSetAllocationName(_allocator, newBuffer._allocation, buffName.c_str());
 #endif
     return newBuffer;
 }
 
 void VulkanEngine::Destroy_Buffer(const AllocatedBuffer& aBuffer) const
 {
-	vmaDestroyBuffer(_allocator, aBuffer.buffer, aBuffer.allocation);
+	vmaDestroyBuffer(_allocator, aBuffer._buffer, aBuffer._allocation);
 }
 
 void VulkanEngine::Resize_Swapchain()
@@ -1915,9 +1906,9 @@ void VulkanEngine::Update_Scene()
 	_sceneData.viewProj = projection * view;
 
 	//some default lighting parameters
-	_sceneData.ambientColor = tempAmbientColor;
-	_sceneData.sunlightColor = tempSunColor;
-    _sceneData.sunlightDirection = tempSunDir;
+	_sceneData.ambientColor = _tempAmbientColor;
+	_sceneData.sunlightColor = _tempSunColor;
+    _sceneData.sunlightDirection = _tempSunDir;
 
 	const auto end = std::chrono::system_clock::now();
 	//convert to microseconds (integer), and then come back to miliseconds
@@ -1986,8 +1977,8 @@ bool VulkanEngine::Is_Visible(const RenderObject& aObj, const glm::mat4& aViewPr
  
     for (int i = 0; i < 6; i++)
     {
-        const float d = glm::dot(glm::vec3(planes[i]), aObj.bounds.origin) + planes[i].w;
-        const float r = glm::dot(glm::abs(glm::vec3(planes[i])), aObj.bounds.extents);
+        const float d = glm::dot(glm::vec3(planes[i]), aObj.bounds._origin) + planes[i].w;
+        const float r = glm::dot(glm::abs(glm::vec3(planes[i])), aObj.bounds._extents);
  
         if (d < -r)
         {
@@ -2086,7 +2077,7 @@ GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, cons
     newSurface._vertexBuffer = Create_Buffer(vertexBufferSize, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, VMA_MEMORY_USAGE_AUTO, bufferName); // was VMA_MEMORY_USAGE_GPU_ONLY
 
 	//find the address of the vertex buffer
-	const VkBufferDeviceAddressInfo deviceAddressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .pNext = nullptr, .buffer = newSurface._vertexBuffer.buffer};
+	const VkBufferDeviceAddressInfo deviceAddressInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_INFO, .pNext = nullptr, .buffer = newSurface._vertexBuffer._buffer};
 	newSurface._vertexBufferAddress = vkGetBufferDeviceAddress(_device, &deviceAddressInfo);
 
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
@@ -2120,14 +2111,14 @@ GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, cons
         vertexCopy.srcOffset = 0;
         vertexCopy.size = vertexBufferSize;
 
-        vkCmdCopyBuffer(aCmd, staging.buffer, newSurface._vertexBuffer.buffer, 1, &vertexCopy);
+        vkCmdCopyBuffer(aCmd, staging._buffer, newSurface._vertexBuffer._buffer, 1, &vertexCopy);
 
         VkBufferCopy indexCopy;
         indexCopy.dstOffset = 0;
         indexCopy.srcOffset = vertexBufferSize;
         indexCopy.size = indexBufferSize;
 
-        vkCmdCopyBuffer(aCmd, staging.buffer, newSurface._indexBuffer.buffer, 1, &indexCopy);
+        vkCmdCopyBuffer(aCmd, staging._buffer, newSurface._indexBuffer._buffer, 1, &indexCopy);
     });
 
 	Destroy_Buffer(staging);
