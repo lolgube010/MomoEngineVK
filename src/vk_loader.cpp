@@ -200,7 +200,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
         {
             // failed to decode — slot gets a fallback so material indices stay aligned
             images.push_back(engine._errorCheckerboardImage);
-            fmt::print("gltf failed to load texture {}\n", gltf.images[i].name);
+            fmt::print("gltf failed to load texture named: {}, filepath: {}\n", gltf.images[i].name, aFilePath);
         }
     }
 
@@ -587,10 +587,10 @@ std::optional<momo_vkGLTF::PendingTextureUpload> momo_vkGLTF::load_image_stbi(fa
 
     std::visit(
         fastgltf::visitor{
-            [&](auto& anArg)
+            [&](const auto& anArg)
             {
-                fmt::print(stderr, "load_image: unhandled source type '{}' for image '{}'\n",
-                           typeid(anArg).name(), aImage.name);
+                fmt::print(stderr, "load_image: unhandled source type '{}' for image '{}' at filepath '{}'\n",
+                           typeid(anArg).name(), aImage.name, aFilePath);
             },
             [&](const fastgltf::sources::URI& aGLTFImageFilePath)
             {
@@ -625,17 +625,16 @@ std::optional<momo_vkGLTF::PendingTextureUpload> momo_vkGLTF::load_image_stbi(fa
                 auto& buffer = aAsset.buffers[bufferView.bufferIndex];
                 std::visit(fastgltf::visitor{[&](auto& anArg)
                                              {
-                                                 fmt::print(stderr, "load_image: unhandled buffer source type '{}' for image '{}'\n",
-                                                            typeid(anArg).name(), aImage.name);
+                                                 fmt::print(stderr, "load_image: unhandled buffer source type '{}' for image '{}'\n", typeid(anArg).name(), aImage.name);
                                              },
                                              [&](fastgltf::sources::Array& anArray)
                                              {
                                                  const auto* bytes = reinterpret_cast<const stbi_uc*>(anArray.bytes.data() + bufferView.byteOffset);
-                                                 pixels = stbi_load_from_memory(bytes, static_cast<int>(bufferView.byteLength),
-                                                                                &width, &height, &nrChannels, 4);
+                                                 pixels = stbi_load_from_memory(bytes, static_cast<int>(bufferView.byteLength), &width, &height, &nrChannels, 4);
                                                  if (!pixels)
-                                                     fmt::print(stderr, "load_image: stbi failed to decode buffer view for image '{}': {}\n",
-                                                                aImage.name, stbi_failure_reason());
+                                                 {
+                                                     fmt::print(stderr, "load_image: stbi failed to decode buffer view for image '{}': {}\n", aImage.name, stbi_failure_reason());
+                                                 }
                                              }},
                            buffer.data);
             },
