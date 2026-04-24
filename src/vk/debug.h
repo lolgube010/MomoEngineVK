@@ -1,7 +1,6 @@
 #pragma once
 #include <vk/initializers.h>
 #include <atomic>
-#include <cstdio>
 #include <fmt/format.h>
 
 namespace momo_vkDebug
@@ -38,11 +37,7 @@ namespace momo_vkDebug
 #define MOMO_VK_SCOPED_CMD_LABEL(cmd, name, ...) momo_vkDebug::ScopedDebugLabelCmdBuff MOMO_MACRO_CONCAT(vk_label_, __LINE__)(cmd, name, ##__VA_ARGS__)
 #define MOMO_VK_SCOPED_QUEUE_LABEL(queue, name, ...) momo_vkDebug::ScopedDebugLabelQueue MOMO_MACRO_CONCAT(vk_label_, __LINE__)(queue, name, ##__VA_ARGS__)
 #define MOMO_VK_SET_DEBUG_NAME(device, objType, handle, fmtString, ...) momo_vkDebug::Set_Debug_Name(device, objType, handle, fmtString, ##__VA_ARGS__)
-#define MOMO_VMA_LEAK_LOG(format, ...) do { \
-    char _vma_buf[512]; \
-    snprintf(_vma_buf, sizeof(_vma_buf), format, __VA_ARGS__); \
-    OutputDebugStringA(_vma_buf); OutputDebugStringA("\n"); \
-} while(false)
+#define MOMO_VMA_LEAK_LOG(format, ...) printf(format "\n", __VA_ARGS__)
 #else
 // In release, the macros resolve to literal nothing.
 // Arguments are NEVER evaluated.

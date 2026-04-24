@@ -905,7 +905,7 @@ void VulkanEngine::Init_Commands()
     for (auto& frame : _frames)
     {
         VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &frame._commandPool));
-        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, "_Command Pool Main, FIF: {}", &frame - _frames);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, "_Command Pool Main, FIF: {}", &frame - _frames); // crazy way to get index is to do that..
 
         // allocate the default command buffer that we will use for rendering
 		VkCommandBufferAllocateInfo cmdAllocInfo = momo_vkInit::command_buffer_allocate_info(frame._commandPool, 1);
@@ -946,9 +946,9 @@ void VulkanEngine::Init_Sync_Structures()
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._swapchainSemaphore));
 		//VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &frame._renderSemaphore)); // moved to 2nd for loop
 		
-        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_FENCE, frame._renderFence, "_RenderFence Frame FIF:{}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_FENCE, frame._renderFence, "_RenderFence Frame FIF:{}", &frame - _frames);
         
-        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, "_Semaphore Frame Swapchain, FIF:{}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, frame._swapchainSemaphore, "_Semaphore Frame Swapchain, FIF:{}", &frame - _frames);
     }
 	
     _readyForPresentSemaphores.resize(_swapchainImageCount);
@@ -2097,7 +2097,7 @@ std::string VulkanEngine::Get_Buffer_Usage_Flag_String(const VkBufferUsageFlags 
 
 GPUMeshBuffers VulkanEngine::UploadMesh(const std::span<uint32_t> aIndices, const std::span<Vertex> aVertices, const char* aMeshName) const
 {
-	const size_t vertexBufferSize = aVertices.size() * sizeof(Vertex);
+    const size_t vertexBufferSize = aVertices.size() * sizeof(Vertex);
 	const size_t indexBufferSize = aIndices.size() * sizeof(uint32_t);
 
 	GPUMeshBuffers newSurface;

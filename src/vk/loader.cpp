@@ -158,7 +158,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
 
         VkSampler newSampler;
         VK_CHECK(vkCreateSampler(engine._device, &samplerCreateInfo, nullptr, &newSampler));
-        MOMO_VK_SET_DEBUG_NAME(aEngine._device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
+        MOMO_VK_SET_DEBUG_NAME(engine._device, VK_OBJECT_TYPE_SAMPLER, newSampler, "_Sampler glTF, Name: {}, Path: {}", sampler.name, aFilePath);
 
         file._samplers.push_back(newSampler);
     }
@@ -449,7 +449,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
             newSurface._bounds._sphereRadius = glm::length(newSurface._bounds._extents);
 
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-            newSurface.combinedDebugLabel = newSurface._material
+            newSurface._combinedDebugLabel = newSurface._material
                 ? fmt::format("Mesh: {}, {}", mesh.name, newSurface._material->debugName)
                 : fmt::format("Mesh: {}", mesh.name);
 #endif
