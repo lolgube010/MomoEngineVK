@@ -364,12 +364,9 @@ bool momo_shaderUtil::load_shader_module(const char* aFilePath, const VkDevice a
 std::string momo_shaderUtil::build_spv_shader_path(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
 {
 	// NOTE: this is targeting the BUILT SPV files, not the raw shader files! we'll write another function for that.
-	// glsl frag:
-	// "C:\git\MomoEngineVK\shaders\bin\debug\glsl\fragment\fullscreen.frag.spv"
-	// glsl compute:
-	// "C:\git\MomoEngineVK\shaders\bin\debug\glsl\compute\gradient_color.comp.spv"
-	// hlsl vertex:
-	// ""C:\git\MomoEngineVK\shaders\bin\debug\hlsl\vertex\test1.vert.hlsl.spv""
+	// glsl frag:   shaders/bin/debug/glsl/fragment/fullscreen.frag.spv
+	// glsl compute: shaders/bin/debug/glsl/compute/gradient_color.comp.spv
+	// hlsl vertex:  shaders/bin/debug/hlsl/vertex/test1.hlsl.spv
 #ifdef _DEBUG
     constexpr std::string_view basePath = "../../shaders/bin/debug/";
 #else
@@ -394,10 +391,12 @@ std::string momo_shaderUtil::build_spv_shader_path(const std::string& aFileName,
     default: throw;
     }
 
-    std::string fullPath = std::string(basePath) + std::string(langSubdir) + "/" + std::string(typeSubdir) + "/" + aFileName + std::string(typeExt);
+    std::string fullPath = std::string(basePath) + std::string(langSubdir) + "/" + std::string(typeSubdir) + "/" + aFileName;
 
     if (aShaderLang == ShaderLang::HLSL)
         fullPath += ".hlsl";
+    else
+        fullPath += std::string(typeExt);
 
     fullPath += ".spv";
     return fullPath;
