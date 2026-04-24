@@ -3,52 +3,6 @@
 #include <vk/initializers.h>
 #include <vk/debug.h>
 
-bool momo_shaderUtil::load_shader_module(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
-{
-	// open the file. With cursor at the end
-	std::ifstream file(aFilePath, std::ios::ate | std::ios::binary);
-
-	if (!file.is_open())
-	{
-		return false;
-	}
-	
-	// find what the size of the file is by looking up the location of the cursor because the cursor is at the end, it gives the size directly in bytes
-	const size_t fileSize = file.tellg();
-
-	// spirv expects the buffer to be on uint32, so make sure to reserve an int vector big enough for the entire file
-	std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
-
-	// put file cursor at beginning
-	file.seekg(0);
-
-	// load the entire file into the buffer
-    file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(fileSize));
-
-	// now that the file is loaded into the buffer, we can close it
-	file.close();
-
-	// create a new shader module, using the buffer we loaded
-	VkShaderModuleCreateInfo createInfo = {};
-	createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-	createInfo.pNext = nullptr;
-
-	// codeSize has to be in bytes, so multiply the ints in the buffer by size of int to know the real size of the buffer
-	createInfo.codeSize = buffer.size() * sizeof(uint32_t);
-	createInfo.pCode = buffer.data();
-
-	// check that the creation goes well.
-	VkShaderModule shaderModule;
-	if ((aOutVkResult = vkCreateShaderModule(aDevice, &createInfo, nullptr, &shaderModule)) != VK_SUCCESS)
-	{
-		return false;
-	}
-	*aOutShaderModule = shaderModule;
-
-    MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_SHADER_MODULE, *aOutShaderModule, "_ShaderModule: {}", aFilePath);
-	return true;
-}
-
 void PipelineBuilder::Clear()
 {
 	// clear all the structs we need back to 0 with their correct sType
@@ -230,8 +184,6 @@ void PipelineBuilder::Enable_DepthTest(const bool aDepthWriteEnable, const VkCom
 }
 
 
-// When setting blending options in vulkan, we need to fill the formula on both color and alpha.The parameters work the same on both color and alpha.The formula works like this
-// outColor = srcColor * srcColorBlendFactor <op> dstColor * dstColorBlendFactor;
 void PipelineBuilder::Enable_Blending_Additive()
 {
 	_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -244,8 +196,6 @@ void PipelineBuilder::Enable_Blending_Additive()
 	_colorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 }
 
-// When setting blending options in vulkan, we need to fill the formula on both color and alpha.The parameters work the same on both color and alpha.The formula works like this
-// outColor = srcColor * srcColorBlendFactor <op> dstColor * dstColorBlendFactor;
 void PipelineBuilder::Enable_Blending_AlphaBlend()
 {
 	_colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
@@ -365,62 +315,105 @@ void PipelineBuilder::Set_Multisampling_AlphaToCoverage(const VkSampleCountFlagB
     _multisampling.alphaToOneEnable = VK_FALSE;
 }
 
-std::string momo_shaderUtil::get_shader_extension(const ShaderType aType)
+bool momo_shaderUtil::load_shader_module(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
 {
-	switch (aType)
-	{
-	case ShaderType::Vertex: return ".vert";
-	case ShaderType::Fragment: return ".frag";
-	case ShaderType::Compute: return ".comp";
-	default: return ".unknown";
-	}
+    // open the file. With cursor at the end
+    std::ifstream file(aFilePath, std::ios::ate | std::ios::binary);
+
+    if (!file.is_open())
+    {
+        return false;
+    }
+
+    // find what the size of the file is by looking up the location of the cursor because the cursor is at the end, it gives the size directly in bytes
+    const size_t fileSize = file.tellg();
+
+    // spirv expects the buffer to be on uint32, so make sure to reserve an int vector big enough for the entire file
+    std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
+
+    // put file cursor at beginning
+    file.seekg(0);
+
+    // load the entire file into the buffer
+    file.read(reinterpret_cast<char*>(buffer.data()), static_cast<std::streamsize>(fileSize));
+
+    // now that the file is loaded into the buffer, we can close it
+    file.close();
+
+    // create a new shader module, using the buffer we loaded
+    VkShaderModuleCreateInfo createInfo = {};
+    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    createInfo.pNext = nullptr;
+
+    // codeSize has to be in bytes, so multiply the ints in the buffer by size of int to know the real size of the buffer
+    createInfo.codeSize = buffer.size() * sizeof(uint32_t);
+    createInfo.pCode = buffer.data();
+
+    // check that the creation goes well.
+    VkShaderModule shaderModule;
+    if ((aOutVkResult = vkCreateShaderModule(aDevice, &createInfo, nullptr, &shaderModule)) != VK_SUCCESS)
+    {
+        return false;
+    }
+    *aOutShaderModule = shaderModule;
+
+    MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_SHADER_MODULE, *aOutShaderModule, "_ShaderModule: {}", aFilePath);
+    return true;
 }
 
-std::string momo_shaderUtil::build_shader_path(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
+std::string momo_shaderUtil::build_spv_shader_path(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
 {
-	// Base directory (adjust this to match your project structure)
+	// NOTE: this is targeting the BUILT SPV files, not the raw shader files! we'll write another function for that.
+	// glsl frag:
+	// "C:\git\MomoEngineVK\shaders\bin\debug\glsl\fragment\fullscreen.frag.spv"
+	// glsl compute:
+	// "C:\git\MomoEngineVK\shaders\bin\debug\glsl\compute\gradient_color.comp.spv"
+	// hlsl vertex:
+	// ""C:\git\MomoEngineVK\shaders\bin\debug\hlsl\vertex\test1.vert.hlsl.spv""
 #ifdef _DEBUG
     constexpr std::string_view basePath = "../../shaders/bin/debug/";
 #else
     constexpr std::string_view basePath = "../../shaders/bin/release/";
 #endif
-	// Get standard extension (e.g., ".comp")
-	const std::string stageExt = get_shader_extension(aType);
-
-	// Build the final string
-	// Format: ../../shaders/name.stage[.hlsl].spv
-	std::string fullPath = basePath.data() + aFileName + stageExt;
-
+    std::string_view langSubdir;
     switch (aShaderLang)
     {
-
-    case ShaderLang::GLSL:
-        break;
-    case ShaderLang::HLSL:
-		fullPath += ".hlsl";
-        break;
-    case ShaderLang::Slang:
-        break;
-    default:
-        throw;
+    case ShaderLang::GLSL:  langSubdir = "glsl";  break;
+    case ShaderLang::HLSL:  langSubdir = "hlsl";  break;
+    case ShaderLang::Slang: langSubdir = "slang"; break;
+    default: throw;
     }
 
-	fullPath += ".spv";
+    std::string_view typeSubdir;
+    std::string_view typeExt;
+    switch (aType)
+    {
+    case ShaderType::Vertex:   typeSubdir = "vertex";   typeExt = ".vert"; break;
+    case ShaderType::Fragment: typeSubdir = "fragment"; typeExt = ".frag"; break;
+    case ShaderType::Compute:  typeSubdir = "compute";  typeExt = ".comp"; break;
+    default: throw;
+    }
 
-	return fullPath;
+    std::string fullPath = std::string(basePath) + std::string(langSubdir) + "/" + std::string(typeSubdir) + "/" + aFileName + std::string(typeExt);
+
+    if (aShaderLang == ShaderLang::HLSL)
+        fullPath += ".hlsl";
+
+    fullPath += ".spv";
+    return fullPath;
 }
 
 std::optional<VkShaderModule> momo_shaderUtil::load_shader(const std::string& aName, const momo_shaderUtil::ShaderType aType, const ShaderLang aShaderLang, const VkDevice aDevice)
 {
-    const std::string path = build_shader_path(aName, aType, aShaderLang);
+    const std::string path = build_spv_shader_path(aName, aType, aShaderLang);
 
     VkShaderModule module;
 
-    if (VkResult errorCode = {}; 
-		!load_shader_module(path.c_str(), aDevice, &module, errorCode))
+    if (VkResult errorCode = {};
+        !load_shader_module(path.c_str(), aDevice, &module, errorCode))
     {
-		// TODO- load error shader here instead!.. probably
-        fmt::print("Error loading shader. Type: {} Name: {} ErrorCode: {}\n", get_shader_extension(aType), aName, static_cast<int>(errorCode));
+        // TODO- load error shader here instead!
+        fmt::print("Error loading shader: {} (VkResult: {})\n", path, static_cast<int>(errorCode));
 #ifdef _DEBUG
         throw;
 #else
@@ -428,6 +421,6 @@ std::optional<VkShaderModule> momo_shaderUtil::load_shader(const std::string& aN
 #endif
     }
 
-    fmt::print("Shader loaded. Type: {} Name: {}\n", get_shader_extension(aType), aName);
+    fmt::print("Shader loaded: {}\n", path);
     return module;
 }

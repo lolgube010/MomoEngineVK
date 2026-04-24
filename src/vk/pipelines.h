@@ -38,10 +38,12 @@ public:
 	void Set_Depth_Format(VkFormat aFormat);
 	void Disable_DepthTest();
 	void Enable_DepthTest(bool aDepthWriteEnable, VkCompareOp aOp);
-	void Enable_Blending_Additive();
+	
+    // When setting blending options in vulkan, we need to fill the formula on both color and alpha. 
+    // The parameters work the same on both color and alpha. The formula works like this
+    // outColor = srcColor * srcColorBlendFactor <op> dstColor * dstColorBlendFactor;
+    void Enable_Blending_Additive();
 	void Enable_Blending_AlphaBlend();
-
-	// slop
 	void Enable_Blending_Multiply();
 	void Enable_Blending_Screen();
 	void Enable_Blending_PremultipliedAlpha();
@@ -57,7 +59,6 @@ public:
 
 namespace momo_shaderUtil
 {
-    bool load_shader_module(const char* aFilePath, VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
 
 	enum class ShaderType
 	{
@@ -73,7 +74,7 @@ namespace momo_shaderUtil
 		Slang
     };
 
-	std::string get_shader_extension(ShaderType aType);
-    std::string build_shader_path(const std::string& aFileName, ShaderType aType, ShaderLang aShaderLang);
+    bool load_shader_module(const char* aFilePath, VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult);
+    std::string build_spv_shader_path(const std::string& aFileName, ShaderType aType, ShaderLang aShaderLang);
     std::optional<VkShaderModule> load_shader(const std::string& aName, momo_shaderUtil::ShaderType aType, ShaderLang aShaderLang, VkDevice aDevice);
 }

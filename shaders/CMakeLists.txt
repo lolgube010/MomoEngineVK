@@ -1,16 +1,18 @@
 # ---------------------------------------------------------------------------
 # Shader compilation — GLSL via glslangValidator, HLSL via DXC
-# Output: shaders/bin/debug/  and  shaders/bin/release/
+# Source layout:  shaders/{glsl,hlsl}/{vertex,fragment,compute}/
+# Output layout:  shaders/bin/{debug,release}/{glsl,hlsl}/{vertex,fragment,compute}/
 # ---------------------------------------------------------------------------
 
-# ---------------------------------------------------------------------------
-# Output directories (created at configure time so they always exist)
-# ---------------------------------------------------------------------------
 set(SHADER_DIR_DEBUG   "${PROJECT_SOURCE_DIR}/shaders/bin/debug")
 set(SHADER_DIR_RELEASE "${PROJECT_SOURCE_DIR}/shaders/bin/release")
 
-file(MAKE_DIRECTORY "${SHADER_DIR_DEBUG}")
-file(MAKE_DIRECTORY "${SHADER_DIR_RELEASE}")
+foreach(LANG glsl hlsl)
+    foreach(TYPE vertex fragment compute)
+        file(MAKE_DIRECTORY "${SHADER_DIR_DEBUG}/${LANG}/${TYPE}")
+        file(MAKE_DIRECTORY "${SHADER_DIR_RELEASE}/${LANG}/${TYPE}")
+    endforeach()
+endforeach()
 
 # ---------------------------------------------------------------------------
 # Compiler flags
@@ -22,70 +24,67 @@ set(DXC_BASE_FLAGS -spirv -HV 2021 -fspv-target-env=vulkan1.3 -fvk-use-scalar-la
 set(DXC_FLAGS_DBG  -Zi -Qembed_debug -Od -fspv-debug=vulkan-with-source)
 set(DXC_FLAGS_REL  -O3)
 
-# Master list of all SPIR-V outputs — populated by the loops below
+set(GLSL_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/glsl/include")
+
 set(SPIRV_BINARY_FILES)
 
 # ---------------------------------------------------------------------------
 # Header dependency tracking
-# *.glsl  — included by GLSL shaders
-# *.hlsli — included by HLSL shaders
 # ---------------------------------------------------------------------------
-file(GLOB_RECURSE GLSL_INCLUDE_FILES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.glsl"
-)
-file(GLOB_RECURSE HLSL_INCLUDE_FILES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.hlsli"
-)
+file(GLOB_RECURSE GLSL_INCLUDE_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/glsl/include/*.glsl")
+file(GLOB_RECURSE HLSL_INCLUDE_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/hlsl/include/*.hlsli")
 
 # ---------------------------------------------------------------------------
-# GLSL compilation (.vert / .frag / .comp)
+# Source file discovery
 # ---------------------------------------------------------------------------
-file(GLOB_RECURSE GLSL_SOURCE_FILES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.vert"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.frag"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.comp"
-)
+file(GLOB_RECURSE GLSL_VERT_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/glsl/vertex/*.vert")
+file(GLOB_RECURSE GLSL_FRAG_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/glsl/fragment/*.frag")
+file(GLOB_RECURSE GLSL_COMP_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/glsl/compute/*.comp")
 
-foreach(GLSL IN LISTS GLSL_SOURCE_FILES)
-    get_filename_component(FILE_NAME "${GLSL}" NAME)
-    message(STATUS "Configuring GLSL shader: ${FILE_NAME}")
-
-    set(SPV_DBG "${SHADER_DIR_DEBUG}/${FILE_NAME}.spv")
-    set(SPV_REL "${SHADER_DIR_RELEASE}/${FILE_NAME}.spv")
-
-    add_custom_command(
-        OUTPUT  "${SPV_DBG}"
-        COMMAND Vulkan::glslangValidator -V ${GLSL_FLAGS_DBG} "${GLSL}" -o "${SPV_DBG}"
-        DEPENDS "${GLSL}" ${GLSL_INCLUDE_FILES}
-        COMMENT "Compiling ${FILE_NAME} (Debug)"
-        VERBATIM
-    )
-    add_custom_command(
-        OUTPUT  "${SPV_REL}"
-        COMMAND Vulkan::glslangValidator -V ${GLSL_FLAGS_REL} "${GLSL}" -o "${SPV_REL}"
-        DEPENDS "${GLSL}" ${GLSL_INCLUDE_FILES}
-        COMMENT "Compiling ${FILE_NAME} (Release)"
-        VERBATIM
-    )
-
-    list(APPEND SPIRV_BINARY_FILES "${SPV_DBG}" "${SPV_REL}")
-endforeach()
+file(GLOB_RECURSE HLSL_VERT_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/hlsl/vertex/*.vert.hlsl")
+file(GLOB_RECURSE HLSL_FRAG_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/hlsl/fragment/*.frag.hlsl")
+file(GLOB_RECURSE HLSL_COMP_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/hlsl/compute/*.comp.hlsl")
 
 # ---------------------------------------------------------------------------
-# HLSL compilation macro
-#
-# compile_hlsl(<file-list-var> <dxc-profile> <entry-point>)
-#
-# Must be a macro (not a function) so that list(APPEND SPIRV_BINARY_FILES ...)
-# modifies the variable in the calling scope.
+# compile_glsl(<file-list-var> <type-subdir>)
 # ---------------------------------------------------------------------------
-macro(compile_hlsl FILE_LIST PROFILE ENTRY_POINT)
+macro(compile_glsl FILE_LIST TYPE_SUBDIR)
+    foreach(GLSL IN LISTS ${FILE_LIST})
+        get_filename_component(FILE_NAME "${GLSL}" NAME)
+        message(STATUS "Configuring GLSL shader: ${FILE_NAME}")
+
+        set(SPV_DBG "${SHADER_DIR_DEBUG}/glsl/${TYPE_SUBDIR}/${FILE_NAME}.spv")
+        set(SPV_REL "${SHADER_DIR_RELEASE}/glsl/${TYPE_SUBDIR}/${FILE_NAME}.spv")
+
+        add_custom_command(
+            OUTPUT  "${SPV_DBG}"
+            COMMAND Vulkan::glslangValidator -V ${GLSL_FLAGS_DBG} -I${GLSL_INCLUDE_DIR} "${GLSL}" -o "${SPV_DBG}"
+            DEPENDS "${GLSL}" ${GLSL_INCLUDE_FILES}
+            COMMENT "Compiling ${FILE_NAME} (Debug)"
+            VERBATIM
+        )
+        add_custom_command(
+            OUTPUT  "${SPV_REL}"
+            COMMAND Vulkan::glslangValidator -V ${GLSL_FLAGS_REL} -I${GLSL_INCLUDE_DIR} "${GLSL}" -o "${SPV_REL}"
+            DEPENDS "${GLSL}" ${GLSL_INCLUDE_FILES}
+            COMMENT "Compiling ${FILE_NAME} (Release)"
+            VERBATIM
+        )
+
+        list(APPEND SPIRV_BINARY_FILES "${SPV_DBG}" "${SPV_REL}")
+    endforeach()
+endmacro()
+
+# ---------------------------------------------------------------------------
+# compile_hlsl(<file-list-var> <type-subdir> <dxc-profile> <entry-point>)
+# ---------------------------------------------------------------------------
+macro(compile_hlsl FILE_LIST TYPE_SUBDIR PROFILE ENTRY_POINT)
     foreach(HLSL IN LISTS ${FILE_LIST})
         get_filename_component(FILE_NAME "${HLSL}" NAME)
         message(STATUS "Configuring HLSL shader: ${FILE_NAME} [${PROFILE}]")
 
-        set(SPV_DBG "${SHADER_DIR_DEBUG}/${FILE_NAME}.spv")
-        set(SPV_REL "${SHADER_DIR_RELEASE}/${FILE_NAME}.spv")
+        set(SPV_DBG "${SHADER_DIR_DEBUG}/hlsl/${TYPE_SUBDIR}/${FILE_NAME}.spv")
+        set(SPV_REL "${SHADER_DIR_RELEASE}/hlsl/${TYPE_SUBDIR}/${FILE_NAME}.spv")
 
         add_custom_command(
             OUTPUT  "${SPV_DBG}"
@@ -112,33 +111,24 @@ macro(compile_hlsl FILE_LIST PROFILE ENTRY_POINT)
     endforeach()
 endmacro()
 
-# ---------------------------------------------------------------------------
-# HLSL source file discovery and compilation
-# Add a new stage here (e.g. mesh shaders): glob *.mesh.hlsl, call compile_hlsl
-# ---------------------------------------------------------------------------
-file(GLOB_RECURSE HLSL_VERT_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.vert.hlsl")
-file(GLOB_RECURSE HLSL_FRAG_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.frag.hlsl")
-file(GLOB_RECURSE HLSL_COMP_FILES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.comp.hlsl")
+compile_glsl(GLSL_VERT_FILES "vertex")
+compile_glsl(GLSL_FRAG_FILES "fragment")
+compile_glsl(GLSL_COMP_FILES "compute")
 
-compile_hlsl(HLSL_VERT_FILES "vs_6_6" "main")
-compile_hlsl(HLSL_FRAG_FILES "ps_6_6" "main")
-compile_hlsl(HLSL_COMP_FILES "cs_6_6" "main")
+compile_hlsl(HLSL_VERT_FILES "vertex"   "vs_6_6" "main")
+compile_hlsl(HLSL_FRAG_FILES "fragment" "ps_6_6" "main")
+compile_hlsl(HLSL_COMP_FILES "compute"  "cs_6_6" "main")
 
 # ---------------------------------------------------------------------------
 # Shaders custom target
 # ---------------------------------------------------------------------------
 set(ALL_SHADER_SOURCES
-    ${GLSL_SOURCE_FILES}
-    ${GLSL_INCLUDE_FILES}
-    ${HLSL_VERT_FILES}
-    ${HLSL_FRAG_FILES}
-    ${HLSL_COMP_FILES}
-    ${HLSL_INCLUDE_FILES}
+    ${GLSL_VERT_FILES} ${GLSL_FRAG_FILES} ${GLSL_COMP_FILES} ${GLSL_INCLUDE_FILES}
+    ${HLSL_VERT_FILES} ${HLSL_FRAG_FILES} ${HLSL_COMP_FILES} ${HLSL_INCLUDE_FILES}
 )
 
-# Show shaders in Visual Studio's Solution Explorer under a "Shaders" folder,
-# and prevent VS from attempting to compile them natively.
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Shaders" FILES ${ALL_SHADER_SOURCES})
+source_group("CMake" REGULAR_EXPRESSION "CMakeFiles|CMakeLists\\.txt")
 set_source_files_properties(${ALL_SHADER_SOURCES} PROPERTIES
     HEADER_FILE_ONLY TRUE
     VS_TOOL_OVERRIDE  "None"
