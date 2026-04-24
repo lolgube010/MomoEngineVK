@@ -1,8 +1,6 @@
-﻿#include <vk_descriptors.h>
-
+﻿#include <vk/descriptors.h>
 #include <algorithm>
-
-#include "vk_debug.h"
+#include <vk/debug.h>
 
 void DescriptorLayoutBuilder::Add_Binding(const uint32_t aBinding, const VkDescriptorType aType)
 {

@@ -1,13 +1,14 @@
-﻿#include "vk_engine.h"
+﻿#include <vk/engine.h>
 
 #include <SDL.h>
 #include <SDL_vulkan.h>
 
-#include <vk_images.h>
-#include <vk_initializers.h>
-#include <vk_types.h>
+#include <vk/images.h>
+#include <vk/initializers.h>
+#include <vk/types.h>
+#include <vk/pipelines.h>
 
-#include "VkBootstrap.h"
+#include <VkBootstrap.h>
 
 #include <algorithm>
 #include <chrono>
@@ -17,13 +18,12 @@
 
 #include <vma/vk_mem_alloc.h>
 
-#include "Input.h"
-#include "vk_pipelines.h"
-#include "string_utils.h"
+#include <Input.h>
+#include <string_utils.h>
 
-#include "imgui.h"
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_vulkan.h"
+#include <imgui.h>
+#include <imgui_impl_sdl2.h>
+#include <imgui_impl_vulkan.h>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL

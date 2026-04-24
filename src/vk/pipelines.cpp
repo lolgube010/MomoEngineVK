@@ -1,7 +1,7 @@
-﻿#include <vk_pipelines.h>
+﻿#include <vk/pipelines.h>
 #include <fstream>
-#include <vk_initializers.h>
-#include "vk_debug.h"
+#include <vk/initializers.h>
+#include <vk/debug.h>
 
 bool momo_shaderUtil::load_shader_module(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
 {

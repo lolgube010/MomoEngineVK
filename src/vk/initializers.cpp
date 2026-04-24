@@ -1,6 +1,5 @@
-﻿#include <vk_initializers.h>
-
-#include "vk_images.h"
+﻿#include <vk/initializers.h>
+#include <vk/images.h>
 
 //> init_cmd
 VkCommandPoolCreateInfo momo_vkInit::command_pool_create_info(const uint32_t aQueueFamilyIndex, const VkCommandPoolCreateFlags aFlags /*= 0*/)

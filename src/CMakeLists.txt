@@ -1,10 +1,13 @@
 # ---------------------------------------------------------------------------
 # Source files — CONFIGURE_DEPENDS re-checks the folder for new files
 # ---------------------------------------------------------------------------
-file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS
-    "*.cpp"
-    "*.h"
-)
+file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS "*.h")
+file(GLOB_RECURSE SOURCE_CPP_FILES CONFIGURE_DEPENDS "*.cpp")
+set(SOURCE_FILES ${HEADER_FILES} ${SOURCE_CPP_FILES})
+
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Header Files" FILES ${HEADER_FILES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Source Files" FILES ${SOURCE_CPP_FILES})
+source_group("CMake" REGULAR_EXPRESSION "cmake_pch")
 
 add_executable(MomoVK ${SOURCE_FILES})
 

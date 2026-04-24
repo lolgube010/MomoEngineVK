@@ -1,11 +1,11 @@
 ﻿#pragma once
 // Will contain GLTF loading logic
 
-#include <vk_types.h>
+#include <vk/types.h>
 #include <unordered_map>
 
-#include "vk_descriptors.h"
-#include "fastgltf/types.hpp"
+#include <vk/descriptors.h>
+#include <fastgltf/types.hpp>
 
 struct Bounds 
 {

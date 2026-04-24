@@ -1,10 +1,10 @@
-﻿#include "stb_image.h"
-#include <vk_loader.h>
+﻿#include <stb_image.h>
+#include <vk/loader.h>
 
-#include "vk_engine.h"
-#include "vk_images.h"
-#include "vk_initializers.h"
-#include "vk_types.h"
+#include <vk/engine.h>
+#include <vk/images.h>
+#include <vk/initializers.h>
+#include <vk/types.h>
 #include <fmt/std.h>
 #include <execution>
 

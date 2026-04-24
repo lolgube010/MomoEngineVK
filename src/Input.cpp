@@ -1,10 +1,10 @@
-#include "Input.h"
+#include <Input.h>
 
 #include <SDL.h>
 #include <SDL_keyboard.h>
 #include <SDL_mouse.h>
 
-#include "vk_engine.h"
+#include <vk/engine.h>
 
 void Input::Init()
 {

@@ -1,12 +1,12 @@
 ﻿#pragma once
 #include <chrono>
-#include <vk_types.h>
-#include <vk_descriptors.h>
-#include "camera.h"
-#include "vk_loader.h"
-#include "MomoTracy.h"
-#include "RenderDocWrapper.h"
-#include "vk_debug.h"
+#include <vk/types.h>
+#include <vk/descriptors.h>
+#include <camera.h>
+#include <vk/loader.h>
+#include <api/MomoTracy.h>
+#include <api/RenderDocWrapper.h>
+#include <vk/debug.h>
 #include <unordered_set>
 
 struct FrameData

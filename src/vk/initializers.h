@@ -1,6 +1,5 @@
 ﻿#pragma once
-
-#include <vk_types.h>
+#include <vk/types.h>
 
 // This will contain helpers to create vulkan structures
 

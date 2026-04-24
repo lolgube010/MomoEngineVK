@@ -1,8 +1,7 @@
-#include "camera.h"
+#include <camera.h>
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
-
-#include "Input.h"
+#include <Input.h>
 
 glm::mat4 Camera::GetViewMatrix() const
 {
