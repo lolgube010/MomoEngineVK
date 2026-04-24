@@ -589,8 +589,7 @@ std::optional<momo_vkGLTF::PendingTextureUpload> momo_vkGLTF::load_image_stbi(fa
         fastgltf::visitor{
             [&](const auto& anArg)
             {
-                fmt::print(stderr, "load_image: unhandled source type '{}' for image '{}' at filepath '{}'\n",
-                           typeid(anArg).name(), aImage.name, aFilePath);
+                fmt::print(stderr, "load_image: unhandled source type '{}' for image '{}' at filepath '{}'\n", typeid(anArg).name(), aImage.name, aFilePath);
             },
             [&](const fastgltf::sources::URI& aGLTFImageFilePath)
             {
@@ -601,45 +600,49 @@ std::optional<momo_vkGLTF::PendingTextureUpload> momo_vkGLTF::load_image_stbi(fa
                 }
                 if (!aGLTFImageFilePath.uri.isLocalPath())
                 {
-                    fmt::print(stderr, "load_image: non-local URI not supported: '{}' (image '{}')\n",
-                               aGLTFImageFilePath.uri.string(), aImage.name);
+                    fmt::print(stderr, "load_image: non-local URI not supported: '{}' (image '{}')\n", aGLTFImageFilePath.uri.string(), aImage.name);
                     return;
                 }
+
                 const std::string path(aGLTFImageFilePath.uri.path().begin(), aGLTFImageFilePath.uri.path().end());
                 pixels = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
+               
                 if (!pixels)
+                {
                     fmt::print(stderr, "load_image: stbi failed to load '{}': {}\n", path, stbi_failure_reason());
+                }
             },
             [&](fastgltf::sources::Array& anArray)
             {
                 const auto* bytes = reinterpret_cast<const stbi_uc*>(anArray.bytes.data());
-                pixels = stbi_load_from_memory(bytes, static_cast<int>(anArray.bytes.size()),
-                                               &width, &height, &nrChannels, 4);
+                pixels = stbi_load_from_memory(bytes, static_cast<int>(anArray.bytes.size()), &width, &height, &nrChannels, 4);
                 if (!pixels)
-                    fmt::print(stderr, "load_image: stbi failed to decode embedded array for image '{}': {}\n",
-                               aImage.name, stbi_failure_reason());
+                {
+                    fmt::print(stderr, "load_image: stbi failed to decode embedded array for image '{}': {}\n", aImage.name, stbi_failure_reason());
+                }
             },
             [&](const fastgltf::sources::BufferView& aView)
             {
                 const auto& bufferView = aAsset.bufferViews[aView.bufferViewIndex];
                 auto& buffer = aAsset.buffers[bufferView.bufferIndex];
-                std::visit(fastgltf::visitor{[&](auto& anArg)
-                                             {
-                                                 fmt::print(stderr, "load_image: unhandled buffer source type '{}' for image '{}'\n", typeid(anArg).name(), aImage.name);
-                                             },
-                                             [&](fastgltf::sources::Array& anArray)
-                                             {
-                                                 const auto* bytes = reinterpret_cast<const stbi_uc*>(anArray.bytes.data() + bufferView.byteOffset);
-                                                 pixels = stbi_load_from_memory(bytes, static_cast<int>(bufferView.byteLength), &width, &height, &nrChannels, 4);
-                                                 if (!pixels)
-                                                 {
-                                                     fmt::print(stderr, "load_image: stbi failed to decode buffer view for image '{}': {}\n", aImage.name, stbi_failure_reason());
-                                                 }
-                                             },
-                                             [&](fastgltf::sources::ByteView& aByteView)
-                                             {
-                                                 fmt::print("BYTEVIEW RAN WHEN LOADING TEXTURE! MAKE SURE TO FIX THIS ASAP!");
-                                             }
+                std::visit(fastgltf::visitor{
+                    [&](auto& anArg)
+                    {
+                        fmt::print(stderr, "load_image: unhandled buffer source type '{}' for image '{}'\n", typeid(anArg).name(), aImage.name);
+                    },
+                    [&](fastgltf::sources::Array& anArray)
+                    {
+                        const auto* bytes = reinterpret_cast<const stbi_uc*>(anArray.bytes.data() + bufferView.byteOffset);
+                        pixels = stbi_load_from_memory(bytes, static_cast<int>(bufferView.byteLength), &width, &height, &nrChannels, 4);
+                        if (!pixels)
+                        {
+                            fmt::print(stderr, "load_image: stbi failed to decode buffer view for image '{}': {}\n", aImage.name, stbi_failure_reason());
+                        }
+                    },
+                    [&](fastgltf::sources::ByteView& aByteView)
+                    {
+                        fmt::print("BYTEVIEW RAN WHEN LOADING TEXTURE! MAKE SURE TO FIX THIS ASAP!");
+                    }
                 },buffer.data);
             },
         },
