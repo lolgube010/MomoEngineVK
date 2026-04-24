@@ -14,8 +14,8 @@
 #include <chrono>
 #include <thread>
 
+#define VMA_LEAK_LOG_FORMAT(format, ...) MOMO_VMA_LEAK_LOG(format, __VA_ARGS__)
 #define VMA_IMPLEMENTATION
-
 #include <vma/vk_mem_alloc.h>
 
 #include <Input.h>
@@ -60,7 +60,7 @@ void GLTFMetallic_Roughness::Build_Pipelines()
 	VkPipelineLayout newLayout;
 	VK_CHECK(vkCreatePipelineLayout(engine._device, &mesh_layout_info, nullptr, &newLayout));
     // pipeline layout is technically shared between transparent & opaque, and we never bother deleting it so it's not a big deal right now
-    MOMO_VK_SET_DEBUG_NAME(aEngine._device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout, "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
+    MOMO_VK_SET_DEBUG_NAME(engine._device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout, "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
 
 	_opaquePipeline._layout = newLayout;
 	_transparentPipeline._layout = newLayout;
@@ -151,9 +151,9 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 		def._transform = nodeMatrix;
 		def._vertexBufferAddress = _mesh->_meshBuffers._vertexBufferAddress;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-        def.matDebugName = s._material->debugName;
-        def.meshDebugName = _mesh->_name;
-        def.combinedDebugLabel = s.combinedDebugLabel.c_str();
+        def._matDebugName = s._material->debugName;
+        def._meshDebugName = _mesh->_name;
+        def._combinedDebugLabel = s._combinedDebugLabel.c_str();
 #endif
 		switch (s._material->_data._passType)
 		{
@@ -573,8 +573,8 @@ AllocatedImage VulkanEngine::Create_Image(const VkExtent3D aSize, const VkFormat
 
 	VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage._imageView));
 
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, newImage.image, "_Image Name: {}", aName);
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage.imageView, "_ImageView Name: {}", aName);
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, newImage._image, "_Image Name: {}", aName);
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, newImage._imageView, "_ImageView Name: {}", aName);
     vmaSetAllocationName(_allocator, newImage._allocation, aName);
 	return newImage;
 }
@@ -735,7 +735,7 @@ void VulkanEngine::Init_Vulkan()
     
 	// set instance name too
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_INSTANCE, _instance, "_Instance");
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT, _debug_messenger, "_DebugMessenger");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_DEBUG_UTILS_MESSENGER_EXT, _debugMessenger, "_DebugMessenger");
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SURFACE_KHR, _surface, "_Surface");
 
 	//< debug info
@@ -851,13 +851,14 @@ void VulkanEngine::Init_Swapchain()
 
 	// allocate and create the image
 	vmaCreateImage(_allocator, &rimg_info, &rimg_allocinfo, &_drawImage._image, &_drawImage._allocation, nullptr);
+    vmaSetAllocationName(_allocator, _drawImage._allocation, "Draw Image");
 
 	// build an image-view for the draw image to use for rendering
 	const VkImageViewCreateInfo rview_info = momo_vkInit::imageview_create_info(_drawImage._imageFormat, _drawImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage._imageView));
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _drawImage.image, "_Image Main Draw ");
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage.imageView, "_Image View Main Draw");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _drawImage._image, "_Image Main Draw ");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage._imageView, "_Image View Main Draw");
 	//< create image
 
 	//> create depth
@@ -870,13 +871,14 @@ void VulkanEngine::Init_Swapchain()
 
 	//allocate and create the image
 	vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo, &_depthImage._image, &_depthImage._allocation, nullptr);
+    vmaSetAllocationName(_allocator, _depthImage._allocation, "Depth Image");
 
 	//build an image-view for the draw image to use for rendering
 	const VkImageViewCreateInfo dview_info = momo_vkInit::imageview_create_info(_depthImage._imageFormat, _depthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);
 
 	VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage._imageView));
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _depthImage.image, "_Image Main Depth");
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage.imageView, "_Image View Main Depth");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _depthImage._image, "_Image Main Depth");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage._imageView, "_Image View Main Depth");
 	//< create depth
 
 
@@ -903,13 +905,13 @@ void VulkanEngine::Init_Commands()
     for (auto& frame : _frames)
     {
         VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &frame._commandPool));
-        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, "_Command Pool Main, FIF: {}", i);
-		
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool, "_Command Pool Main, FIF: {}", &frame - _frames);
+
         // allocate the default command buffer that we will use for rendering
 		VkCommandBufferAllocateInfo cmdAllocInfo = momo_vkInit::command_buffer_allocate_info(frame._commandPool, 1);
 		VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &frame._mainCommandBuffer));
-        
-        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer, "_Command Buffer Main, FIF: {}", i);
+
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer, "_Command Buffer Main, FIF: {}", &frame - _frames);
 	}
 
 	// immediate command pool / buffer.
@@ -954,7 +956,7 @@ void VulkanEngine::Init_Sync_Structures()
     for (size_t i = 0; i < _swapchainImageCount; ++i)
 	{
 		VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_readyForPresentSemaphores[i]));
-        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, ready_for_present_semaphores[i], "_Semaphore Ready For Present, SwapchainImgCount:{}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, _readyForPresentSemaphores[i], "_Semaphore Ready For Present, SwapchainImgCount:{}", i);
         _mainDeletionQueue.Push_Function([this, i]
         {
             vkDestroySemaphore(_device, _readyForPresentSemaphores[i], nullptr);
@@ -1128,7 +1130,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	computeLayout.pushConstantRangeCount = 1;
 
 	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_computePipelineLayout));
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _ComputePipelineLayout, "_Pipeline Layout Compute Background");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _computePipelineLayout, "_Pipeline Layout Compute Background");
 
 	constexpr auto useHLSL = momo_shaderUtil::ShaderLang::GLSL;
     auto gradientShader = momo_shaderUtil::load_shader("gradient_color", momo_shaderUtil::ShaderType::Compute, useHLSL, _device);
@@ -1148,7 +1150,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	gradient._data._data2 = glm::vec4(0, 0, 1, 1);
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &gradient._pipeline));
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE, gradient.pipeline, "_Pipeline Compute Gradient");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE, gradient._pipeline, "_Pipeline Compute Gradient");
 	_backgroundEffects.push_back(gradient);
 
 	//change the shader module only to create the sky shader
@@ -1162,7 +1164,7 @@ void VulkanEngine::Init_Background_Pipelines()
 	sky._data._data1 = glm::vec4(0.1, 0.2, 0.4, 0.97);
 
 	VK_CHECK(vkCreateComputePipelines(_device, VK_NULL_HANDLE, 1, &computePipelineCreateInfo, nullptr, &sky._pipeline));
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE, sky.pipeline, "_Pipeline Compute Sky");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE, sky._pipeline, "_Pipeline Compute Sky");
 	
     //add the 2 background effects into the array
 	_backgroundEffects.push_back(sky);
@@ -1441,8 +1443,8 @@ void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeigh
 
     for (size_t i = 0; i < _swapchainImages.size(); ++i)
     {
-        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _swapchain_images[i], "_Image Swapchain {}", i);
-        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchain_image_views[i], "_Image View Swapchain {}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE, _swapchainImages[i], "_Image Swapchain {}", i);
+        MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _swapchainImageViews[i], "_Image View Swapchain {}", i);
     }
 }
 
@@ -1818,7 +1820,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
             {
                 const char* const passStr = (aR._material->_passType == MaterialPass::Transparent) ? "transparent" : "opaque";
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-                _renderDoc.Annotate_Draw(aCmd, aR.matDebugName.data(), aR.meshDebugName.data(), passStr);
+                _renderDoc.Annotate_Draw(aCmd, aR._matDebugName.data(), aR._meshDebugName.data(), passStr);
 #else
                 _renderDoc.Annotate_Draw(aCmd, nullptr, nullptr, passStr);
 #endif
@@ -1834,7 +1836,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	        {
                 const auto& mesh = _mainDrawContext._opaqueSurfaces[r];
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-                MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh.combinedDebugLabel);
+                MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh._combinedDebugLabel);
 #endif
                 draw(mesh);
                 _stats._opaqueDrawCallCount++;
@@ -1847,7 +1849,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	        {
                 const auto& mesh = _mainDrawContext._transparentSurfaces[r];
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-                MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh.combinedDebugLabel);
+                MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh._combinedDebugLabel);
 #endif
                 draw(mesh);
                 _stats._transparentDrawCallCount++;
@@ -1884,7 +1886,7 @@ AllocatedBuffer VulkanEngine::Create_Buffer(const size_t anAllocSize, const VkBu
 
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
 	const std::string buffName = fmt::format("_Buffer {}, {}", Get_Buffer_Usage_Flag_String(aUsage), aName);
-    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_BUFFER, newBuffer.buffer, buffName);
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_BUFFER, newBuffer._buffer, buffName);
     vmaSetAllocationName(_allocator, newBuffer._allocation, buffName.c_str());
 #endif
     return newBuffer;
