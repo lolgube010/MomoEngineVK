@@ -635,8 +635,12 @@ std::optional<momo_vkGLTF::PendingTextureUpload> momo_vkGLTF::load_image_stbi(fa
                                                  {
                                                      fmt::print(stderr, "load_image: stbi failed to decode buffer view for image '{}': {}\n", aImage.name, stbi_failure_reason());
                                                  }
-                                             }},
-                           buffer.data);
+                                             },
+                                             [&](fastgltf::sources::ByteView& aByteView)
+                                             {
+                                                 fmt::print("BYTEVIEW RAN WHEN LOADING TEXTURE! MAKE SURE TO FIX THIS ASAP!");
+                                             }
+                },buffer.data);
             },
         },
         aImage.data);
