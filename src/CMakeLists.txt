@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------
 # Source files — CONFIGURE_DEPENDS re-checks the folder for new files
 # ---------------------------------------------------------------------------
-file(GLOB SOURCE_FILES CONFIGURE_DEPENDS
+file(GLOB_RECURSE SOURCE_FILES CONFIGURE_DEPENDS
     "*.cpp"
     "*.h"
 )

@@ -332,12 +332,9 @@ private:
 	void Update_Scene();
 
     void ProcessEvents(bool& aQuit);
-	// temp camera settings
-	float _tempCameraFov = 70.f;
     glm::vec4 _tempAmbientColor = glm::vec4(1.f);
     glm::vec4 _tempSunColor = glm::vec4(1.f);
     glm::vec4 _tempSunDir = glm::vec4(0, 1, 0.5, 1.f);
-	// int tempBlendModeIndex = 0;
 
     static bool Is_Visible(const RenderObject& aObj, const glm::mat4& aViewProj);
 

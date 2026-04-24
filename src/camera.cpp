@@ -21,6 +21,13 @@ glm::mat4 Camera::GetRotationMatrix() const
     return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 }
 
+glm::mat4 Camera::GetProjectionMatrix(const float aWidth, const float aHeight) const
+{
+    auto matrix = glm::perspective(glm::radians(_tempCameraFov), aWidth / aHeight, 10000.f, 0.1f);
+    matrix[1][1] *= -1;  // invert the Y direction on projection matrix so that we are more similar to opengl and gltf axis
+    return matrix;
+}
+
 // TODO:
 // Movement in this code is frame-dependant, as we aren't taking the speed of the engine into account.
 void Camera::Update()

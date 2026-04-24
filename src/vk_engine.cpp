@@ -1504,7 +1504,7 @@ void VulkanEngine::ImGui_Run()
         // ── Camera ───────────────────────────────────────────────────────────
         if (ImGui::CollapsingHeader("Camera"))
         {
-            ImGui::SliderFloat("FOV", &_tempCameraFov, 1, 180);
+            ImGui::SliderFloat("FOV", &_mainCamera._tempCameraFov, 1, 180);
             ImGui::Value("Pitch (rad)", _mainCamera._pitch);
         }
 
@@ -1933,11 +1933,7 @@ void VulkanEngine::Update_Scene()
 	_mainCamera.Update();
 	const glm::mat4 view = _mainCamera.GetViewMatrix();
 	// camera projection
-	glm::mat4 projection = glm::perspective(glm::radians(70.f), static_cast<float>(_windowExtent.width) / static_cast<float>(_windowExtent.height), 10000.f, 0.1f);
-
-	// invert the Y direction on projection matrix so that we are more similar
-	// to opengl and gltf axis
-	projection[1][1] *= -1;
+    const glm::mat4 projection = _mainCamera.GetProjectionMatrix(static_cast<float>(_windowExtent.width), static_cast<float>(_windowExtent.height));
 
 	_sceneData._view = view;
 	_sceneData._proj = projection;
