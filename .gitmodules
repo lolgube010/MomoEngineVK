@@ -1,6 +1,6 @@
-[submodule "engine/third_party/tracy"]
+[submodule "third_party/tracy"]
 	path = third_party/tracy
 	url = https://github.com/wolfpld/tracy.git
-[submodule "engine/third_party/fastgltf"]
+[submodule "third_party/fastgltf"]
 	path = third_party/fastgltf
 	url = https://github.com/spnda/fastgltf
