@@ -138,12 +138,14 @@ struct TextureCache
 struct EngineStats
 {
 	float _frameTime;
-	uint32_t _triCount;
-	int _drawCallCount;
 	float _sceneUpdateTime;
 	float _meshDrawTime;
-    float _filler;
     uint64_t _frequency;
+
+	uint32_t _triCount;
+	int _totalDrawCallCount;
+    int _opaqueDrawCallCount;
+    int _transparentDrawCallCount;
 };
 
 class VulkanEngine
@@ -342,29 +344,8 @@ private:
     static const char* Get_Device_Type_String(VkPhysicalDeviceType aType);
     static std::string Get_Buffer_Usage_Flag_String(VkBufferUsageFlags aUsageFlag);
     
-    template <typename T>
-    std::string FormatWithCommas(T aValue);
-
     momo_vkDebug::ValidationCapture _validationCapture;
 
     VmaTotalStatistics _cachedVmaStats{};
     std::chrono::steady_clock::time_point _lastVmaStatsTime{};
 };
-
-template <typename T>
-std::string VulkanEngine::FormatWithCommas(T aValue)
-{
-    std::string str = std::to_string(aValue);
-
-    // If the number is negative, we don't want to insert a comma after the minus sign
-    int limit = (aValue < 0) ? 1 : 0;
-    int insert_idx = static_cast<int>(str.length()) - 3;
-
-    while (insert_idx > limit)
-    {
-        str.insert(insert_idx, ",");
-        insert_idx -= 3;
-    }
-
-    return str;
-}

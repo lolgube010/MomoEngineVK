@@ -1,7 +1,9 @@
-#pragma once 
+#pragma once
 #include <string>
 #include <string_view>
 #include <cstdint>
+#include <locale>
+#include <fmt/format.h>
 
 namespace momo_stringUtils
 {
@@ -20,6 +22,17 @@ namespace momo_stringUtils
             size++;
         };
         return size;
+    }
+
+    inline std::string format_with_commas(const int64_t aValue)
+    {
+        struct CommaFacet : std::numpunct<char>
+        {
+            char do_thousands_sep()   const override { return ','; }
+            std::string do_grouping() const override { return "\3"; }
+        };
+        static const std::locale commaLocale(std::locale(), new CommaFacet());
+        return fmt::format(commaLocale, "{:L}", aValue);
     }
 
     struct StringHash

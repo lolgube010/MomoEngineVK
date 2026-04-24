@@ -19,6 +19,7 @@
 
 #include "Input.h"
 #include "vk_pipelines.h"
+#include "string_utils.h"
 
 #include "imgui.h"
 #include "imgui_impl_sdl2.h"
@@ -33,6 +34,7 @@
 // globals
 constexpr bool USE_VALIDATION_LAYERS = true;
 constexpr auto APP_NAME = "MomoVK";
+
 
 void GLTFMetallic_Roughness::Build_Pipelines()
 {
@@ -686,6 +688,7 @@ void VulkanEngine::Init_Vulkan()
 	VkPhysicalDeviceFeatures features10{};
 	features10.shaderInt64 = true; // needed for vertex pulling in hlsl only
 
+
 	// Use vk-bootstrap to select a gpu. 
 	// We want a gpu that can write to the SDL surface and supports vulkan 1.3 with the correct features
 	vkb::PhysicalDeviceSelector selector{vkb_inst};
@@ -702,7 +705,22 @@ void VulkanEngine::Init_Vulkan()
 		throw std::runtime_error("failed to find a suitable GPU: " + phys_ret.error().message());
 	}
 
-	const vkb::PhysicalDevice& physicalDevice = phys_ret.value();
+    vkb::PhysicalDevice& physicalDevice = phys_ret.value();
+    if (const std::vector desiredExtensions = {"VK_EXT_memory_budget"}; 
+		!physicalDevice.enable_extensions_if_present(desiredExtensions))
+    {
+        fmt::print("failed to load some extensions!\n");
+
+		// loop through them now so we avoid that potential bottleneck if everything is supported already
+        for (const auto & extension : desiredExtensions)
+        {
+            if (!physicalDevice.enable_extension_if_present(extension))
+            {
+                fmt::print("failed to load this specific extension!: {}\n", extension);
+            }
+        }
+    }
+
 	//create the final vulkan device (driver) from the physical device (gpu)
 	vkb::DeviceBuilder deviceBuilder{physicalDevice};
 
@@ -782,7 +800,8 @@ void VulkanEngine::Init_Vulkan()
 	allocatorInfo.physicalDevice = _chosenGPU;
 	allocatorInfo.device = _device;
 	allocatorInfo.instance = _instance;
-	allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT; // used for BDA
+    allocatorInfo.flags = VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT |	// used for BDA
+                          VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;		// used for vram tracking
     allocatorInfo.vulkanApiVersion = VK_API_VERSION_1_4;
 	// allocatorInfo.pDeviceMemoryCallbacks = &_callbacks; // added by momo
     
@@ -1466,49 +1485,97 @@ void VulkanEngine::Draw_Background(const VkCommandBuffer aCmd) const
 
 void VulkanEngine::ImGui_Run()
 {
-	if (ImGui::Begin("settings"))
-	{
+    if (ImGui::Begin("settings"))
+    {
         _validationCapture.DrawImGui();
 
-		ComputeEffect& selected = _backgroundEffects[_currentBackgroundEffect];
+        // ── Background ───────────────────────────────────────────────────────
+        if (ImGui::CollapsingHeader("Background"))
+        {
+            ComputeEffect& selected = _backgroundEffects[_currentBackgroundEffect];
+            ImGui::Text("Selected effect: %s", selected._name);
+            ImGui::SliderInt("Effect Index", &_currentBackgroundEffect, 0, static_cast<int>(_backgroundEffects.size() - 1));
+            ImGui::ColorEdit4("data1", reinterpret_cast<float*>(&selected._data._data1));
+            ImGui::ColorEdit4("data2", reinterpret_cast<float*>(&selected._data._data2));
+            ImGui::ColorEdit4("data3", reinterpret_cast<float*>(&selected._data._data3));
+            ImGui::ColorEdit4("data4", reinterpret_cast<float*>(&selected._data._data4));
+        }
 
-		ImGui::Text("Selected effect: %s", selected._name);
+        // ── Camera ───────────────────────────────────────────────────────────
+        if (ImGui::CollapsingHeader("Camera"))
+        {
+            ImGui::SliderFloat("FOV", &_tempCameraFov, 1, 180);
+            ImGui::Value("Pitch (rad)", _mainCamera._pitch);
+        }
 
-		ImGui::SliderInt("Effect Index", &_currentBackgroundEffect, 0, static_cast<int>(_backgroundEffects.size() - 1));
+        // ── Lighting ─────────────────────────────────────────────────────────
+        if (ImGui::CollapsingHeader("Lighting"))
+        {
+            ImGui::ColorEdit4("Sun Color", reinterpret_cast<float*>(&_tempSunColor));
+            ImGui::DragFloat4("Sun Direction", reinterpret_cast<float*>(&_tempSunDir), 0.1f);
+            ImGui::DragFloat4("Ambient Color", reinterpret_cast<float*>(&_tempAmbientColor), 0, 2.f);
+        }
 
-		ImGui::ColorEdit4("data1", reinterpret_cast<float*>(&selected._data._data1));
-		ImGui::ColorEdit4("data2", reinterpret_cast<float*>(&selected._data._data2));
-		ImGui::ColorEdit4("data3", reinterpret_cast<float*>(&selected._data._data3));
-		ImGui::ColorEdit4("data4", reinterpret_cast<float*>(&selected._data._data4));
-		ImGui::Separator();
-		ImGui::SliderFloat("camera fov", &_tempCameraFov, 1, 180);
-		// ImGui::SliderFloat3("pos", &tempView.x, -20.0f, 1.f);
-		// ImGui::SliderFloat("Render Scale", &_renderScale, 0.3f, 2.f);
-		ImGui::Value("cameraPitchRad", _mainCamera._pitch);
-        ImGui::Separator();
-		ImGui::ColorEdit4("SunColor", reinterpret_cast<float*>(&_tempSunColor));
-		// ImGui::ColorEdit4("AmbientColor", reinterpret_cast<float*>(&tempAmbientColor));
-        ImGui::DragFloat4("ambient col", reinterpret_cast<float*>(&_tempAmbientColor), 0, 2.f);
-		ImGui::DragFloat4("SunDir1", reinterpret_cast<float*>(&_tempSunDir), 0.1f);
-
-		if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
+        // ── Stats ────────────────────────────────────────────────────────────
+        if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
         {
             ImGui::Text("Frame Time: %.3f ms (%.1f FPS)", _stats._frameTime, 1000.0f / _stats._frameTime);
-		    ImGui::Text("draw time %f ms", _stats._meshDrawTime);
-		    ImGui::Text("update time %f ms", _stats._sceneUpdateTime);
+            ImGui::Text("Draw Time:   %.3f ms", _stats._meshDrawTime);
+            ImGui::Text("Update Time: %.3f ms", _stats._sceneUpdateTime);
             ImGui::Separator();
-            #ifdef _DEBUG
-            ImGui::Text("triangles %s", FormatWithCommas(_stats._triCount).c_str());
-            ImGui::Text("draws %s", FormatWithCommas(_stats._drawCallCount).c_str());
-            #else
-            ImGui::Text("triangles %u", _stats._triCount);
-            ImGui::Text("draws %i", _stats._drawCallCount);
-            #endif
-            ImGui::Text("Texture Cache %llu", _texCache._cache.size());
-            ImGui::Text("Texture Engine Default %llu", _texCache._engineDefaultImages.size());
-            ImGui::Text("Textures3 %llu", _texCache._freeSlots.size());
-            ImGui::Text("Textures5 %llu", _texCache._lookup.size());
-            if (ImGui::CollapsingHeader("VMA", ImGuiTreeNodeFlags_DefaultOpen))
+            ImGui::Text("Triangles:         %s", momo_stringUtils::format_with_commas(_stats._triCount).c_str());
+            ImGui::Text("Total Draws:       %s", momo_stringUtils::format_with_commas(_stats._totalDrawCallCount).c_str());
+            ImGui::Text("Opaque Draws:      %s", momo_stringUtils::format_with_commas(_stats._opaqueDrawCallCount).c_str());
+            ImGui::Text("Transparent Draws: %s", momo_stringUtils::format_with_commas(_stats._transparentDrawCallCount).c_str());
+            ImGui::Separator();
+            ImGui::Text("Models Loaded:       %llu", _loadedScenes.size());
+            ImGui::Text("Opaque Surfaces:     %llu", _mainDrawContext._opaqueSurfaces.size());
+            ImGui::Text("Transparent Surfaces:%llu", _mainDrawContext._transparentSurfaces.size());
+        }
+
+        // ── Textures ─────────────────────────────────────────────────────────
+        if (ImGui::CollapsingHeader("Textures"))
+        {
+            ImGui::Text("Cache Size:       %llu", _texCache._cache.size());
+            ImGui::Text("Engine Defaults:  %llu", _texCache._engineDefaultImages.size());
+            ImGui::Text("Free Slots:       %llu", _texCache._freeSlots.size());
+        }
+
+        // ── Memory ───────────────────────────────────────────────────────────
+        if (ImGui::CollapsingHeader("Memory", ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            // VRAM budget — queries driver every frame (fast with VK_EXT_memory_budget)
+            {
+                const VkPhysicalDeviceMemoryProperties* memProps;
+                vmaGetMemoryProperties(_allocator, &memProps);
+
+                VmaBudget budgets[VK_MAX_MEMORY_HEAPS];
+                vmaGetHeapBudgets(_allocator, budgets);
+
+                VkDeviceSize totalVramUsage = 0;
+                VkDeviceSize totalVramBudget = 0;
+                for (uint32_t i = 0; i < memProps->memoryHeapCount; ++i)
+                {
+                    if (memProps->memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
+                    {
+                        totalVramUsage  += budgets[i].usage;
+                        totalVramBudget += budgets[i].budget;
+                    }
+                }
+
+                const double usageMB  = static_cast<double>(totalVramUsage)  / (1024.0 * 1024.0);
+                const double budgetMB = static_cast<double>(totalVramBudget) / (1024.0 * 1024.0);
+                ImGui::Text("VRAM: %.2f MB / %.2f MB", usageMB, budgetMB);
+                if (totalVramBudget > 0)
+                {
+                    const float fraction = static_cast<float>(totalVramUsage) / static_cast<float>(totalVramBudget);
+                    ImGui::ProgressBar(fraction, ImVec2(-1.f, 0.f));
+                }
+            }
+
+            ImGui::Separator();
+
+            // VMA internal stats — expensive, cached every 5 seconds
             {
                 const auto now = std::chrono::steady_clock::now();
                 if (now - _lastVmaStatsTime >= std::chrono::seconds(5))
@@ -1518,74 +1585,40 @@ void VulkanEngine::ImGui_Run()
                 }
                 const VmaTotalStatistics& stats = _cachedVmaStats;
 
-                const double allocatedMB = static_cast<double>(stats.total.statistics.allocationBytes) / (1024.0 * 1024.0);
-                const double blockMB = static_cast<double>(stats.total.statistics.blockBytes) / (1024.0 * 1024.0);
-                const double allocationSizeMaxMB = static_cast<double>(stats.total.allocationSizeMax) / (1024.0 * 1024.0);
+                const double allocatedMB       = static_cast<double>(stats.total.statistics.allocationBytes) / (1024.0 * 1024.0);
+                const double blockMB           = static_cast<double>(stats.total.statistics.blockBytes)      / (1024.0 * 1024.0);
+                const double allocationSizeMaxMB = static_cast<double>(stats.total.allocationSizeMax)        / (1024.0 * 1024.0);
                 const uint64_t minSize = (stats.total.statistics.allocationCount == 0) ? 0 : stats.total.allocationSizeMin;
 
-                ImGui::Text("Total Memory Allocated: %.2f MB", allocatedMB);
-                ImGui::Text("Total Allocations: %u", stats.total.statistics.allocationCount);
-                ImGui::Text("Total Blocks: %u", stats.total.statistics.blockCount);
-                ImGui::Text("BlockBytes: %.2f MB", blockMB);
-                ImGui::Text("AllocationSize Max: %.2f MB", allocationSizeMaxMB);
-                ImGui::Text("AllocationSize Min: %llu Bytes", minSize);
-			}
-            if (ImGui::CollapsingHeader("VRAM Usage", ImGuiTreeNodeFlags_DefaultOpen))
-            {
-                // Get memory properties to figure out which heaps are VRAM
-                const VkPhysicalDeviceMemoryProperties* memProps;
-                vmaGetMemoryProperties(_allocator, &memProps);
-
-                // Fetch budget (Fast, safe to call every frame)
-                VmaBudget budgets[VK_MAX_MEMORY_HEAPS];
-                vmaGetHeapBudgets(_allocator, budgets);
-
-                VkDeviceSize totalVramUsage = 0;
-                VkDeviceSize totalVramBudget = 0;
-
-                // Loop through heaps and only add up the Device Local (VRAM) heaps
-                for (uint32_t i = 0; i < memProps->memoryHeapCount; ++i)
-                {
-                    if (memProps->memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
-                    {
-                        totalVramUsage += budgets[i].usage;
-                        totalVramBudget += budgets[i].budget;
-                    }
-                }
-
-                const double usageMB = static_cast<double>(totalVramUsage) / (1024.0 * 1024.0);
-                const double budgetMB = static_cast<double>(totalVramBudget) / (1024.0 * 1024.0);
-
-                ImGui::Text("VRAM Usage: %.2f MB / %.2f MB", usageMB, budgetMB);
-
-                // Optional: Progress bar for visual representation
-                if (totalVramBudget > 0)
-                {
-                    const float fraction = static_cast<float>(totalVramUsage) / static_cast<float>(totalVramBudget);
-                    ImGui::ProgressBar(fraction, ImVec2(-1.f, 0.f));
-                }
+                ImGui::Text("VMA Allocated:  %.2f MB", allocatedMB);
+                ImGui::Text("VMA Blocks:     %.2f MB", blockMB);
+                ImGui::Text("Alloc Count:    %u",      stats.total.statistics.allocationCount);
+                ImGui::Text("Block Count:    %u",      stats.total.statistics.blockCount);
+                ImGui::Text("Alloc Max:      %.2f MB", allocationSizeMaxMB);
+                ImGui::Text("Alloc Min:      %llu B",  minSize);
             }
         }
 
-        if (ImGui::CollapsingHeader("RenderDoc"))
+        // ── RenderDoc ────────────────────────────────────────────────────────
+        if (const bool isRenderDocLoaded = _renderDoc.Is_Loaded();
+            ImGui::CollapsingHeader("RenderDoc", isRenderDocLoaded ? ImGuiTreeNodeFlags_DefaultOpen : 0))
         {
-            if (_renderDoc.Is_Loaded()) // NOLINT(readability-static-accessed-through-instance)
+            if (isRenderDocLoaded) // NOLINT(readability-static-accessed-through-instance)
             {
                 if (ImGui::Button("Trigger Capture"))
                     _renderDoc.Trigger_Capture(); // NOLINT(readability-static-accessed-through-instance)
                 ImGui::SameLine();
                 if (ImGui::Button("Open in RenderDoc"))
-                    _renderDoc.Launch_Replay_UI();  // NOLINT(readability-static-accessed-through-instance)
+                    _renderDoc.Launch_Replay_UI(); // NOLINT(readability-static-accessed-through-instance)
             }
             else
             {
-                ImGui::TextDisabled("Not loaded. Enable Cmake Option or Launch via RenderDoc or set RENDERDOC_PATH.");
+                ImGui::TextDisabled("Not loaded. Enable CMake option or launch via RenderDoc.");
             }
         }
 
-	    ImGui::End();
-
-	}
+        ImGui::End();
+    }
 }
 
 void VulkanEngine::ImGui_Update()
@@ -1608,8 +1641,11 @@ void VulkanEngine::ImGui_Update()
 void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 {
 	// reset counters
-	_stats._drawCallCount = 0;
+	_stats._totalDrawCallCount = 0;
 	_stats._triCount = 0;
+    _stats._opaqueDrawCallCount = 0;
+    _stats._transparentDrawCallCount = 0;
+
 	auto start = std::chrono::system_clock::now();
 
 	std::vector<uint32_t> opaque_draws;
@@ -1789,7 +1825,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
             }
 #endif
             vkCmdDrawIndexed(aCmd, aR._indexCount, 1, aR._firstIndex, 0, 0);
-            _stats._drawCallCount++;
+            _stats._totalDrawCallCount++;
             _stats._triCount += aR._indexCount / 3;
         };
 	    {
@@ -1801,6 +1837,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
                 MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh.combinedDebugLabel);
 #endif
                 draw(mesh);
+                _stats._opaqueDrawCallCount++;
 	        }
 	    }
 	    {
@@ -1813,6 +1850,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
                 MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh.combinedDebugLabel);
 #endif
                 draw(mesh);
+                _stats._transparentDrawCallCount++;
 	        }
 	    }
     }
