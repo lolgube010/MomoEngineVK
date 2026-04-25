@@ -14,6 +14,7 @@ layout(set = 1, binding = 0) uniform GLTFMaterialData{
 	vec4 metal_rough_factors;
 	int colorTexID;
 	int metalRoughTexID;
+	float alphaCutOff;
 } materialData;
 
 #ifdef USE_BINDLESS

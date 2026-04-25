@@ -264,12 +264,26 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
             constants._metalRoughFactors.x = mat.pbrData.metallicFactor;
             constants._metalRoughFactors.y = mat.pbrData.roughnessFactor;
             
-            auto passType = MaterialPass::MainColor;
-            if (mat.alphaMode == fastgltf::AlphaMode::Blend)
+            
+            MaterialPass passType;
+            switch (mat.alphaMode)
             {
-                passType = MaterialPass::Transparent;
+                case fastgltf::AlphaMode::Opaque: 
+                    passType = MaterialPass::MainColor;
+                    constants._alphaCutOff = 0; 
+                    break;
+                case fastgltf::AlphaMode::Mask: 
+                    passType = MaterialPass::MainColor;
+                    constants._alphaCutOff = mat.alphaCutoff; 
+                    break;
+                case fastgltf::AlphaMode::Blend:
+                    passType = MaterialPass::Transparent;
+                    constants._alphaCutOff = mat.alphaCutoff; 
+                    // constants._alphaCutOff = 0;
+                    break;
             }
-
+            // fmt::print("alphaCutoff; {}\n", mat.alphaCutoff);
+            // fmt::print("mat alphamode: {}\n", static_cast<int>(mat.alphaMode));
             GLTFMetallic_Roughness::MaterialResources materialResources;
             
             // default the material textures

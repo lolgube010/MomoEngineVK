@@ -91,6 +91,7 @@ void GLTFMetallic_Roughness::Build_Pipelines()
     _opaquePipeline._pipeline = pipelineBuilder.Build_Pipeline(engine._device, "GLTFMetallic_Roughness Opaque");
 	
     // create the transparent variant, enable additive blending!
+	// pipelineBuilder.Enable_Blending_AlphaBlend();
 	pipelineBuilder.Enable_Blending_Additive();
 
 	pipelineBuilder.Enable_DepthTest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
@@ -1400,9 +1401,9 @@ void VulkanEngine::Init_Default_Data()
 
 void VulkanEngine::Init_Models()
 {
-    const std::string structurePath = {R"(..\..\assets\sponza\sponza-png.glb)"};
+    // const std::string structurePath = {R"(..\..\assets\sponza\sponza-png.glb)"};
     // const std::string structurePath = {R"(..\..\assets\sponza\sponza-avif-hi.glb)"}; // unsupported model test
-    // const std::string structurePath = {R"(..\..\assets\structure.glb)"};
+    const std::string structurePath = {R"(..\..\assets\structure.glb)"};
     const auto structureFile = momo_vkGLTF::load_gltf(structurePath);
     assert(structureFile.has_value());
 

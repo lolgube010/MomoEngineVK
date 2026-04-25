@@ -44,7 +44,7 @@ struct GLTFMetallic_Roughness
 
 		uint32_t _colorTexID;
         uint32_t _metalRoughTexID;
-        uint32_t _pad1;
+        float _alphaCutOff; // used for gltf with mask alpha mode
         uint32_t _pad2;
 		// We have also a bunch of vec4s for padding. In vulkan, when you want to bind a uniform buffer, it needs to meet a minimum requirement for its alignment. 256 bytes is a good default alignment for this which all the gpus we target meet, so we are adding those vec4s to pad the structure to 256 bytes.
 		glm::vec4 _extra[13] = {};
