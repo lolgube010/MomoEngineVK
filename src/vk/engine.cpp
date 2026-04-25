@@ -441,7 +441,8 @@ void VulkanEngine::Cleanup()
 	{
 		vkDeviceWaitIdle(_device);
 
-		_loadedScenes.clear();
+		// _loadedScenes.clear();
+        _loadedModels.clear();
 
 		for (auto& frame : _frames)
 		{
@@ -1401,13 +1402,27 @@ void VulkanEngine::Init_Default_Data()
 
 void VulkanEngine::Init_Models()
 {
-    // const std::string structurePath = {R"(..\..\assets\sponza\sponza-png.glb)"};
     // const std::string structurePath = {R"(..\..\assets\sponza\sponza-avif-hi.glb)"}; // unsupported model test
     const std::string structurePath = {R"(..\..\assets\structure.glb)"};
     const auto structureFile = momo_vkGLTF::load_gltf(structurePath);
     assert(structureFile.has_value());
 
-    _loadedScenes["structure"] = *structureFile;
+    const std::string sponzaPath = {R"(..\..\assets\sponza\sponza-png.glb)"};
+    const auto sponzaFile = momo_vkGLTF::load_gltf(sponzaPath);
+    assert(sponzaFile.has_value());
+
+    // _loadedScenes["structure"] = *structureFile;
+    Momo_Model structure;
+    structure._name = "structure";
+    structure._scene = *structureFile;
+    structure._transform = glm::mat4x4(glm::translate(glm::vec3(0.f, -50.f, 0.f)));
+    _loadedModels.push_back(structure);
+
+	Momo_Model sponza;
+    sponza._name = "sponza";
+    sponza._scene = *sponzaFile;
+    sponza._transform = glm::mat4x4(1.f);
+    _loadedModels.push_back(sponza);
 }
 
 void VulkanEngine::Create_Swapchain(const uint32_t aWidth, const uint32_t aHeight)
@@ -1531,7 +1546,8 @@ void VulkanEngine::ImGui_Run()
             ImGui::Text("Opaque Draws:      %s", momo_stringUtils::format_with_commas(_stats._opaqueDrawCallCount).c_str());
             ImGui::Text("Transparent Draws: %s", momo_stringUtils::format_with_commas(_stats._transparentDrawCallCount).c_str());
             ImGui::Separator();
-            ImGui::Text("Models Loaded:       %llu", _loadedScenes.size());
+            // ImGui::Text("Models Loaded:       %llu", _loadedScenes.size());
+            ImGui::Text("Models Loaded:       %llu", _loadedModels.size());
             ImGui::Text("Opaque Surfaces:     %llu", _mainDrawContext._opaqueSurfaces.size());
             ImGui::Text("Transparent Surfaces:%llu", _mainDrawContext._transparentSurfaces.size());
         }
@@ -1931,7 +1947,12 @@ void VulkanEngine::Update_Scene()
 	
 		// _loadedNodes["Cube"]->Draw(translation * scale, _mainDrawContext);
 	// }
-	_loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
+    for (const auto& gltf : _loadedModels)
+    {
+        gltf._scene->Draw(gltf._transform, _mainDrawContext);
+    }
+
+	// _loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
 
 	_mainCamera.Update();
 	const glm::mat4 view = _mainCamera.GetViewMatrix();

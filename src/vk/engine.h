@@ -148,6 +148,15 @@ struct EngineStats
     int _transparentDrawCallCount;
 };
 
+// make up a more fitting name later. this is a "gameplay wrapper" for a gltf with a custom transform + name included. this way we can just array this.
+// should be replaced with ecs down the line tbh.
+struct Momo_Model
+{
+    std::string _name;
+    glm::mat4x4 _transform;
+    std::shared_ptr<LoadedGLTF> _scene;
+};
+
 class VulkanEngine
 {
 public:
@@ -289,6 +298,7 @@ public:
 	Camera _mainCamera;
 
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> _loadedScenes;
+    std::vector<Momo_Model> _loadedModels;
 
 #ifdef TRACY_ENABLE
 	tracy::VkCtx* _tracyVkCtx = nullptr;
