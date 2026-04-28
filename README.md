@@ -24,6 +24,7 @@
 
 # tracy how to set up
 you might need to enable long paths on your system: `git config --system core.longpaths true`
+* enable tracy in cmake, tracy gpu if you need gpu perf as well. 
 * build the tracyProfiler target. 
 * run tracy-profiler.exe
 * make sure TRACY_ON_DEMAND is set to off in cmake, if it's on, rebuild tracy client
