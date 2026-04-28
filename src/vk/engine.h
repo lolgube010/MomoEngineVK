@@ -300,7 +300,7 @@ public:
 	std::unordered_map<std::string, std::shared_ptr<LoadedGLTF>> _loadedScenes;
     std::vector<Momo_Model> _loadedModels;
 
-#ifdef TRACY_ENABLE
+#if TRACY_ENABLE && TRACY_GPU_ENABLE
 	tracy::VkCtx* _tracyVkCtx = nullptr;
 #endif
 

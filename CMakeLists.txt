@@ -10,8 +10,9 @@ project(MomoVK
 # ---------------------------------------------------------------------------
 option(MOMOVK_ENABLE_DEBUG_NAMES "Enable Vulkan object debug naming in Debug builds" OFF)
 option(MOMOVK_ENABLE_RENDERDOC   "Enable RenderDoc in-app API integration"           OFF)
-option(TRACY_ENABLE              "Enable Tracy profiling client"                      ON)
+option(TRACY_ENABLE              "Enable Tracy profiling client"                      OFF)
 option(TRACY_ON_DEMAND           "Tracy on-demand mode (connect manually; disabling lets Tracy buffer startup data so you can profile init)"  OFF)
+option(TRACY_GPU_ENABLE          "Enable Tracy Vulkan GPU zones (vkGetQueryPoolResults has ~10ms/frame driver overhead on some GPUs; disable for clean CPU profiling)" OFF)
 
 # ---------------------------------------------------------------------------
 # Vulkan SDK — find once here; subdirectories use the resulting targets

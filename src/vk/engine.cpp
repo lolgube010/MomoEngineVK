@@ -267,6 +267,7 @@ void VulkanEngine::Draw()
     PROFILE_SCOPE_N("Draw")
 	{
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "wait for fences");
+        PROFILE_SCOPE_N("wait for fences")
 	    // wait until the gpu has finished rendering the last frame. Timeout of 1 second
 	    VK_CHECK(vkWaitForFences(_device, 1, &Get_Current_Frame()._renderFence, true, 1000000000));
 	    Get_Current_Frame()._deletionQueue.Flush();
@@ -275,6 +276,7 @@ void VulkanEngine::Draw()
     uint32_t swapchainImageIndex;
     {
 	    // request image from the swapchain
+        PROFILE_SCOPE_N("request image from swapchain")
         {
             const VkResult res = vkAcquireNextImageKHR(_device, _swapchain, 1000000000, Get_Current_Frame()._swapchainSemaphore, nullptr, &swapchainImageIndex);
             if (res == VK_ERROR_OUT_OF_DATE_KHR)
@@ -306,18 +308,23 @@ void VulkanEngine::Draw()
 
 	{
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "begin command buffer");
+        PROFILE_SCOPE_N("begin command buffer")
 	    //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
 	    const VkCommandBufferBeginInfo cmdBeginInfo = momo_vkInit::command_buffer_begin_info(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
 	    _drawExtent.height = static_cast<uint32_t>(static_cast<float>(std::min(_swapchainExtent.height, _drawImage._imageExtent.height)));
 	    _drawExtent.width = static_cast<uint32_t>(static_cast<float>(std::min(_swapchainExtent.width, _drawImage._imageExtent.width)));
 	    VK_CHECK(vkBeginCommandBuffer(cmd, &cmdBeginInfo));
+        PROFILE_GPU_COLLECT(_tracyVkCtx, cmd)
 	}
     {
         // PROFILE_GPU zone must be destroyed before vkEndCommandBuffer — keep it in this block
         // so its destructor (which calls vkCmdWriteTimestamp) fires while the buffer is still recording.
         PROFILE_GPU(_tracyVkCtx, cmd, "Render")
+        PROFILE_SCOPE_N("Render")
         {
+            PROFILE_SCOPE_N("transition draw img 1")
+            PROFILE_GPU(_tracyVkCtx, cmd, "transition draw img 1")
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
             // transition our main draw image into general layout so we can write into it.
             // we will overwrite it all so we don't care about what was the older layout
@@ -327,10 +334,13 @@ void VulkanEngine::Draw()
             // momo_vkUtil::Transition_Image(cmd, _drawImage.image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_UNDEFINED);
         }
         {
+            PROFILE_GPU(_tracyVkCtx, cmd, "draw main")
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "draw main");
+            PROFILE_SCOPE_N("draw main")
             Draw_Main(cmd);
         }
         {
+            PROFILE_GPU(_tracyVkCtx, cmd, "transition draw & swapchain img 3")
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & swapchain img 3");
             //transition the draw image and the swapchain image into their correct transfer layouts
             momo_vkUtil::transition_image(cmd, _drawImage._image, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _drawImage._imageFormat);
@@ -343,24 +353,29 @@ void VulkanEngine::Draw()
             momo_vkUtil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _swapchainImageFormat);
         }
         {
+            PROFILE_GPU(_tracyVkCtx, cmd, "Draw imGui Cmd Buffer")
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "Draw imGui Cmd Buffer");
             MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw imGui Graphics Queue");
+            PROFILE_SCOPE_N("draw imgui")
             // draw imgui into the swapchain image
             Draw_ImGui(cmd, _swapchainImageViews[swapchainImageIndex]);
         }
         {
+            PROFILE_GPU(_tracyVkCtx, cmd, "transition swapchain img 4")
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition swapchain img 4");
+            PROFILE_SCOPE_N("transition swapchain img 4")
             // set swapchain image layout to Present so we can show it on the screen
             momo_vkUtil::transition_image(cmd, _swapchainImages[swapchainImageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _swapchainImageFormat);
         }
-        PROFILE_GPU_COLLECT(_tracyVkCtx, cmd)
-    } // PROFILE_GPU destructor fires here — end timestamp written while buffer is still recording
+    }
     {
+        PROFILE_SCOPE_N("end command buffer")
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "end command buffer");
         //finalize the command buffer (we can no longer add commands, but it can now be executed)
         VK_CHECK(vkEndCommandBuffer(cmd));
     }
     {
+        PROFILE_SCOPE_N("submit command buffer queue")
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "submit command buffer queue");
 	    // prepare the submission to the queue. 
 	    // we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
@@ -379,6 +394,7 @@ void VulkanEngine::Draw()
 	    VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, Get_Current_Frame()._renderFence));
     }
     {
+        PROFILE_SCOPE_N("present")
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "present");
 	    // prepare present
 	    // this will put the image we just rendered to into the visible window.
@@ -403,6 +419,7 @@ void VulkanEngine::Run()
 	uint64_t lastTime = SDL_GetPerformanceCounter();
 	while (!bQuit)
 	{
+        PROFILE_SCOPE_N("Frame")
         const uint64_t currentTime = SDL_GetPerformanceCounter();
         float dt = static_cast<float>(currentTime - lastTime) / static_cast<float>(_stats._frequency);
         lastTime = currentTime;
@@ -428,10 +445,8 @@ void VulkanEngine::Run()
 
 		ImGui_Update();
         Update_Scene();
-        {
-	        Draw();
-            PROFILE_FRAME;
-        }
+	    Draw();
+        PROFILE_FRAME;
 	}
 }
 
@@ -455,7 +470,7 @@ void VulkanEngine::Cleanup()
 
 			frame._deletionQueue.Flush();
 		}
-#ifdef TRACY_ENABLE
+#if TRACY_ENABLE && TRACY_GPU_ENABLE
 		if (_tracyVkCtx)
 		{
 			TracyVkDestroy(_tracyVkCtx)
@@ -499,10 +514,13 @@ void VulkanEngine::Draw_ImGui(const VkCommandBuffer aCmd, const VkImageView aTar
 void VulkanEngine::Draw_Main(VkCommandBuffer aCmd)
 {
     {
+        PROFILE_GPU(_tracyVkCtx, aCmd, "draw background")
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "draw background");
+        PROFILE_SCOPE_N("draw background")
         Draw_Background(aCmd);
     }
     {
+        PROFILE_GPU(_tracyVkCtx, aCmd, "transition draw & depth img 2")
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "transition draw & depth img 2");
         momo_vkUtil::transition_image(aCmd, _drawImage._image, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _drawImage._imageFormat);
         momo_vkUtil::transition_image(aCmd, _depthImage._image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage._imageFormat);
@@ -510,7 +528,7 @@ void VulkanEngine::Draw_Main(VkCommandBuffer aCmd)
     {
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Geometry CmdBuff");
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "Draw Geometry Queue");
-
+        PROFILE_GPU(_tracyVkCtx, aCmd, "Draw Geometry")
         PROFILE_SCOPE_N("Draw Geometry")
         Draw_Geometry(aCmd);
     }
@@ -682,6 +700,7 @@ void VulkanEngine::Init_Vulkan()
     features12.descriptorBindingVariableDescriptorCount = true;
     features12.descriptorBindingSampledImageUpdateAfterBind = true;
     features12.runtimeDescriptorArray = true;
+    features12.hostQueryReset = true;
 
 	// vk 1.1 features
 	// VkPhysicalDeviceVulkan11Features features11{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES};
@@ -708,7 +727,7 @@ void VulkanEngine::Init_Vulkan()
 	}
 
     vkb::PhysicalDevice& physicalDevice = phys_ret.value();
-    if (const std::vector desiredExtensions = {"VK_EXT_memory_budget"}; 
+    if (const std::vector desiredExtensions = {"VK_EXT_memory_budget", "VK_EXT_calibrated_timestamps"}; 
 		!physicalDevice.enable_extensions_if_present(desiredExtensions))
     {
         fmt::print("failed to load some extensions!\n");
@@ -1277,10 +1296,9 @@ void VulkanEngine::Init_ImGui()
 void VulkanEngine::Init_Tracy()
 {
     PROFILE_SCOPE_N("Init_Tracy")
-#ifdef TRACY_ENABLE
-	// TracyVkContext requires the command buffer in the *initial* state (reset, not yet begun).
-	// Tracy manages vkBeginCommandBuffer / record / vkEndCommandBuffer / submit internally.
-	// Wrapping in Immediate_Submit pre-begins the buffer, causing a double-begin crash.
+#if TRACY_ENABLE && TRACY_GPU_ENABLE
+	// TracyVkContext requires the command buffer in the initial state (reset, not begun).
+	// Tracy submits it internally — passing a pre-begun buffer causes a double-begin crash.
 	VK_CHECK(vkResetCommandBuffer(_immCommandBuffer, 0));
 	_tracyVkCtx = TracyVkContext(_chosenGPU, _device, _graphicsQueue, _immCommandBuffer)
 	TracyVkContextName(_tracyVkCtx, "_Main Graphics Queue", sizeof("_Main Graphics Queue") - 1)
@@ -1847,20 +1865,24 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
             _stats._totalDrawCallCount++;
             _stats._triCount += aR._indexCount / 3;
         };
+
 	    {
             MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Opaque");
+            PROFILE_GPU(_tracyVkCtx, aCmd, "Draw Opaque")
 	        for (auto& r : opaque_draws) 
 	        {
                 const auto& mesh = _mainDrawContext._opaqueSurfaces[r];
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
                 MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh._combinedDebugLabel);
 #endif
+                PROFILE_GPU(_tracyVkCtx, aCmd, "aModel")
                 draw(mesh);
                 _stats._opaqueDrawCallCount++;
 	        }
 	    }
 	    {
             MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Transparent");
+            PROFILE_GPU(_tracyVkCtx, aCmd, "Draw Transparent")
             // momo_vkDebug::VK_SCOPED_CMD_LABEL label(aCmd, "Draw Transparent");
 	        for (auto& r : transparent_draws) 
 	        {
@@ -1868,6 +1890,7 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
                 MOMO_VK_SCOPED_CMD_LABEL(aCmd, mesh._combinedDebugLabel);
 #endif
+                PROFILE_GPU(_tracyVkCtx, aCmd, "aModel")
                 draw(mesh);
                 _stats._transparentDrawCallCount++;
 	        }

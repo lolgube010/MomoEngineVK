@@ -32,6 +32,7 @@ target_compile_definitions(MomoVK
     PRIVATE
         # Tracy: 1 when enabled, 0 when disabled — keeps the macro defined either way
         TRACY_ENABLE=$<IF:$<BOOL:${TRACY_ENABLE}>,1,0>
+        $<$<AND:$<BOOL:${TRACY_ENABLE}>,$<BOOL:${TRACY_GPU_ENABLE}>>:TRACY_GPU_ENABLE>
 )
 
 # Debug-names feature flag (Debug config only, opt-in via CMake option)

@@ -1,33 +1,33 @@
 #pragma once
 
-#ifdef TRACY_ENABLE
-#include <tracy/Tracy.hpp>          // or "tracy/Tracy.hpp" if you adjust include paths
-#include <tracy/TracyVulkan.hpp>    // for GPU support (optional but very useful in Vulkan projects)
+#if TRACY_ENABLE
+#include <tracy/Tracy.hpp>
 
-// CPU zones (most common)
-#define PROFILE_SCOPE           ZoneScoped
-#define PROFILE_SCOPE_N(name)   ZoneScopedN(name)
-#define PROFILE_SCOPE_C(color)  ZoneScopedC(color)   // color = 0xRRGGBB
+#define PROFILE_SCOPE               ZoneScoped
+#define PROFILE_SCOPE_N(name)       ZoneScopedN(name)
+#define PROFILE_SCOPE_C(color)      ZoneScopedC(color)
+#define PROFILE_NAMED(name)         ZoneNamedN(___tracy, name, true)
+#define PROFILE_FRAME               FrameMark
+#define PROFILE_FRAME_N(name)       FrameMarkNamed(name)
+#define PROFILE_MSG(msg)            TracyMessage(msg)
+#define PROFILE_PLOT(name, val)     TracyPlot(name, val)
 
-// Named + colored (handy for render passes)
-#define PROFILE_NAMED(name)     ZoneNamedN(___tracy, name, true)
-
-// Frame marker - call once per frame!
-#define PROFILE_FRAME           FrameMark
-#define PROFILE_FRAME_N(name)   FrameMarkNamed(name)
-
-// Optional: messages / plots
-#define PROFILE_MSG(msg)        TracyMessage(msg)
-#define PROFILE_PLOT(name, val) TracyPlot(name, val)
-
-// Vulkan GPU zones (highly recommended!)
-// Requires you to have a TracyVkCtx created (see below)
+// GPU zones — requires TRACY_GPU_ENABLE on top of TRACY_ENABLE.
+// Use TracyVkContext (non-calibrated). TracyVkContextCalibrated causes per-frame
+// stalls: vkGetCalibratedTimestampsEXT spins in Collect() until deviation is within
+// tolerance, and on jittery frames this can block for 60ms+. See Tracy issue #663.
+#if TRACY_GPU_ENABLE
+#include <tracy/TracyVulkan.hpp>
 #define PROFILE_GPU(ctx, cmdbuf, name)              TracyVkZone(ctx, cmdbuf, name)
 #define PROFILE_GPU_C(ctx, cmdbuf, name, color)     TracyVkZoneC(ctx, cmdbuf, name, color)
 #define PROFILE_GPU_COLLECT(ctx, cmdbuf)            TracyVkCollect(ctx, cmdbuf)
+#else
+#define PROFILE_GPU(ctx, cmdbuf, name)
+#define PROFILE_GPU_C(ctx, cmdbuf, name, color)
+#define PROFILE_GPU_COLLECT(ctx, cmdbuf)
+#endif
 
 #else
-// No-op when Tracy is disabled (TRACY_ENABLE=OFF or not set)
 #define PROFILE_SCOPE
 #define PROFILE_SCOPE_N(name)
 #define PROFILE_SCOPE_C(color)
