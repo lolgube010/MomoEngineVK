@@ -59,7 +59,7 @@ target_link_libraries(vkbootstrap
 )
 
 # ---------------------------------------------------------------------------
-# ImGui — statically compiled with Vulkan + SDL2 backends
+# ImGui — statically compiled with Vulkan + SDL3 backends
 # ---------------------------------------------------------------------------
 add_library(imgui STATIC
     imgui/imgui.h
