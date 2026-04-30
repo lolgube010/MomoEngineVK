@@ -33,7 +33,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/norm.hpp>
 
-#include <Jolt/Jolt.h>
+// #include <Jolt/Jolt.h>
 
 // globals
 constexpr bool USE_VALIDATION_LAYERS = true;

@@ -8,7 +8,7 @@ find_package(Vulkan REQUIRED COMPONENTS volk dxc)
 # ---------------------------------------------------------------------------
 # VMA (Vulkan Memory Allocator) — header-only, lives in the Vulkan SDK
 # ---------------------------------------------------------------------------
-find_path(VMA_INCLUDE_DIR NAMES vk_mem_alloc.h
+find_path(VMA_INCLUDE_DIR NAMES vma/vk_mem_alloc.h
     HINTS "$ENV{VULKAN_SDK}/Include"
 )
 add_library(vma INTERFACE)
@@ -109,10 +109,12 @@ set(ENABLE_INSTALL              OFF CACHE BOOL "" FORCE)       # no install targ
 set(ENABLE_ALL_WARNINGS         OFF CACHE BOOL "" FORCE)       # don't add /WX to Jolt's build
 set(OVERRIDE_CXX_FLAGS          OFF CACHE BOOL "" FORCE)       # don't clobber CMake's Debug/Release flags
 set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)      # LTO adds significant link time
-set(JPH_USE_DX12                OFF CACHE BOOL "" FORCE)       # GPU compute not needed yet
-set(JPH_USE_VK                  OFF CACHE BOOL "" FORCE)
+set(JPH_USE_DX12                OFF CACHE BOOL "" FORCE)
+set(JPH_USE_VK                  ON  CACHE BOOL "" FORCE)       # compile Jolt's Vulkan compute shaders via DXC
 set(JPH_USE_MTL                 OFF CACHE BOOL "" FORCE)
 set(JPH_USE_CPU_COMPUTE         OFF CACHE BOOL "" FORCE)
+set(JPH_SHADER_DEBUG_SYMBOLS    OFF CACHE BOOL "" FORCE)       # flip ON when debugging Jolt physics shaders
+set(JPH_SHADER_OPTIMIZATION     ON  CACHE BOOL "" FORCE)
 add_subdirectory(JoltPhysics/Build)
 
 # ---------------------------------------------------------------------------
