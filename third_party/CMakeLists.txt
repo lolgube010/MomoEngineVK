@@ -48,10 +48,10 @@ endif()
 # vkbootstrap — statically compiled
 # ---------------------------------------------------------------------------
 add_library(vkbootstrap STATIC
-    vkbootstrap/VkBootstrap.h
-    vkbootstrap/VkBootstrap.cpp
+    vkbootstrap/src/VkBootstrap.h
+    vkbootstrap/src/VkBootstrap.cpp
 )
-target_include_directories(vkbootstrap PUBLIC vkbootstrap)
+target_include_directories(vkbootstrap PUBLIC vkbootstrap/src)
 target_compile_features(vkbootstrap PRIVATE cxx_std_20)
 target_link_libraries(vkbootstrap
     PUBLIC Vulkan::volk
