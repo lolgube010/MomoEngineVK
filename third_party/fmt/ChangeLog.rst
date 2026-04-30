@@ -1,4 +1,4 @@
-10.1.1 - 2023-08-28
+10.1.1 - 2023-08-26
 -------------------
 
 * Added formatters for ``std::atomic`` and ``atomic_flag``
