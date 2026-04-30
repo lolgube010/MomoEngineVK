@@ -1182,9 +1182,9 @@ void VulkanEngine::Init_Background_Pipelines()
 	VK_CHECK(vkCreatePipelineLayout(_device, &computeLayout, nullptr, &_computePipelineLayout));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _computePipelineLayout, "_Pipeline Layout Compute Background");
 
-	constexpr auto useHLSL = momo_shaderUtil::ShaderLang::GLSL;
-    auto gradientShader = momo_shaderUtil::load_shader("gradient_color", momo_shaderUtil::ShaderType::Compute, useHLSL, _device);
-    auto skyShader = momo_shaderUtil::load_shader("sky", momo_shaderUtil::ShaderType::Compute, useHLSL, _device);
+	constexpr auto shaderLang = momo_shaderUtil::ShaderLang::GLSL;
+    auto gradientShader = momo_shaderUtil::load_shader("gradient_color", momo_shaderUtil::ShaderType::Compute, shaderLang, _device);
+    auto skyShader = momo_shaderUtil::load_shader("sky", momo_shaderUtil::ShaderType::Compute, shaderLang, _device);
 
 	VkPipelineShaderStageCreateInfo stageInfo = momo_vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_COMPUTE_BIT, gradientShader.value());
 
