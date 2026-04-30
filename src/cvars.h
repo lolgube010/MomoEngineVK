@@ -22,6 +22,7 @@ namespace momo_cvars
     class CVarSystem
     {
     public:
+        virtual ~CVarSystem() = default;
         static CVarSystem* Get();
 
         // pimpl
@@ -61,28 +62,27 @@ namespace momo_cvars
     {
         AutoCVar_Float(const char* aName, const char* aDescription, double aDefaultValue, CVarFlags aFlags = CVarFlags::None);
 
-        double Get();
-        double* GetPtr();
-        float GetFloat();
-        float* GetFloatPtr();
-        void Set(double aVal);
+        double Get() const;
+        double* GetPtr() const;
+        float GetFloat() const;
+        void Set(double aVal) const;
     };
 
     struct AutoCVar_Int : AutoCVar<int32_t>
     {
         AutoCVar_Int(const char* aName, const char* aDescription, int32_t aDefaultValue, CVarFlags aFlags = CVarFlags::None);
-        int32_t Get();
-        int32_t* GetPtr();
-        void Set(int32_t aVal);
+        int32_t Get() const;
+        int32_t* GetPtr() const;
+        void Set(int32_t aVal) const;
 
-        void Toggle();
+        void Toggle() const;
     };
 
     struct AutoCVar_String : AutoCVar<std::string>
     {
         AutoCVar_String(const char* aName, const char* aDescription, const char* aDefaultValue, CVarFlags aFlags = CVarFlags::None);
 
-        const char* Get();
-        void Set(std::string&& aVal);
+        const char* Get() const;
+        void Set(std::string&& aVal) const;
     };
 }
