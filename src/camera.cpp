@@ -28,9 +28,7 @@ glm::mat4 Camera::GetProjectionMatrix(const float aWidth, const float aHeight) c
     return matrix;
 }
 
-// TODO:
-// Movement in this code is frame-dependant, as we aren't taking the speed of the engine into account.
-void Camera::Update(SDL_Window* aWindow)
+void Camera::Update(SDL_Window* aWindow, float aDt)
 {
     const auto& input = Input::Instance();
     if (input.IsKeyPressed(SDL_SCANCODE_TAB))
@@ -52,6 +50,7 @@ void Camera::Update(SDL_Window* aWindow)
 
     _yaw += Input::Instance().GetMouseDeltaX() * mouseSensitivity;
     _pitch -= Input::Instance().GetMouseDeltaY() * mouseSensitivity;
+    Input::Instance().ResetMouseDelta();
     _pitch = glm::clamp(_pitch, -maxPitch, maxPitch);
 
     // 4. Handle Movement (WASD)
@@ -60,6 +59,7 @@ void Camera::Update(SDL_Window* aWindow)
     _velocity.z += Input::Instance().IsKeyHeld(SDL_SCANCODE_S) - Input::Instance().IsKeyHeld(SDL_SCANCODE_W);
     _velocity.x += Input::Instance().IsKeyHeld(SDL_SCANCODE_D) - Input::Instance().IsKeyHeld(SDL_SCANCODE_A);
 
+    constexpr float MOVE_SPEED = 30.0f;  // units/second (was 0.5f/frame * 60fps)
 	const glm::mat4 cameraRotation = GetRotationMatrix();
-	_position += glm::vec3(cameraRotation * glm::vec4(_velocity * 0.5f, 0.f));
+	_position += glm::vec3(cameraRotation * glm::vec4(_velocity * MOVE_SPEED * aDt, 0.f));
 }

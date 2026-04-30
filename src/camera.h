@@ -18,7 +18,7 @@ public:
     glm::mat4 GetRotationMatrix() const;
     glm::mat4 GetProjectionMatrix(float aWidth, float aHeight) const;
 
-    void Update(SDL_Window* aWindow);
+    void Update(SDL_Window* aWindow, float aDt);
     bool _isLocked = false;
     float _tempCameraFov = 90.f;
 };

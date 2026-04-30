@@ -339,7 +339,7 @@ private:
     void ImGui_Update();
 
 	void Resize_Swapchain();
-	void Update_Scene();
+	void Update_Scene(float aDt);
 
     void ProcessEvents(bool& aQuit);
     glm::vec4 _tempAmbientColor = glm::vec4(1.f);
@@ -355,4 +355,6 @@ private:
 
     VmaTotalStatistics _cachedVmaStats{};
     std::chrono::steady_clock::time_point _lastVmaStatsTime{};
+
+    double _accumulator = 0.0;
 };

@@ -9,9 +9,7 @@
 void Input::Init()
 {
     int numKeys;
-
     _currentState = SDL_GetKeyboardState(&numKeys);
-    _previousState.resize(numKeys, 0);
 
     SDL_InitSubSystem(SDL_INIT_GAMEPAD);
 
@@ -19,15 +17,12 @@ void Input::Init()
     _prevButtons.resize(SDL_GAMEPAD_BUTTON_COUNT, 0);
 }
 
-void Input::PreUpdate()
-{
-    std::copy_n(_currentState, _previousState.size(), _previousState.begin());
-    std::ranges::copy(_currButtons, _prevButtons.begin());
-}
-
 void Input::PostUpdate()
 {
-    SDL_GetRelativeMouseState(&_mouseDeltaX, &_mouseDeltaY);
+    float dx, dy;
+    SDL_GetRelativeMouseState(&dx, &dy);
+    _mouseDeltaX += dx;
+    _mouseDeltaY += dy;
     SDL_GetMouseState(&_mouseX, &_mouseY);
 
     if (_controller)
@@ -41,7 +36,15 @@ void Input::PostUpdate()
 
 void Input::ProcessEvent(const SDL_Event& aE)
 {
-    if (aE.type == SDL_EVENT_GAMEPAD_ADDED)
+    if (aE.type == SDL_EVENT_KEY_DOWN && !aE.key.repeat)
+    {
+        _justPressed.insert(aE.key.scancode);
+    }
+    else if (aE.type == SDL_EVENT_KEY_UP)
+    {
+        _justReleased.insert(aE.key.scancode);
+    }
+    else if (aE.type == SDL_EVENT_GAMEPAD_ADDED)
     {
         if (!_controller)
         {
@@ -61,6 +64,12 @@ void Input::ProcessEvent(const SDL_Event& aE)
     }
 }
 
+void Input::FlushKeyEvents()
+{
+    _justPressed.clear();
+    _justReleased.clear();
+}
+
 bool Input::IsKeyHeld(const SDL_Scancode aKey) const
 {
     return _currentState[aKey] != 0;
@@ -68,12 +77,12 @@ bool Input::IsKeyHeld(const SDL_Scancode aKey) const
 
 bool Input::IsKeyPressed(const SDL_Scancode aKey) const
 {
-    return _currentState[aKey] != 0 && _previousState[aKey] == 0;
+    return _justPressed.contains(aKey);
 }
 
 bool Input::IsKeyReleased(const SDL_Scancode aKey) const
 {
-    return _currentState[aKey] == 0 && _previousState[aKey] != 0;
+    return _justReleased.contains(aKey);
 }
 
 float Input::GetMouseX() const
@@ -87,6 +96,12 @@ float Input::GetMouseDeltaX() const
 
 float Input::GetMouseDeltaY() const
 { return _mouseDeltaY; }
+
+void Input::ResetMouseDelta()
+{
+    _mouseDeltaX = 0.f;
+    _mouseDeltaY = 0.f;
+}
 
 bool Input::IsButtonHeld(const SDL_GamepadButton aButton) const
 {
@@ -103,11 +118,8 @@ float Input::GetAxis(const SDL_GamepadAxis aAxis) const
     if (!_controller)
         return 0.0f;
 
-    // SDL returns axis values from -32768 to 32767.
-    // We normalize this to a float between -1.0f and 1.0f for easier math.
     const int16_t value = SDL_GetGamepadAxis(_controller, aAxis);
 
-    // Add a small dead-zone to prevent "stick drift"
     if (abs(value) < 8000)
         return 0.0f;
 

@@ -416,24 +416,44 @@ void VulkanEngine::Run()
 {
 	bool bQuit = false;
 
+    // Fixed simulation step — all gameplay/physics runs at this rate regardless of render rate.
+    constexpr double fixed_Step = 1.0 / 60.0;
+    // Spiral-of-doom guard: if a frame takes longer than this, we drop updates rather than
+    // trying to catch up indefinitely. 8 steps * 1/60 ≈ 133 ms (Tyler Glaiel's recommendation).
+    constexpr double max_Delta  = 8.0 * fixed_Step;
+    // Absorbs OS timer noise (~200 µs) so a vsynced frame always snaps to exactly 1/N seconds,
+    // keeping the accumulator in lockstep with the monitor's refresh cycle.
+    constexpr double snap_Tol   = 0.0002;
+
 	uint64_t lastTime = SDL_GetPerformanceCounter();
 	while (!bQuit)
 	{
         PROFILE_SCOPE_N("Frame")
         const uint64_t currentTime = SDL_GetPerformanceCounter();
-        float dt = static_cast<float>(currentTime - lastTime) / static_cast<float>(_stats._frequency);
+        double dt = static_cast<double>(currentTime - lastTime) / static_cast<double>(_stats._frequency);
         lastTime = currentTime;
-        dt = std::min(dt, 0.25f);
-        _stats._frameTime = dt * 1000.0f;
 
-        Input::Instance().PreUpdate();
-		ProcessEvents(bQuit);
+        dt = std::min(dt, max_Delta);
+        _stats._frameTime = static_cast<float>(dt * 1000.0);
+
+        // Snap to the nearest well-known frame duration to neutralize timer noise.
+        // Only fires when vsync (or a fixed-rate driver) holds the frame within 200 µs of a clean fraction.
+        if      (std::abs(dt - 1.0 / 240.0) < snap_Tol) dt = 1.0 / 240.0;
+        else if (std::abs(dt - 1.0 / 165.0) < snap_Tol) dt = 1.0 / 165.0;
+        else if (std::abs(dt - 1.0 / 144.0) < snap_Tol) dt = 1.0 / 144.0;
+        else if (std::abs(dt - 1.0 / 120.0) < snap_Tol) dt = 1.0 / 120.0;
+        else if (std::abs(dt - 1.0 /  60.0) < snap_Tol) dt = 1.0 /  60.0;
+        else if (std::abs(dt - 1.0 /  30.0) < snap_Tol) dt = 1.0 /  30.0;
+        else if (std::abs(dt - 1.0 /  20.0) < snap_Tol) dt = 1.0 /  20.0;
+
+        ProcessEvents(bQuit);
 		Input::Instance().PostUpdate();
 
 		// do not draw if we are minimized
 		if (_freezeRendering)
 		{
-			// throttle the speed to avoid the endless spinning
+            _accumulator = 0.0;  // don't try to catch up time spent minimized
+            Input::Instance().FlushKeyEvents();
 			std::this_thread::sleep_for(std::chrono::milliseconds(100));
 			continue;
 		}
@@ -443,8 +463,15 @@ void VulkanEngine::Run()
 			Resize_Swapchain();
 		}
 
+        _accumulator += dt;
+        while (_accumulator >= fixed_Step)
+        {
+            Update_Scene(static_cast<float>(fixed_Step));
+            Input::Instance().FlushKeyEvents();
+            _accumulator -= fixed_Step;
+        }
+
 		ImGui_Update();
-        Update_Scene();
 	    Draw();
         PROFILE_FRAME;
 	}
@@ -1970,7 +1997,7 @@ void VulkanEngine::Resize_Swapchain()
 	_resizeRequested = false;
 }
 
-void VulkanEngine::Update_Scene()
+void VulkanEngine::Update_Scene(float aDt)
 {
     PROFILE_SCOPE_N("Update_Scene")
 	const auto start = std::chrono::system_clock::now();
@@ -1981,10 +2008,10 @@ void VulkanEngine::Update_Scene()
 	// _loadedNodes["Suzanne"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
 
 	// for (int x = -3; x < 3; x++) {
-	
+
 		// glm::mat4 scale = glm::scale(glm::vec3{ 0.2f });
 		// glm::mat4 translation = glm::translate(glm::vec3{ x, 1, 0 });
-	
+
 		// _loadedNodes["Cube"]->Draw(translation * scale, _mainDrawContext);
 	// }
     for (const auto& gltf : _loadedModels)
@@ -1994,7 +2021,7 @@ void VulkanEngine::Update_Scene()
 
 	// _loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
 
-	_mainCamera.Update(_window);
+	_mainCamera.Update(_window, aDt);
 	const glm::mat4 view = _mainCamera.GetViewMatrix();
 	// camera projection
     const glm::mat4 projection = _mainCamera.GetProjectionMatrix(static_cast<float>(_windowExtent.width), static_cast<float>(_windowExtent.height));
