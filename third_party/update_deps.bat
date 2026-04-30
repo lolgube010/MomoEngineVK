@@ -22,7 +22,7 @@ set DEP_PATH_3=third_party/tracy
 ::
 :: -------------------------------------------------------
 
-set REPO_ROOT=%~dp0..\..
+set REPO_ROOT=%~dp0..
 set "TAG=%~1"
 
 echo.
