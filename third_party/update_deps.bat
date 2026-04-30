@@ -23,19 +23,22 @@ set DEP_PATH_5=third_party/vkbootstrap
 
 :: -------------------------------------------------------
 :: Single-file list — add new entries here
-:: FILE_URL_x  : raw URL with REFHERE where the branch/commit goes
-:: FILE_REF_x  : default branch or tag
-:: FILE_DST_x  : destination path relative to repo root
+:: FILE_URL_PRE_x  : URL up to (not including) the branch/commit ref
+:: FILE_URL_POST_x : URL after the branch/commit ref
+:: FILE_REF_x      : default branch or tag
+:: FILE_DST_x      : destination path relative to repo root
 :: -------------------------------------------------------
 set FILE_COUNT=2
 
 set FILE_NAME_1=stb_image
-set FILE_URL_1=https://raw.githubusercontent.com/nothings/stb/REFHERE/stb_image.h
+set FILE_URL_PRE_1=https://raw.githubusercontent.com/nothings/stb/
+set FILE_URL_POST_1=/stb_image.h
 set FILE_REF_1=master
 set FILE_DST_1=third_party/stb_image/stb_image.h
 
 set FILE_NAME_2=renderdoc_app
-set FILE_URL_2=https://raw.githubusercontent.com/baldurk/renderdoc/REFHERE/renderdoc/api/app/renderdoc_app.h
+set FILE_URL_PRE_2=https://raw.githubusercontent.com/baldurk/renderdoc/
+set FILE_URL_POST_2=/renderdoc/api/app/renderdoc_app.h
 set FILE_REF_2=v1.x
 set FILE_DST_2=third_party/renderdoc_app/renderdoc_app.h
 
@@ -136,14 +139,15 @@ goto :EOF
 
 :do_file
 set "NAME=!FILE_NAME_%~1!"
-set "BASE_URL=!FILE_URL_%~1!"
+set "PRE=!FILE_URL_PRE_%~1!"
+set "POST=!FILE_URL_POST_%~1!"
 set "DEFAULT_REF=!FILE_REF_%~1!"
 set "DST=!REPO_ROOT!\!FILE_DST_%~1:/=\!"
 
 set "REF=!DEFAULT_REF!"
 if not "!TAG!"=="" set "REF=!TAG!"
 
-set "URL=!BASE_URL:REFHERE=!REF!!"
+set "URL=!PRE!!REF!!POST!"
 
 echo [!NAME!] downloading from ref: !REF!
 curl -fsSL -o "!DST!" "!URL!"
