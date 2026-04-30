@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 :: -------------------------------------------------------
 :: Submodule list — add new entries here
 :: -------------------------------------------------------
-set DEP_COUNT=5
+set DEP_COUNT=6
 
 set DEP_NAME_1=fastgltf
 set DEP_PATH_1=third_party/fastgltf
@@ -20,6 +20,9 @@ set DEP_PATH_4=third_party/tracy
 
 set DEP_NAME_5=vkbootstrap
 set DEP_PATH_5=third_party/vkbootstrap
+
+set DEP_NAME_6=JoltPhysics
+set DEP_PATH_6=third_party/JoltPhysics
 
 :: -------------------------------------------------------
 :: Single-file list — add new entries here

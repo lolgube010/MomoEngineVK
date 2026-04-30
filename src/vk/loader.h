@@ -78,8 +78,8 @@ namespace momo_vkGLTF
     VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter aFilter);
 
     // TODO:
-    // For the textures, we are going to load them using stb_image. Sadly, it does not load KTX or DDS
-    // formats which are much better for GPU usage (compressed, direct upload, pregenerated mipmaps).
+    // For the textures, we are going to load them using stb_image. 
+    // Sadly, it does not load KTX or DDS formats which are much better for GPU usage (compressed, direct upload, pregenerated mipmaps).
 
     // CPU-side decode result + staging buffer ready for a batched GPU upload.
     // The VkImage is allocated but contains no data yet; Immediate_Submit fills it.

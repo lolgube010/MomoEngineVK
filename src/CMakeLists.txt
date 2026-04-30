@@ -68,6 +68,7 @@ target_link_libraries(MomoVK
         fastgltf::fastgltf
     PRIVATE
         Tracy::TracyClient
+        Jolt
 )
 
 if(MOMOVK_ENABLE_RENDERDOC)

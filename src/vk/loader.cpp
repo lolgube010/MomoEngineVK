@@ -592,7 +592,10 @@ std::optional<momo_vkGLTF::PendingTextureUpload> momo_vkGLTF::load_image_stbi(fa
     // buffer, and copies the pixels in. Does NOT submit any GPU work — call site batches uploads.
     const auto& engine = VulkanEngine::Get();
 
-    // TODO: Replace this — the entire std::visit block and the three variables before it(lines 555 - 613).This is the "what format is the image data in, decode it to raw RGBA pixels" section.With KTX2, the file already contains BCn / ASTC compressed data with all mip levels baked in — there 's no CPU decode step at all. You' d replace the stbi visitor with a ktxTexture2_CreateFromMemory call that gives you the raw compressed bytes directly.
+    // TODO: Replace this — the entire std::visit block and the three variables before it(lines 555 - 613).
+    // This is the "what format is the image data in, decode it to raw RGBA pixels" section.
+    // With KTX2, the file already contains BCn / ASTC compressed data with all mip levels baked in — there 's no CPU decode step at all. 
+    // You' d replace the stbi visitor with a ktxTexture2_CreateFromMemory call that gives you the raw compressed bytes directly.
     
     const char* imgName = nullptr;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES

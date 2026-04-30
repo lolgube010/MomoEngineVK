@@ -102,6 +102,20 @@ add_subdirectory(fastgltf)
 add_subdirectory(fmt EXCLUDE_FROM_ALL)
 
 # ---------------------------------------------------------------------------
+# Jolt Physics — CMakeLists.txt lives under Build/, not the repo root
+# ---------------------------------------------------------------------------
+set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)  # match /MD runtime used by the engine
+set(ENABLE_INSTALL              OFF CACHE BOOL "" FORCE)       # no install targets
+set(ENABLE_ALL_WARNINGS         OFF CACHE BOOL "" FORCE)       # don't add /WX to Jolt's build
+set(OVERRIDE_CXX_FLAGS          OFF CACHE BOOL "" FORCE)       # don't clobber CMake's Debug/Release flags
+set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)      # LTO adds significant link time
+set(JPH_USE_DX12                OFF CACHE BOOL "" FORCE)       # GPU compute not needed yet
+set(JPH_USE_VK                  OFF CACHE BOOL "" FORCE)
+set(JPH_USE_MTL                 OFF CACHE BOOL "" FORCE)
+set(JPH_USE_CPU_COMPUTE         OFF CACHE BOOL "" FORCE)
+add_subdirectory(JoltPhysics/Build)
+
+# ---------------------------------------------------------------------------
 # Tracy profiler client
 # TRACY_ENABLE and TRACY_ON_DEMAND are declared in the root CMakeLists.txt
 # so they are visible here as CMake cache variables.

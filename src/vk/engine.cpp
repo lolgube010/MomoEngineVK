@@ -33,6 +33,8 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/norm.hpp>
 
+#include <Jolt/Jolt.h>
+
 // globals
 constexpr bool USE_VALIDATION_LAYERS = true;
 constexpr auto APP_NAME = "MomoVK";
@@ -1752,9 +1754,11 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 	}
 
 	// TODO:
-	// Another way of doing this is that we would calculate a sort key, and then our opaque_draws would be something like 20 bits draw index, and 44 bits for sort key / hash.That way would be faster than this as it can be sorted through faster methods.
+	// Another way of doing this is that we would calculate a sort key, and then our opaque_draws would be something like 20 bits draw index, and 44 bits for sort key / hash.
+	// That way would be faster than this as it can be sorted through faster methods.
 	// this is also done every frame which I don't know is needed? since when do shaders on objects change.....? not that often right?
 	// TODO: multithread? maybe?
+	// TODO: MOVE TO GPU! Compute Based Culling!
 	
 	// sort the opaque surfaces by material and mesh
 	std::ranges::sort(opaque_draws, [&](const auto& anIndexA, const auto& anIndexB) 
@@ -1768,7 +1772,9 @@ void VulkanEngine::Draw_Geometry(const VkCommandBuffer aCmd)
 		return a._material < b._material;
 	});
 	
-	// TODO- With the transparent objects, you want to also change the sorting code so that it checks distance from bounds to the camera, so that objects draw more correct. But sorting by depth is incompatible with sorting by pipeline, so you will need to decide what works better for your case.
+	// TODO:
+	// With the transparent objects, you want to also change the sorting code so that it checks distance from bounds to the camera, so that objects draw more correct. 
+	// But sorting by depth is incompatible with sorting by pipeline, so you will need to decide what works better for your case.
 	std::ranges::sort(transparent_draws, [&](const auto& anIndexA, const auto& anIndexB)
 	{
 		// pipeline only sorting

@@ -199,7 +199,8 @@ public:
 	void Immediate_Submit(const std::function<void(VkCommandBuffer aCmd)>& aFunction) const;
 
 	// TODO:
-	// Note that this pattern is not very efficient, as we are waiting for the GPU command to fully execute before continuing with our CPU side logic. This is something people generally put on a background thread, whose sole job is to execute uploads like this one, and deleting/reusing the staging buffers.
+	// Note that this pattern is not very efficient, as we are waiting for the GPU command to fully execute before continuing with our CPU side logic. 
+	// This is something people generally put on a background thread, whose sole job is to execute uploads like this one, and deleting/reusing the staging buffers.
 	GPUMeshBuffers UploadMesh(std::span<uint32_t> aIndices, std::span<Vertex> aVertices, const char* aMeshName) const;
 
 	VkInstance _instance; // vulkan library handle - "The Vulkan context, used to access drivers."
