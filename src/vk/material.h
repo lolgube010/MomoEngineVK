@@ -6,6 +6,8 @@ struct GLTFMetallic_Roughness
 {
     MaterialPipeline _opaquePipeline;
     MaterialPipeline _transparentPipeline;
+    MaterialPipeline _opaqueWireframePipeline;
+    MaterialPipeline _transparentWireframePipeline;
 
     VkDescriptorSetLayout _materialLayout;
 

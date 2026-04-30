@@ -1,5 +1,7 @@
 #include <vk/engine_rendering.h>
 #include <engine_scene.h>
+#include <api/DebugDraw.h>
+#include "cvars.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
@@ -66,6 +68,7 @@ void EngineRenderer::Cleanup()
 #endif
 
     _metalRoughMaterial.Clear_Resources(_device);
+    DebugDraw::Get().Cleanup(_device, _allocator);
     _imgui.Cleanup(_device);
     _deletionQueue.Flush();
     _gpuResources.Cleanup(_device);
@@ -128,7 +131,8 @@ void EngineRenderer::Init_Vulkan()
     features12.hostQueryReset                         = true;
 
     VkPhysicalDeviceFeatures features10{};
-    features10.shaderInt64 = true;
+    features10.shaderInt64       = true;
+    features10.fillModeNonSolid  = true;
 
     vkb::PhysicalDeviceSelector selector{vkb_inst};
     auto phys_ret = selector
@@ -392,6 +396,11 @@ void EngineRenderer::Draw_Main(VkCommandBuffer aCmd, const DrawContext& aDrawCon
         PROFILE_SCOPE_N("Draw Geometry")
         Draw_Geometry(aCmd, aDrawContext, aSceneData, aFrameNumber);
     }
+    {
+        MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Debug Draw");
+        PROFILE_GPU(_tracyVkCtx, aCmd, "Debug Draw")
+        DebugDraw::Get().Draw(aCmd, _drawImage._imageView, _drawExtent, aSceneData._viewProj, aFrameNumber);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -508,25 +517,34 @@ void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext
 
     const VkDescriptorSet globalDescriptor = _persistentGlobalDescriptors[aFrameNumber % FRAME_OVERLAP];
 
+    static momo_cvars::AutoCVar_Int CVAR_Wireframe("r.wireframe", "render geometry as wireframe", 0, momo_cvars::CVarFlags::EditCheckbox);
+    const bool wireframe = CVAR_Wireframe.Get() != 0;
+
     MaterialPipeline* lastPipeline  = nullptr;
     MaterialInstance* lastMaterial  = nullptr;
     VkBuffer          lastIndexBuffer = VK_NULL_HANDLE;
 
     auto draw = [&](const RenderObject& aR)
     {
+        MaterialPipeline* const activePipeline = wireframe
+            ? ((aR._material->_passType == MaterialPass::Transparent)
+                ? &_metalRoughMaterial._transparentWireframePipeline
+                : &_metalRoughMaterial._opaqueWireframePipeline)
+            : aR._material->_pipeline;
+
         if (aR._material != lastMaterial)
         {
             MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Switching Material");
             lastMaterial = aR._material;
-            if (aR._material->_pipeline != lastPipeline)
+            if (activePipeline != lastPipeline)
             {
-                lastPipeline = aR._material->_pipeline;
-                vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, aR._material->_pipeline->_pipeline);
+                lastPipeline = activePipeline;
+                vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, activePipeline->_pipeline);
                 vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                        aR._material->_pipeline->_layout, 0, 1, &globalDescriptor, 0, nullptr);
+                                        activePipeline->_layout, 0, 1, &globalDescriptor, 0, nullptr);
             }
             vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
-                                    aR._material->_pipeline->_layout, 1, 1, &aR._material->_materialSet, 0, nullptr);
+                                    activePipeline->_layout, 1, 1, &aR._material->_materialSet, 0, nullptr);
         }
         if (aR._indexBuffer != lastIndexBuffer)
         {
@@ -536,7 +554,7 @@ void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext
         GPUDrawPushConstants pushConstants;
         pushConstants._worldMatrix  = aR._transform;
         pushConstants._vertexBuffer = aR._vertexBufferAddress;
-        vkCmdPushConstants(aCmd, aR._material->_pipeline->_layout,
+        vkCmdPushConstants(aCmd, activePipeline->_layout,
                            VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(GPUDrawPushConstants), &pushConstants);
 
 #ifdef MOMOVK_ENABLE_RENDERDOC
@@ -994,6 +1012,8 @@ void EngineRenderer::Init_Default_Data()
 
     materialResources._dataBuffer       = materialConstants._buffer;
     materialResources._dataBufferOffset = 0;
+
+    DebugDraw::Get().Init(_device, _allocator, _drawImage._imageFormat);
 }
 
 void EngineRenderer::Init_Tracy()
