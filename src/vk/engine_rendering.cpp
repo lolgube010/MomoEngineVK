@@ -5,6 +5,7 @@
 #include <SDL3/SDL_vulkan.h>
 
 #include <vk/images.h>
+#include <vk/initializers.h>
 #include <vk/pipelines.h>
 
 #define VMA_LEAK_LOG_FORMAT(format, ...) MOMO_VMA_LEAK_LOG(format, __VA_ARGS__)
