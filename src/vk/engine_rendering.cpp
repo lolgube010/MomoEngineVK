@@ -1006,10 +1006,59 @@ void EngineRenderer::Init_Tracy()
 #endif
 }
 
+void EngineRenderer::Resize_Draw_Images()
+{
+    vkDestroyImageView(_device, _drawImage._imageView, nullptr);
+    vmaDestroyImage(_allocator, _drawImage._image, _drawImage._allocation);
+    vkDestroyImageView(_device, _depthImage._imageView, nullptr);
+    vmaDestroyImage(_allocator, _depthImage._image, _depthImage._allocation);
+
+    const VkExtent3D drawImageExtent{.width = _windowExtent.width, .height = _windowExtent.height, .depth = 1};
+
+    _drawImage._imageFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
+    _drawImage._imageExtent = drawImageExtent;
+
+    VkImageUsageFlags drawImageUsages{};
+    drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+    drawImageUsages |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+    drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
+    drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
+    VmaAllocationCreateInfo img_allocinfo = {};
+    img_allocinfo.usage         = VMA_MEMORY_USAGE_AUTO;
+    img_allocinfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    const VkImageCreateInfo rimg_info = momo_vkInit::image_create_info(_drawImage._imageFormat, drawImageUsages, drawImageExtent);
+    vmaCreateImage(_allocator, &rimg_info, &img_allocinfo, &_drawImage._image, &_drawImage._allocation, nullptr);
+    vmaSetAllocationName(_allocator, _drawImage._allocation, "Draw Image");
+
+    const VkImageViewCreateInfo rview_info = momo_vkInit::imageview_create_info(_drawImage._imageFormat, _drawImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
+    VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage._imageView));
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE,      _drawImage._image,     "_Image Main Draw");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage._imageView, "_Image View Main Draw");
+
+    _depthImage._imageFormat = VK_FORMAT_D32_SFLOAT;
+    _depthImage._imageExtent = drawImageExtent;
+
+    const VkImageCreateInfo dimg_info = momo_vkInit::image_create_info(_depthImage._imageFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, drawImageExtent);
+    vmaCreateImage(_allocator, &dimg_info, &img_allocinfo, &_depthImage._image, &_depthImage._allocation, nullptr);
+    vmaSetAllocationName(_allocator, _depthImage._allocation, "Depth Image");
+
+    const VkImageViewCreateInfo dview_info = momo_vkInit::imageview_create_info(_depthImage._imageFormat, _depthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);
+    VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage._imageView));
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE,      _depthImage._image,     "_Image Main Depth");
+    MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage._imageView, "_Image View Main Depth");
+
+    DescriptorWriter writer;
+    writer.Write_Image(0, _drawImage._imageView, VK_NULL_HANDLE, VK_IMAGE_LAYOUT_GENERAL, VK_DESCRIPTOR_TYPE_STORAGE_IMAGE);
+    writer.Update_Set(_device, _drawImageDescriptors);
+}
+
 void EngineRenderer::Resize_Swapchain(VkExtent2D& aWindowExtent)
 {
     vkDeviceWaitIdle(_device);
     _swapchain.Resize(_device, _chosenGPU, _surface, _window, _windowExtent);
+    Resize_Draw_Images();
     aWindowExtent = _windowExtent;
 }
 

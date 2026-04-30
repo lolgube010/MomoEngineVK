@@ -170,6 +170,7 @@ private:
     void Init_ImGui();
     void Init_Default_Data();
     void Init_Tracy();
+    void Resize_Draw_Images();
 
     // ---------------------------------------------------------------------------
     // Draw helpers
