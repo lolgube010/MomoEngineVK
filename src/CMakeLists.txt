@@ -58,7 +58,7 @@ target_link_libraries(MomoVK
         glm
         fmt::fmt
         stb_image
-        SDL2::SDL2
+        SDL3::SDL3
         vkbootstrap
         imgui
         fastgltf::fastgltf
@@ -116,9 +116,9 @@ if(WIN32)
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
             "${DXC_DLL}"
             $<TARGET_FILE_DIR:MomoVK>
-        # SDL2 IMPORTED_LOCATION points to the DLL on Windows
+        # SDL3 IMPORTED_LOCATION points to the DLL on Windows
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            $<TARGET_PROPERTY:SDL2::SDL2,IMPORTED_LOCATION>
+            $<TARGET_PROPERTY:SDL3::SDL3,IMPORTED_LOCATION>
             $<TARGET_FILE_DIR:MomoVK>
         COMMAND_EXPAND_LISTS
     )

@@ -1,6 +1,8 @@
 #pragma once
 #include <vk/types.h>
-#include <SDL_events.h>
+#include <SDL3/SDL_events.h>
+
+struct SDL_Window;
 
 class Camera
 {
@@ -16,7 +18,7 @@ public:
     glm::mat4 GetRotationMatrix() const;
     glm::mat4 GetProjectionMatrix(float aWidth, float aHeight) const;
 
-    void Update();
+    void Update(SDL_Window* aWindow);
     bool _isLocked = false;
     float _tempCameraFov = 90.f;
 };

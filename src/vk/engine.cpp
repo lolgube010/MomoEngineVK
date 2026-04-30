@@ -1,7 +1,7 @@
 ﻿#include <vk/engine.h>
 
-#include <SDL.h>
-#include <SDL_vulkan.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 #include <vk/images.h>
 #include <vk/initializers.h>
@@ -22,7 +22,7 @@
 #include <string_utils.h>
 
 #include <imgui.h>
-#include <imgui_impl_sdl2.h>
+#include <imgui_impl_sdl3.h>
 #include <imgui_impl_vulkan.h>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
@@ -238,8 +238,6 @@ void VulkanEngine::Init()
 
 	_window = SDL_CreateWindow(
 		APP_NAME,
-		SDL_WINDOWPOS_UNDEFINED,
-		SDL_WINDOWPOS_UNDEFINED,
 		_windowExtent.width,
 		_windowExtent.height,
 		window_flags
@@ -680,7 +678,7 @@ void VulkanEngine::Init_Vulkan()
     }
 
 	//> init_device
-	SDL_Vulkan_CreateSurface(_window, _instance, &_surface);
+	SDL_Vulkan_CreateSurface(_window, _instance, nullptr, &_surface);
 
 	// vk 1.4 features
 	// VkPhysicalDeviceVulkan14Features features14{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES};
@@ -1247,7 +1245,7 @@ void VulkanEngine::Init_ImGui()
 	ImGui::StyleColorsClassic();
 
 	// this initializes imgui for SDL
-	ImGui_ImplSDL2_InitForVulkan(_window);
+	ImGui_ImplSDL3_InitForVulkan(_window);
 
 	// this initializes imgui for Vulkan
 	ImGui_ImplVulkan_InitInfo init_info = {};
@@ -1663,7 +1661,7 @@ void VulkanEngine::ImGui_Update()
     PROFILE_SCOPE_N("ImGuiFrame")
     // imgui new frame
     ImGui_ImplVulkan_NewFrame();
-    ImGui_ImplSDL2_NewFrame();
+    ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
 
     ////some imgui UI to test
@@ -1977,7 +1975,7 @@ void VulkanEngine::Update_Scene()
 
 	// _loadedScenes["structure"]->Draw(glm::mat4{ 1.f }, _mainDrawContext);
 
-	_mainCamera.Update();
+	_mainCamera.Update(_window);
 	const glm::mat4 view = _mainCamera.GetViewMatrix();
 	// camera projection
     const glm::mat4 projection = _mainCamera.GetProjectionMatrix(static_cast<float>(_windowExtent.width), static_cast<float>(_windowExtent.height));
@@ -2006,32 +2004,17 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
     while (SDL_PollEvent(&e) != 0)
     {
         // send SDL event to imgui for handling
-        ImGui_ImplSDL2_ProcessEvent(&e);
+        ImGui_ImplSDL3_ProcessEvent(&e);
         Input::Instance().ProcessEvent(e);
 
-		// close the window when user alt-f4s or clicks the X button
-        if (e.type == SDL_QUIT)
+        if (e.type == SDL_EVENT_QUIT)
         {
             aQuit = true;
         }
 
-        if (e.type == SDL_WINDOWEVENT)
-        {
-            switch (e.window.event)
-            {
-            case SDL_WINDOWEVENT_MINIMIZED:
-                _freezeRendering = true;
-                break;
-            case SDL_WINDOWEVENT_RESTORED:
-                _freezeRendering = false;
-                break;
-            case SDL_WINDOWEVENT_SIZE_CHANGED:
-                _resizeRequested = true;
-                break;
-            default:
-                break;
-            }
-        }
+        if (e.type == SDL_EVENT_WINDOW_MINIMIZED)       { _freezeRendering = true; }
+        if (e.type == SDL_EVENT_WINDOW_RESTORED)        { _freezeRendering = false; }
+        if (e.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED) { _resizeRequested = true; }
     }
 }
 

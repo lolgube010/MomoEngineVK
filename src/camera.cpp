@@ -2,6 +2,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/quaternion.hpp>
 #include <Input.h>
+#include <SDL3/SDL.h>
 
 glm::mat4 Camera::GetViewMatrix() const
 {
@@ -29,7 +30,7 @@ glm::mat4 Camera::GetProjectionMatrix(const float aWidth, const float aHeight) c
 
 // TODO:
 // Movement in this code is frame-dependant, as we aren't taking the speed of the engine into account.
-void Camera::Update()
+void Camera::Update(SDL_Window* aWindow)
 {
     const auto& input = Input::Instance();
     if (input.IsKeyPressed(SDL_SCANCODE_TAB))
@@ -38,7 +39,7 @@ void Camera::Update()
     }
     if (input.IsKeyPressed(SDL_SCANCODE_CAPSLOCK))
     {
-        SDL_SetRelativeMouseMode(static_cast<SDL_bool>(!SDL_GetRelativeMouseMode()));
+        SDL_SetWindowRelativeMouseMode(aWindow, !SDL_GetWindowRelativeMouseMode(aWindow));
     }
 
     if (_isLocked)
@@ -49,8 +50,8 @@ void Camera::Update()
     constexpr float mouseSensitivity = 0.005f;
     constexpr float maxPitch = 1.50f;
 
-    _yaw += static_cast<float>(Input::Instance().GetMouseDeltaX()) * mouseSensitivity;
-    _pitch -= static_cast<float>(Input::Instance().GetMouseDeltaY()) * mouseSensitivity;
+    _yaw += Input::Instance().GetMouseDeltaX() * mouseSensitivity;
+    _pitch -= Input::Instance().GetMouseDeltaY() * mouseSensitivity;
     _pitch = glm::clamp(_pitch, -maxPitch, maxPitch);
 
     // 4. Handle Movement (WASD)

@@ -7,7 +7,7 @@
 #include <windows.h>
 #endif
 
-#include <SDL_syswm.h>
+#include <SDL3/SDL.h>
 
 static std::string Find_RenderDoc_DLL()
 {
@@ -63,12 +63,12 @@ void RenderDocWrapper::Set_Window(const VkInstance aInstance, SDL_Window* aWindo
 {
     if (!_rdoc_api) return;
 
-    SDL_SysWMinfo wmInfo;
-    SDL_VERSION(&wmInfo.version);
-    if (!SDL_GetWindowWMInfo(aWindow, &wmInfo)) return;
+    auto* hwnd = static_cast<HWND>(SDL_GetPointerProperty(
+        SDL_GetWindowProperties(aWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
+    if (!hwnd) return;
 
     _devicePtr = RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE(aInstance);
-    _rdoc_api->SetActiveWindow(_devicePtr, wmInfo.info.win.window);
+    _rdoc_api->SetActiveWindow(_devicePtr, hwnd);
 }
 
 void RenderDocWrapper::Annotate_Draw(const VkCommandBuffer aCmd, const char* aMaterial, const char* aMesh, const char* aPass) const

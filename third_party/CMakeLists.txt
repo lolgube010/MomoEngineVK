@@ -24,24 +24,24 @@ add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE "${GLM_INCLUDE_DIR}")
 
 # ---------------------------------------------------------------------------
-# SDL2 — pre-built, ships with the Vulkan SDK
+# SDL3 — pre-built, ships with the Vulkan SDK
 # ---------------------------------------------------------------------------
-find_path(SDL2_INCLUDE_DIR NAMES SDL.h
-    HINTS "$ENV{VULKAN_SDK}/Include/SDL2" "$ENV{VULKAN_SDK}/Include"
+find_path(SDL3_INCLUDE_DIR NAMES SDL3/SDL.h
+    HINTS "$ENV{VULKAN_SDK}/Include"
 )
-find_library(SDL2_LIB NAMES SDL2
+find_library(SDL3_LIB NAMES SDL3
     HINTS "$ENV{VULKAN_SDK}/Lib" "$ENV{VULKAN_SDK}/lib"
 )
 
-add_library(SDL2::SDL2 SHARED IMPORTED GLOBAL)
-target_include_directories(SDL2::SDL2 INTERFACE "${SDL2_INCLUDE_DIR}")
+add_library(SDL3::SDL3 SHARED IMPORTED GLOBAL)
+target_include_directories(SDL3::SDL3 INTERFACE "${SDL3_INCLUDE_DIR}")
 
 if(WIN32)
-    set_target_properties(SDL2::SDL2 PROPERTIES IMPORTED_IMPLIB "${SDL2_LIB}")
-    find_file(SDL2_DLL NAMES SDL2.dll HINTS "$ENV{VULKAN_SDK}/Bin")
-    set_target_properties(SDL2::SDL2 PROPERTIES IMPORTED_LOCATION "${SDL2_DLL}")
+    set_target_properties(SDL3::SDL3 PROPERTIES IMPORTED_IMPLIB "${SDL3_LIB}")
+    find_file(SDL3_DLL NAMES SDL3.dll HINTS "$ENV{VULKAN_SDK}/Bin")
+    set_target_properties(SDL3::SDL3 PROPERTIES IMPORTED_LOCATION "${SDL3_DLL}")
 else()
-    set_target_properties(SDL2::SDL2 PROPERTIES IMPORTED_LOCATION "${SDL2_LIB}")
+    set_target_properties(SDL3::SDL3 PROPERTIES IMPORTED_LOCATION "${SDL3_LIB}")
 endif()
 
 # ---------------------------------------------------------------------------
@@ -69,10 +69,10 @@ add_library(imgui STATIC
     imgui/imgui_widgets.cpp
     imgui/imgui_tables.cpp
     imgui/backends/imgui_impl_vulkan.cpp
-    imgui/backends/imgui_impl_sdl2.cpp
+    imgui/backends/imgui_impl_sdl3.cpp
 )
 target_include_directories(imgui PUBLIC imgui imgui/backends)
-target_link_libraries(imgui PUBLIC Vulkan::volk SDL2::SDL2)
+target_link_libraries(imgui PUBLIC Vulkan::volk SDL3::SDL3)
 target_compile_definitions(imgui PUBLIC
     IMGUI_IMPL_VULKAN_USE_VOLK
     "IMGUI_IMPL_VULKAN_VOLK_FILENAME=<Volk/volk.h>"

@@ -1,6 +1,6 @@
 #pragma once
-#include <SDL_events.h>
-#include <SDL_keycode.h>
+#include <SDL3/SDL_events.h>
+#include <SDL3/SDL_keycode.h>
 
 class Input
 {
@@ -13,33 +13,33 @@ public:
     bool IsKeyHeld(SDL_Scancode aKey) const;
     bool IsKeyPressed(SDL_Scancode aKey) const;
     bool IsKeyReleased(SDL_Scancode aKey) const;
-    
-    int GetMouseX() const;
-    int GetMouseY() const;
 
-    int GetMouseDeltaX() const;
-    int GetMouseDeltaY() const;
+    float GetMouseX() const;
+    float GetMouseY() const;
 
-    bool IsButtonHeld(const SDL_GameControllerButton aButton) const;
+    float GetMouseDeltaX() const;
+    float GetMouseDeltaY() const;
 
-    bool IsButtonJustPressed(const SDL_GameControllerButton aButton) const;
+    bool IsButtonHeld(SDL_GamepadButton aButton) const;
+
+    bool IsButtonJustPressed(SDL_GamepadButton aButton) const;
 
     // --- Controller Axis Queries (Left Stick, Right Stick, Triggers) ---
-    float GetAxis(const SDL_GameControllerAxis aAxis) const;
+    float GetAxis(SDL_GamepadAxis aAxis) const;
 
-private: 
+private:
     // Keyboard
-    const Uint8* _currentState = nullptr;
-    std::vector<Uint8> _previousState;
+    const bool* _currentState = nullptr;
+    std::vector<uint8_t> _previousState;
 
     // Mouse
-    int _mouseDeltaX = 0, _mouseDeltaY = 0;
-    int _mouseX = 0, _mouseY = 0;
+    float _mouseDeltaX = 0, _mouseDeltaY = 0;
+    float _mouseX = 0, _mouseY = 0;
 
     // Controller
-    SDL_GameController* _controller = nullptr;
-    std::vector<Uint8> _currButtons;
-    std::vector<Uint8> _prevButtons;
+    SDL_Gamepad* _controller = nullptr;
+    std::vector<uint8_t> _currButtons;
+    std::vector<uint8_t> _prevButtons;
 
 public: // singleton slop
     static Input& Instance();
