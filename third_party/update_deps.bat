@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 :: -------------------------------------------------------
 :: Submodule list — add new entries here
 :: -------------------------------------------------------
-set DEP_COUNT=4
+set DEP_COUNT=5
 
 set DEP_NAME_1=fastgltf
 set DEP_PATH_1=third_party/fastgltf
@@ -12,11 +12,14 @@ set DEP_PATH_1=third_party/fastgltf
 set DEP_NAME_2=fmt
 set DEP_PATH_2=third_party/fmt
 
-set DEP_NAME_3=tracy
-set DEP_PATH_3=third_party/tracy
+set DEP_NAME_3=imgui
+set DEP_PATH_3=third_party/imgui
 
-set DEP_NAME_4=vkbootstrap
-set DEP_PATH_4=third_party/vkbootstrap
+set DEP_NAME_4=tracy
+set DEP_PATH_4=third_party/tracy
+
+set DEP_NAME_5=vkbootstrap
+set DEP_PATH_5=third_party/vkbootstrap
 :: -------------------------------------------------------
 ::
 :: Usage:
