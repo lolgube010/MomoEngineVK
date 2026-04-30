@@ -12,7 +12,7 @@
 #include <chrono>
 #include <api/MomoTracy.h>
 
-void EngineImGui::Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDevice, VkQueue aQueue, VkFormat aSwapchainFormat, SDL_Window* aWindow)
+void EngineImGui::Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDevice, uint32_t aQueueFamily, VkQueue aQueue, uint32_t aImageCount, VkFormat aSwapchainFormat, SDL_Window* aWindow)
 {
     PROFILE_SCOPE_N("Init_ImGui")
     const VkDescriptorPoolSize pool_sizes[] = {
@@ -49,13 +49,15 @@ void EngineImGui::Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDe
     ImGui_ImplSDL3_InitForVulkan(aWindow);
 
     ImGui_ImplVulkan_InitInfo init_info = {};
+    init_info.ApiVersion      = VK_API_VERSION_1_3;
     init_info.Instance        = aInstance;
     init_info.PhysicalDevice  = aGPU;
     init_info.Device          = aDevice;
+    init_info.QueueFamily     = aQueueFamily;
     init_info.Queue           = aQueue;
     init_info.DescriptorPool  = _imguiPool;
-    init_info.MinImageCount   = 3;
-    init_info.ImageCount      = 3;
+    init_info.MinImageCount   = aImageCount;
+    init_info.ImageCount      = aImageCount;
     init_info.UseDynamicRendering = true;
 
     init_info.PipelineInfoMain.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
@@ -69,10 +71,12 @@ void EngineImGui::Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDe
 void EngineImGui::Cleanup(VkDevice aDevice)
 {
     ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
+    ImGui::DestroyContext();
     vkDestroyDescriptorPool(aDevice, _imguiPool, nullptr);
 }
 
-void EngineImGui::Update(EngineRenderer& aRenderer, const EngineScene& aScene)
+void EngineImGui::Update(EngineRenderer& aRenderer, EngineScene& aScene)
 {
     PROFILE_SCOPE_N("ImGuiFrame")
     ImGui_ImplVulkan_NewFrame();
@@ -82,7 +86,7 @@ void EngineImGui::Update(EngineRenderer& aRenderer, const EngineScene& aScene)
     ImGui::Render();
 }
 
-void EngineImGui::Run(EngineRenderer& aRenderer, const EngineScene& aScene)
+void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
 {
     if (ImGui::Begin("settings"))
     {
@@ -102,7 +106,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, const EngineScene& aScene)
 
         if (ImGui::CollapsingHeader("Camera"))
         {
-            ImGui::SliderFloat("FOV",        &const_cast<EngineScene&>(aScene)._mainCamera._tempCameraFov, 1, 180);
+            ImGui::SliderFloat("FOV",        &aScene._mainCamera._tempCameraFov, 1, 180);
             ImGui::Value("Pitch (rad)",      aScene._mainCamera._pitch);
         }
 
@@ -111,9 +115,9 @@ void EngineImGui::Run(EngineRenderer& aRenderer, const EngineScene& aScene)
 
         if (ImGui::CollapsingHeader("Lighting"))
         {
-            ImGui::ColorEdit4("Sun Color",     reinterpret_cast<float*>(&const_cast<EngineScene&>(aScene)._tempSunColor));
-            ImGui::DragFloat4("Sun Direction", reinterpret_cast<float*>(&const_cast<EngineScene&>(aScene)._tempSunDir), 0.1f);
-            ImGui::DragFloat4("Ambient Color", reinterpret_cast<float*>(&const_cast<EngineScene&>(aScene)._tempAmbientColor), 0, 2.f);
+            ImGui::ColorEdit4("Sun Color",     reinterpret_cast<float*>(&aScene._tempSunColor));
+            ImGui::DragFloat4("Sun Direction", reinterpret_cast<float*>(&aScene._tempSunDir), 0.1f);
+            ImGui::DragFloat4("Ambient Color", reinterpret_cast<float*>(&aScene._tempAmbientColor), 0, 2.f);
         }
 
         if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))

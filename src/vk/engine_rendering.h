@@ -50,7 +50,7 @@ public:
     void Draw(const DrawContext& aDrawContext, const GPUSceneData& aSceneData,
               int& aFrameNumber, bool& aResizeRequested);
 
-    void ImGui_Update(const EngineScene& aScene);
+    void ImGui_Update(EngineScene& aScene);
 
     // Swapchain resize — pass VulkanEngine's windowExtent so it stays in sync
     void Resize_Swapchain(VkExtent2D& aWindowExtent);

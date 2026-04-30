@@ -415,7 +415,7 @@ void EngineRenderer::Draw_Background(const VkCommandBuffer aCmd) const
 // ImGui
 // ---------------------------------------------------------------------------
 
-void EngineRenderer::ImGui_Update(const EngineScene& aScene)
+void EngineRenderer::ImGui_Update(EngineScene& aScene)
 {
     _imgui.Update(*this, aScene);
 }
@@ -929,7 +929,7 @@ void EngineRenderer::Init_Background_Pipelines()
 
 void EngineRenderer::Init_ImGui()
 {
-    _imgui.Init(_instance, _chosenGPU, _device, _graphicsQueue, _swapchain.GetFormat(), _window);
+    _imgui.Init(_instance, _chosenGPU, _device, _graphicsQueueFamily, _graphicsQueue, _swapchain.GetImageCount(), _swapchain.GetFormat(), _window);
 }
 
 void EngineRenderer::Init_Default_Data()
