@@ -10,7 +10,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Source Files" FILES ${SO
 source_group("CMake" REGULAR_EXPRESSION "cmake_pch")
 
 if(WIN32)
-    list(APPEND SOURCE_FILES "${CMAKE_SOURCE_DIR}/resource.rc")
+    list(APPEND SOURCE_FILES "${CMAKE_SOURCE_DIR}/assets/ico/resource.rc")
 endif()
 
 add_executable(MomoVK ${SOURCE_FILES})
