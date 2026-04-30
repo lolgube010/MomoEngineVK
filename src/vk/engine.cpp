@@ -1519,6 +1519,19 @@ void VulkanEngine::Draw_Background(const VkCommandBuffer aCmd) const
 	vkCmdDispatch(aCmd, static_cast<uint32_t>(std::ceil(_drawExtent.width / 16.0)), static_cast<uint32_t>(std::ceil(_drawExtent.height / 16.0)), 1);
 }
 
+// checkbox CVAR
+momo_cvars::AutoCVar_Int CVAR_TestCheckbox("test.checkbox", "just a checkbox", 0, momo_cvars::CVarFlags::EditCheckbox);
+
+// int CVAR
+momo_cvars::AutoCVar_Int CVAR_TestInt("test.int", "just a configurable int", 42);
+
+// float CVAR
+momo_cvars::AutoCVar_Int CVAR_TestFloat("test.float", "just a configurable float", 13.37f);
+
+// string CVAR
+momo_cvars::AutoCVar_String CVAR_TestString("test.string", "just a configurable string", "just a configurable string");
+
+
 void VulkanEngine::ImGui_Run()
 {
     if (ImGui::Begin("settings"))
@@ -1543,7 +1556,11 @@ void VulkanEngine::ImGui_Run()
             ImGui::SliderFloat("FOV", &_mainCamera._tempCameraFov, 1, 180);
             ImGui::Value("Pitch (rad)", _mainCamera._pitch);
         }
-
+        // ── CVars ────────────────────────────────────────────────────────────
+        if (ImGui::CollapsingHeader("CVars"))
+        {
+            momo_cvars::CVarSystem::Get()->DrawImGuiEditor();
+        }
         // ── Lighting ─────────────────────────────────────────────────────────
         if (ImGui::CollapsingHeader("Lighting"))
         {

@@ -76,6 +76,16 @@ namespace momo_cvars
             _cvars[aIndex]._current = aVal;
         }
 
+        void ResetToDefault(int32_t aIndex)
+        {
+            _cvars[aIndex]._current = _cvars[aIndex]._initial;
+        }
+
+        bool IsDefault(int32_t aIndex) const
+        {
+            return _cvars[aIndex]._current == _cvars[aIndex]._initial;
+        }
+
         int Add(const T& aValue, CVarParameter* aParam)
         {
             int index = _lastCVar;
@@ -370,209 +380,183 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
     void CVarSystemImpl::DrawImGuiEditor()
     {
         static std::string searchText;
-
-        ImGui::InputText("Filter", &searchText);
         static bool bShowAdvanced = false;
+
+        ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - 55.f);
+        ImGui::InputText("##filter", &searchText);
+        ImGui::SameLine();
+        if (ImGui::SmallButton("Clear"))
+            searchText.clear();
+
         ImGui::Checkbox("Advanced", &bShowAdvanced);
         ImGui::Separator();
+
         _cachedEditParameters.clear();
 
-        auto add_to_edit_list = [&](auto aParameter)
+        auto add_to_edit_list = [&](CVarParameter* aParameter)
         {
-            const bool bHidden = (static_cast<uint32_t>(aParameter->_flags) & static_cast<uint32_t>(CVarFlags::NoEdit));
-            const bool bIsAdvanced = (static_cast<uint32_t>(aParameter->_flags) & static_cast<uint32_t>(CVarFlags::Advanced));
-
-            if (!bHidden)
-            {
-                if (!(!bShowAdvanced && bIsAdvanced) && aParameter->_name.find(searchText) != std::string::npos)
-                {
-                    _cachedEditParameters.push_back(aParameter);
-                };
-            }
+            const bool bHidden     = static_cast<uint32_t>(aParameter->_flags) & static_cast<uint32_t>(CVarFlags::NoEdit);
+            const bool bIsAdvanced = static_cast<uint32_t>(aParameter->_flags) & static_cast<uint32_t>(CVarFlags::Advanced);
+            if (!bHidden && (bShowAdvanced || !bIsAdvanced) && aParameter->_name.find(searchText) != std::string::npos)
+                _cachedEditParameters.push_back(aParameter);
         };
 
         for (int i = 0; i < GetCVarArray<int32_t>()->_lastCVar; i++)
-        {
             add_to_edit_list(GetCVarArray<int32_t>()->_cvars[i]._parameter);
-        }
         for (int i = 0; i < GetCVarArray<double>()->_lastCVar; i++)
-        {
             add_to_edit_list(GetCVarArray<double>()->_cvars[i]._parameter);
-        }
         for (int i = 0; i < GetCVarArray<std::string>()->_lastCVar; i++)
-        {
             add_to_edit_list(GetCVarArray<std::string>()->_cvars[i]._parameter);
-        }
+
+        std::ranges::sort(_cachedEditParameters, [](const CVarParameter* aA, const CVarParameter* aB) { return aA->_name < aB->_name; });
 
         if (_cachedEditParameters.size() > 10)
         {
             std::unordered_map<std::string, std::vector<CVarParameter*>> categorizedParams;
-
-            // insert all the edit parameters into the hashmap by category
             for (auto p : _cachedEditParameters)
             {
-                int dotPos = -1;
-                // find where the first dot is to categorize
-                for (int i = 0; i < p->_name.length(); i++)
-                {
-                    if (p->_name[i] == '.')
-                    {
-                        dotPos = i;
-                        break;
-                    }
-                }
-                std::string category;
-                if (dotPos != -1)
-                {
-                    category = p->_name.substr(0, dotPos);
-                }
-
+                const auto dotPos      = p->_name.find('.');
+                const std::string category = (dotPos != std::string::npos) ? p->_name.substr(0, dotPos) : "(general)";
                 categorizedParams[category].push_back(p);
             }
 
             for (auto& [category, parameters] : categorizedParams)
             {
-                // alphabetical sort
-                std::ranges::sort(parameters, [](const CVarParameter* aA, const CVarParameter* aB) { return aA->_name < aB->_name; });
-
-                if (ImGui::BeginMenu(category.c_str()))
+                if (ImGui::CollapsingHeader(category.c_str()))
                 {
                     float maxTextWidth = 0;
-
                     for (const auto p : parameters)
-                    {
                         maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->_name.c_str()).x);
-                    }
                     for (const auto p : parameters)
-                    {
                         EditParameter(p, maxTextWidth);
-                    }
-
-                    ImGui::EndMenu();
                 }
             }
         }
         else
         {
-            // alphabetical sort
-            std::ranges::sort(_cachedEditParameters, [](const CVarParameter* aA, const CVarParameter* aB) { return aA->_name < aB->_name; });
             float maxTextWidth = 0;
             for (const auto p : _cachedEditParameters)
-            {
                 maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->_name.c_str()).x);
-            }
             for (const auto p : _cachedEditParameters)
-            {
                 EditParameter(p, maxTextWidth);
-            }
         }
     }
 
-    static void label(const char* aLabel, const float aTextWidth)
+    static constexpr ImVec4 MODIFIED_COLOR = {1.0f, 0.75f, 0.2f, 1.0f};
+
+    static void label(const char* aLabel, const float aTextWidth, const bool aIsModified = false)
     {
         constexpr float slack = 50;
         constexpr float editorWidth = 100;
 
         const float fullWidth = aTextWidth + slack;
-
         const ImVec2 startPos = ImGui::GetCursorScreenPos();
 
+        if (aIsModified) ImGui::PushStyleColor(ImGuiCol_Text, MODIFIED_COLOR);
         ImGui::Text(aLabel);
+        if (aIsModified) ImGui::PopStyleColor();
 
         const ImVec2 finalPos = {startPos.x + fullWidth, startPos.y};
-
         ImGui::SameLine();
         ImGui::SetCursorScreenPos(finalPos);
-
         ImGui::SetNextItemWidth(editorWidth);
     }
     void CVarSystemImpl::EditParameter(CVarParameter* aP, const float aTextWidth)
     {
-        const bool readonlyFlag = (static_cast<uint32_t>(aP->_flags) & static_cast<uint32_t>(CVarFlags::EditReadOnly));
-        const bool checkboxFlag = (static_cast<uint32_t>(aP->_flags) & static_cast<uint32_t>(CVarFlags::EditCheckbox));
-        const bool dragFlag = (static_cast<uint32_t>(aP->_flags) & static_cast<uint32_t>(CVarFlags::EditFloatDrag));
+        const bool readonlyFlag = static_cast<uint32_t>(aP->_flags) & static_cast<uint32_t>(CVarFlags::EditReadOnly);
+        const bool checkboxFlag = static_cast<uint32_t>(aP->_flags) & static_cast<uint32_t>(CVarFlags::EditCheckbox);
+        const bool dragFlag     = static_cast<uint32_t>(aP->_flags) & static_cast<uint32_t>(CVarFlags::EditFloatDrag);
 
+        auto reset_button = [](auto&& aResetFn)
+        {
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button,        ImVec4(0.55f, 0.10f, 0.10f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.75f, 0.20f, 0.20f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive,  ImVec4(0.90f, 0.35f, 0.35f, 1.0f));
+            if (ImGui::SmallButton("R")) aResetFn();
+            ImGui::PopStyleColor(3);
+        };
 
         switch (aP->_type)
         {
         case CVarType::Int:
-
+        {
+            const bool isDefault = GetCVarArray<int32_t>()->IsDefault(aP->_arrayIndex);
             if (readonlyFlag)
             {
+                if (!isDefault) ImGui::PushStyleColor(ImGuiCol_Text, MODIFIED_COLOR);
                 ImGui::Text("%s= %i", aP->_name.c_str(), GetCVarArray<int32_t>()->GetCurrent(aP->_arrayIndex));
+                if (!isDefault) ImGui::PopStyleColor();
+            }
+            else if (checkboxFlag)
+            {
+                bool bCheckbox = GetCVarArray<int32_t>()->GetCurrent(aP->_arrayIndex) != 0;
+                label(aP->_name.c_str(), aTextWidth, !isDefault);
+                ImGui::PushID(aP->_name.c_str());
+                if (ImGui::Checkbox("", &bCheckbox))
+                    GetCVarArray<int32_t>()->SetCurrent(bCheckbox ? 1 : 0, aP->_arrayIndex);
+                if (!isDefault) reset_button([&]{ GetCVarArray<int32_t>()->ResetToDefault(aP->_arrayIndex); });
+                ImGui::PopID();
             }
             else
             {
-                if (checkboxFlag)
-                {
-                    bool bCheckbox = GetCVarArray<int32_t>()->GetCurrent(aP->_arrayIndex) != 0;
-                    label(aP->_name.c_str(), aTextWidth);
-
-                    ImGui::PushID(aP->_name.c_str());
-
-                    if (ImGui::Checkbox("", &bCheckbox))
-                    {
-                        GetCVarArray<int32_t>()->SetCurrent(bCheckbox ? 1 : 0, aP->_arrayIndex);
-                    }
-                    ImGui::PopID();
-                }
-                else
-                {
-                    label(aP->_name.c_str(), aTextWidth);
-                    ImGui::PushID(aP->_name.c_str());
-                    ImGui::InputInt("", GetCVarArray<int32_t>()->GetCurrentPtr(aP->_arrayIndex));
-                    ImGui::PopID();
-                }
+                label(aP->_name.c_str(), aTextWidth, !isDefault);
+                ImGui::PushID(aP->_name.c_str());
+                ImGui::InputInt("", GetCVarArray<int32_t>()->GetCurrentPtr(aP->_arrayIndex));
+                if (!isDefault) reset_button([&]{ GetCVarArray<int32_t>()->ResetToDefault(aP->_arrayIndex); });
+                ImGui::PopID();
             }
             break;
-
+        }
         case CVarType::Float:
-
+        {
+            const bool isDefault = GetCVarArray<double>()->IsDefault(aP->_arrayIndex);
             if (readonlyFlag)
             {
+                if (!isDefault) ImGui::PushStyleColor(ImGuiCol_Text, MODIFIED_COLOR);
                 ImGui::Text("%s= %f", aP->_name.c_str(), GetCVarArray<double>()->GetCurrent(aP->_arrayIndex));
+                if (!isDefault) ImGui::PopStyleColor();
             }
             else
             {
-                label(aP->_name.c_str(), aTextWidth);
+                label(aP->_name.c_str(), aTextWidth, !isDefault);
                 ImGui::PushID(aP->_name.c_str());
                 if (dragFlag)
-                {
                     ImGui::DragScalar("", ImGuiDataType_Double, GetCVarArray<double>()->GetCurrentPtr(aP->_arrayIndex), 0.1f, nullptr, nullptr, "%.3f");
-                }
                 else
-                {
                     ImGui::InputDouble("", GetCVarArray<double>()->GetCurrentPtr(aP->_arrayIndex), 0, 0, "%.3f");
-                }
+                if (!isDefault) reset_button([&]{ GetCVarArray<double>()->ResetToDefault(aP->_arrayIndex); });
                 ImGui::PopID();
             }
             break;
-
+        }
         case CVarType::String:
-
+        {
+            const bool isDefault = GetCVarArray<std::string>()->IsDefault(aP->_arrayIndex);
             if (readonlyFlag)
             {
                 ImGui::PushID(aP->_name.c_str());
+                if (!isDefault) ImGui::PushStyleColor(ImGuiCol_Text, MODIFIED_COLOR);
                 ImGui::Text("%s= %s", aP->_name.c_str(), GetCVarArray<std::string>()->GetCurrentPtr(aP->_arrayIndex)->c_str());
-
+                if (!isDefault) ImGui::PopStyleColor();
                 ImGui::PopID();
             }
             else
             {
-                label(aP->_name.c_str(), aTextWidth);
+                label(aP->_name.c_str(), aTextWidth, !isDefault);
+                ImGui::SetNextItemWidth(isDefault ? -1.f : ImGui::GetContentRegionAvail().x - 30.f);
                 ImGui::PushID(aP->_name.c_str());
                 ImGui::InputText("", GetCVarArray<std::string>()->GetCurrentPtr(aP->_arrayIndex));
+                if (!isDefault) reset_button([&]{ GetCVarArray<std::string>()->ResetToDefault(aP->_arrayIndex); });
                 ImGui::PopID();
             }
             break;
-
+        }
         default:
             break;
         }
 
         if (ImGui::IsItemHovered())
-        {
             ImGui::SetTooltip(aP->_description.c_str());
-        }
     }
 }

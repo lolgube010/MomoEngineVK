@@ -3,6 +3,20 @@
 
 // based on https://vkguide.dev/docs/extra-chapter/cvar_system/
 
+// global definition
+// checkbox CVAR
+// AutoCVar_Int CVAR_TestCheckbox("test.checkbox", "just a checkbox", 0, CVarFlags::EditCheckbox);
+//
+// // int CVAR
+// AutoCVar_Int CVAR_TestInt("test.int", "just a configurable int", 42);
+//
+// // float CVAR
+// AutoCVar_Int CVAR_TestFloat("test.float", "just a configurable float", 13.37);
+//
+// // string CVAR
+// AutoCVar_String CVAR_TestString("test.string", "just a configurable string", "just a configurable string");
+
+
 namespace momo_cvars
 {
     class CVarParameter;
