@@ -4,7 +4,7 @@
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_mouse.h>
 
-#include <vk/engine.h>
+#include <engine.h>
 
 void Input::Init()
 {

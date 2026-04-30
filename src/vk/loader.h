@@ -1,19 +1,8 @@
-﻿#pragma once
-// Will contain GLTF loading logic
-
-#include <vk/types.h>
+#pragma once
+#include <vk/render_types.h>
 #include <unordered_map>
-
 #include <vk/descriptors.h>
 #include <fastgltf/types.hpp>
-
-struct Bounds 
-{
-    glm::vec3 _origin;
-    float _sphereRadius;
-    glm::vec3 _extents;
-    float _padding = 0;
-};
 
 struct GLTFMaterial
 {
@@ -30,34 +19,38 @@ struct GeoSurface
     Bounds _bounds;
     std::shared_ptr<GLTFMaterial> _material;
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
-    std::string _combinedDebugLabel; // built once at load: "Mesh: X, Material: Y"
+    std::string _combinedDebugLabel;
 #endif
 };
 
-struct MeshAsset 
+struct MeshAsset
 {
     std::string _name;
-    std::vector<GeoSurface> _surfaces; // submeshes of this specific mesh
+    std::vector<GeoSurface> _surfaces;
     GPUMeshBuffers _meshBuffers;
+};
+
+struct MeshNode : Node
+{
+    std::shared_ptr<MeshAsset> _mesh;
+    void Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx) override;
 };
 
 class VulkanEngine;
 
-struct LoadedGLTF : IRenderable 
+struct LoadedGLTF : IRenderable
 {
-    // storage for all the data on a given glTF file
     std::vector<std::shared_ptr<MeshAsset>> _meshes;
     std::unordered_map<std::string, std::shared_ptr<Node>> _nodes;
     std::vector<AllocatedImage> _images;
     std::vector<std::shared_ptr<GLTFMaterial>> _materials;
 
-    // nodes that don't have a parent, for iterating through the file in tree order
-    std::vector<std::shared_ptr<Node>> _topNodes;
+    std::vector<std::shared_ptr<Node>> _topNodes; // usually MeshNode
 
     std::vector<VkSampler> _samplers;
-    std::vector<TextureID> _textureIDs; // indices into VulkanEngine::texCache; freed on ClearAll
+    std::vector<TextureID> _textureIDs;
 
-    DescriptorAllocatorGrowable _descriptorPool; // every materialSet for every surface in this file.
+    DescriptorAllocatorGrowable _descriptorPool;
 
     AllocatedBuffer _materialDataBuffer;
 
@@ -76,17 +69,4 @@ namespace momo_vkGLTF
     VkFilter extract_filter(fastgltf::Filter aFilter);
 
     VkSamplerMipmapMode extract_mipmap_mode(fastgltf::Filter aFilter);
-
-    // TODO:
-    // For the textures, we are going to load them using stb_image. 
-    // Sadly, it does not load KTX or DDS formats which are much better for GPU usage (compressed, direct upload, pregenerated mipmaps).
-
-    // CPU-side decode result + staging buffer ready for a batched GPU upload.
-    // The VkImage is allocated but contains no data yet; Immediate_Submit fills it.
-    struct PendingTextureUpload
-    {
-        AllocatedImage _image;
-        AllocatedBuffer _stagingBuffer;
-    };
-    std::optional<PendingTextureUpload> load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage, std::string_view aFilePath);
 }

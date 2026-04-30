@@ -1,5 +1,5 @@
-﻿#pragma once 
-#include <vk/types.h>
+﻿#pragma once
+#include <vk/gpu_types.h>
 
 // Will contain abstractions for pipelines.
 
