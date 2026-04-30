@@ -2020,7 +2020,7 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
     SDL_Event e;
 
     // Handle events on queue
-    while (SDL_PollEvent(&e) != 0)
+    while (SDL_PollEvent(&e))
     {
         // send SDL event to imgui for handling
         ImGui_ImplSDL3_ProcessEvent(&e);
