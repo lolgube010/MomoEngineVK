@@ -19,6 +19,15 @@ option(TRACY_GPU_ENABLE          "Enable Tracy Vulkan GPU zones (vkGetQueryPoolR
 # ---------------------------------------------------------------------------
 find_package(Vulkan REQUIRED COMPONENTS volk dxc glslangValidator)
 
+find_program(Vulkan_SLANGC_EXECUTABLE NAMES slangc HINTS "$ENV{VULKAN_SDK}/Bin")
+if(Vulkan_SLANGC_EXECUTABLE)
+    message(STATUS "Found slangc: ${Vulkan_SLANGC_EXECUTABLE}")
+    add_executable(Vulkan::slangc IMPORTED GLOBAL)
+    set_property(TARGET Vulkan::slangc PROPERTY IMPORTED_LOCATION "${Vulkan_SLANGC_EXECUTABLE}")
+else()
+    message(STATUS "slangc not found — Slang shader compilation disabled")
+endif()
+
 # ---------------------------------------------------------------------------
 # Third-party libraries
 # ---------------------------------------------------------------------------
