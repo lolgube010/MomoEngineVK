@@ -9,6 +9,10 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Header Files" FILES ${HE
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Source Files" FILES ${SOURCE_CPP_FILES})
 source_group("CMake" REGULAR_EXPRESSION "cmake_pch")
 
+if(WIN32)
+    list(APPEND SOURCE_FILES "${CMAKE_SOURCE_DIR}/resource.rc")
+endif()
+
 add_executable(MomoVK ${SOURCE_FILES})
 
 # ---------------------------------------------------------------------------

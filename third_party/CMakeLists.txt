@@ -70,8 +70,13 @@ add_library(imgui STATIC
     imgui/imgui_tables.cpp
     imgui/backends/imgui_impl_vulkan.cpp
     imgui/backends/imgui_impl_sdl3.cpp
+    imgui/misc/cpp/imgui_stdlib.h
+    imgui/misc/cpp/imgui_stdlib.cpp
 )
-target_include_directories(imgui PUBLIC imgui imgui/backends)
+target_include_directories(imgui
+    PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"   # consumers: <imgui/imgui.h>, <imgui/backends/...>, etc.
+    PUBLIC  imgui                            # backend/misc public headers contain #include "imgui.h"
+)
 target_link_libraries(imgui PUBLIC Vulkan::volk SDL3::SDL3)
 target_compile_definitions(imgui PUBLIC
     IMGUI_IMPL_VULKAN_USE_VOLK
