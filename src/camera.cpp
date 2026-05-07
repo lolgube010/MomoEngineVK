@@ -6,7 +6,6 @@
 
 glm::mat4 Camera::GetViewMatrix() const
 {
-    // to create a correct model view, we need to move the world in opposite direction to the camera so we will create the camera model matrix and invert
     const glm::mat4 cameraTranslation = glm::translate(glm::mat4(1.f), _position);
     const glm::mat4 cameraRotation = GetRotationMatrix();
     return glm::inverse(cameraTranslation * cameraRotation);
@@ -14,7 +13,6 @@ glm::mat4 Camera::GetViewMatrix() const
 
 glm::mat4 Camera::GetRotationMatrix() const
 {
-    // fairly typical FPS style camera. we join the pitch and yaw rotations into the final rotation matrix
     const glm::quat pitchRotation = glm::angleAxis(_pitch, glm::vec3{ 1.f, 0.f, 0.f });
     const glm::quat yawRotation = glm::angleAxis(_yaw, glm::vec3{ 0.f, -1.f, 0.f });
 
@@ -53,7 +51,6 @@ void Camera::Update(SDL_Window* aWindow, float aDt)
     Input::Instance().ResetMouseDelta();
     _pitch = glm::clamp(_pitch, -maxPitch, maxPitch);
 
-    // 4. Handle Movement (WASD)
     _velocity = glm::vec3(0.0f); // Reset velocity every frame
 
     _velocity.z += Input::Instance().IsKeyHeld(SDL_SCANCODE_S) - Input::Instance().IsKeyHeld(SDL_SCANCODE_W);

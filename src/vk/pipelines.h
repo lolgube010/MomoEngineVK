@@ -39,8 +39,6 @@ public:
 	void Disable_DepthTest();
 	void Enable_DepthTest(bool aDepthWriteEnable, VkCompareOp aOp);
 	
-    // When setting blending options in vulkan, we need to fill the formula on both color and alpha. 
-    // The parameters work the same on both color and alpha. The formula works like this
     // outColor = srcColor * srcColorBlendFactor <op> dstColor * dstColorBlendFactor;
     void Enable_Blending_Additive();
 	void Enable_Blending_AlphaBlend();

@@ -120,7 +120,6 @@ VkDescriptorPool DescriptorAllocatorGrowable::Get_Pool(const VkDevice aDevice, [
 	VkDescriptorPool newPool;
 	if (!_ready_pools.empty()) 
 	{
-		// An important detail on this function is that we are removing the pool from the readyPools array when grabbing it. This is so then we can add it back into that array or the other one once a descriptor is allocated.
 		newPool = _ready_pools.back();
 		_ready_pools.pop_back();
 	}
@@ -130,7 +129,7 @@ VkDescriptorPool DescriptorAllocatorGrowable::Get_Pool(const VkDevice aDevice, [
         newPool = Create_Pool(aDevice, _sets_per_pool, _ratios, aNewPoolName);
 
 		_sets_per_pool = static_cast<uint32_t>(static_cast<double>(_sets_per_pool) * 1.5);
-		_sets_per_pool = std::min<uint32_t>(_sets_per_pool, 4092); // can modify 4092 if we want to
+		_sets_per_pool = std::min<uint32_t>(_sets_per_pool, 4092);
 	}
 
 	return newPool;

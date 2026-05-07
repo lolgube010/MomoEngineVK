@@ -121,7 +121,7 @@ void momo_vkUtil::copy_image_to_image(const VkCommandBuffer aCmd, const VkImage 
 	vkCmdBlitImage2(aCmd, &blitInfo);
 }
 
-// TODO: There are multiple options for generating the mipmaps. We also don't have to generate them at load time, and could use formats like KTX or DDS which can have the mipmaps pregenerated. A popular option is to generate them in a compute shader that generates multiple levels at once, and that can improve performance. The way we are going to do mipmaps is with a chain of VkCmdImageBlit calls.
+// TODO: ADD KTX
 // note: as it works right now we need to transition all mip levels to transfer_dst_optimal beforehand.
 void momo_vkUtil::generate_mipmaps(const VkCommandBuffer aCmd, const VkImage aImage, VkExtent2D aImageSize, const VkFormat aFormat)
 {
@@ -136,7 +136,7 @@ void momo_vkUtil::generate_mipmaps(const VkCommandBuffer aCmd, const VkImage aIm
 		imageBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2;
 		imageBarrier.pNext = nullptr;
 
-		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT; // used to be all commands
+		imageBarrier.srcStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
 		imageBarrier.srcAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT;
         imageBarrier.dstStageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
 		imageBarrier.dstAccessMask = VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT;
