@@ -25,6 +25,8 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/norm.hpp>
 
+static momo_cvars::AutoCVar_Int CVAR_Wireframe("r.wireframe", "render geometry as wireframe", 0, momo_cvars::CVarFlags::EditCheckbox);
+
 // ---------------------------------------------------------------------------
 // Init / Cleanup
 // ---------------------------------------------------------------------------
@@ -258,6 +260,10 @@ void EngineRenderer::Draw(const DrawContext& aDrawContext, const GPUSceneData& a
         const VkResult res = vkAcquireNextImageKHR(_device, _swapchain.Get(), 1000000000,
                                                     GetCurrentFrame(aFrameNumber)._swapchainSemaphore,
                                                     nullptr, &swapchainImageIndex);
+        // VK_ERROR_OUT_OF_DATE_KHR: acquire failed, semaphore was NOT signaled. Safe to bail early.
+        // VK_SUBOPTIMAL_KHR: acquire succeeded, semaphore IS signaled, image index is valid.
+        // Must continue and render this frame; returning early would orphan the semaphore.
+        // The swapchain is recreated after present instead.
         if (res == VK_ERROR_OUT_OF_DATE_KHR)
         {
             aResizeRequested = true;
@@ -290,6 +296,8 @@ void EngineRenderer::Draw(const DrawContext& aDrawContext, const GPUSceneData& a
     }
 
     {
+        // PROFILE_GPU's destructor writes a timestamp via vkCmdWriteTimestamp,
+        // so it must run before vkEndCommandBuffer. Keep it scoped inside this block.
         PROFILE_GPU(_tracyVkCtx, cmd, "Render")
         PROFILE_SCOPE_N("Render")
         {
@@ -517,7 +525,6 @@ void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext
 
     const VkDescriptorSet globalDescriptor = _persistentGlobalDescriptors[aFrameNumber % FRAME_OVERLAP];
 
-    static momo_cvars::AutoCVar_Int CVAR_Wireframe("r.wireframe", "render geometry as wireframe", 0, momo_cvars::CVarFlags::EditCheckbox);
     const bool wireframe = CVAR_Wireframe.Get() != 0;
 
     MaterialPipeline* lastPipeline  = nullptr;
@@ -748,8 +755,14 @@ void EngineRenderer::Init_Sync_Structures()
         VK_CHECK(vkCreateSemaphore(_device, &semaphoreCreateInfo, nullptr, &_readyForPresentSemaphores[i]));
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, _readyForPresentSemaphores[i],
                                "_Semaphore Ready For Present, SwapchainImgCount:{}", i);
-        _deletionQueue.Push_Function([this, i] { vkDestroySemaphore(_device, _readyForPresentSemaphores[i], nullptr); });
     }
+    // Single closure walks the live vector at flush time so resize-driven recreation
+    // (where the count may change) destroys the current handles, not stale ones.
+    _deletionQueue.Push_Function([this]
+    {
+        for (const auto sem : _readyForPresentSemaphores)
+            vkDestroySemaphore(_device, sem, nullptr);
+    });
 }
 
 void EngineRenderer::Init_Descriptors()
@@ -1020,6 +1033,8 @@ void EngineRenderer::Init_Tracy()
 {
     PROFILE_SCOPE_N("Init_Tracy")
 #if TRACY_ENABLE && TRACY_GPU_ENABLE
+    // TracyVkContext requires the command buffer in the initial state (reset, not begun).
+    // Tracy submits it internally; passing a pre-begun buffer causes a double-begin crash.
     VK_CHECK(vkResetCommandBuffer(_gpuResources.GetImmCommandBuffer(), 0));
     _tracyVkCtx = TracyVkContext(_chosenGPU, _device, _graphicsQueue, _gpuResources.GetImmCommandBuffer())
     TracyVkContextName(_tracyVkCtx, "_Main Graphics Queue", sizeof("_Main Graphics Queue") - 1)
@@ -1077,7 +1092,24 @@ void EngineRenderer::Resize_Draw_Images()
 void EngineRenderer::Resize_Swapchain(VkExtent2D& aWindowExtent)
 {
     vkDeviceWaitIdle(_device);
+    const uint32_t oldImageCount = _swapchain.GetImageCount();
     _swapchain.Resize(_device, _chosenGPU, _surface, _window, _windowExtent);
+
+    if (_swapchain.GetImageCount() != oldImageCount)
+    {
+        for (const auto sem : _readyForPresentSemaphores)
+            vkDestroySemaphore(_device, sem, nullptr);
+        _readyForPresentSemaphores.clear();
+        _readyForPresentSemaphores.resize(_swapchain.GetImageCount());
+        const VkSemaphoreCreateInfo info = momo_vkInit::semaphore_create_info();
+        for (size_t i = 0; i < _readyForPresentSemaphores.size(); ++i)
+        {
+            VK_CHECK(vkCreateSemaphore(_device, &info, nullptr, &_readyForPresentSemaphores[i]));
+            MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SEMAPHORE, _readyForPresentSemaphores[i],
+                                   "_Semaphore Ready For Present, SwapchainImgCount:{}", i);
+        }
+    }
+
     Resize_Draw_Images();
     aWindowExtent = _windowExtent;
 }

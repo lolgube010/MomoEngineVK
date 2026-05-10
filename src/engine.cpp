@@ -33,8 +33,11 @@ void VulkanEngine::Run()
 {
     bool bQuit = false;
 
+    // Fixed simulation step. Gameplay/physics runs at this rate regardless of render rate.
     constexpr double fixed_Step = 1.0 / 60.0;
+    // Spiral-of-doom guard. 8 * 1/60 ~= 133 ms (per Tyler Glaiel's recommendation).
     constexpr double max_Delta  = 8.0 * fixed_Step;
+    // Absorbs OS timer noise (~200 us) so a vsynced frame snaps to a clean fraction.
     constexpr double snap_Tol   = 0.0002;
 
     double accumulator = 0.0;

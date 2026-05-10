@@ -38,12 +38,14 @@ void GLTFMetallic_Roughness::Build_Pipelines(const VkDevice aDevice,
     _opaqueWireframePipeline._layout      = newLayout;
     _transparentWireframePipeline._layout = newLayout;
 
-    constexpr auto useHLSL     = momo_shaderUtil::ShaderLang::GLSL;
-    auto meshFragShader   = momo_shaderUtil::load_shader("mesh_pbr", momo_shaderUtil::ShaderType::Fragment, useHLSL, aDevice);
-    auto meshVertexShader = momo_shaderUtil::load_shader("mesh",     momo_shaderUtil::ShaderType::Vertex,   useHLSL, aDevice);
+    constexpr auto shaderLang = momo_shaderUtil::ShaderLang::GLSL;
+    auto meshFragShader   = momo_shaderUtil::load_shader("mesh_pbr", momo_shaderUtil::ShaderType::Fragment, shaderLang, aDevice);
+    auto meshVertexShader = momo_shaderUtil::load_shader("mesh",     momo_shaderUtil::ShaderType::Vertex,   shaderLang, aDevice);
 
     PipelineBuilder pipelineBuilder;
     pipelineBuilder.Set_Shaders(meshVertexShader.value(), meshFragShader.value());
+    // All four pipelines below share newLayout. Clear_Resources only destroys the
+    // transparent variant's layout to avoid double-free; the other three reference the same handle.
     pipelineBuilder.Set_Input_Topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_FILL);
     pipelineBuilder.Set_Cull_Mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
