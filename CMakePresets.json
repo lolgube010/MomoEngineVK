@@ -1,0 +1,13 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": { "major": 3, "minor": 23, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "vs2026",
+            "displayName": "Visual Studio 2026",
+            "generator": "Visual Studio 18 2026",
+            "architecture": "x64",
+            "binaryDir": "${sourceDir}/build/vs2026"
+        }
+    ]
+}
