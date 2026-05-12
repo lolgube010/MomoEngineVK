@@ -431,3 +431,5 @@ FodyWeavers.xsd
 # custom
 /build
 /shaders/bin
+/.claude
+CLAUDE.md
