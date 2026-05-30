@@ -3,7 +3,7 @@
 #include <atomic>
 #include <fmt/format.h>
 
-namespace momo_vkDebug
+namespace Momo_VkDebug
 {
     // Captures validation layer messages and displays them in an ImGui panel.
     // Init() - call once after volkLoadInstance, behind your USE_VALIDATION_LAYERS guard.
@@ -78,7 +78,7 @@ namespace momo_vkDebug
         VkCommandBuffer cmd;
         ScopedDebugLabelCmdBuff(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f)) : cmd(aCmd)
         {
-            const VkDebugUtilsLabelEXT labelInfo = momo_vkInit::debug_label(aName, aColor);
+            const VkDebugUtilsLabelEXT labelInfo = Momo_VkInit::debug_label(aName, aColor);
             vkCmdBeginDebugUtilsLabelEXT(aCmd, &labelInfo);
         }
         ~ScopedDebugLabelCmdBuff()
@@ -92,7 +92,7 @@ namespace momo_vkDebug
         VkQueue queue;
         ScopedDebugLabelQueue(const VkQueue aQueue, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f)) : queue(aQueue)
         {
-            const VkDebugUtilsLabelEXT labelInfo = momo_vkInit::debug_label(aName, aColor);
+            const VkDebugUtilsLabelEXT labelInfo = Momo_VkInit::debug_label(aName, aColor);
             vkQueueBeginDebugUtilsLabelEXT(queue, &labelInfo);
         }
         ~ScopedDebugLabelQueue()
@@ -103,7 +103,7 @@ namespace momo_vkDebug
 
     static void BeginAnnotationCmdBuff(const VkCommandBuffer aCmd, const char* aName, const glm::vec4 aColor = glm::vec4(1.f, 1.f, 1.f, 1.f))
     {
-        const VkDebugUtilsLabelEXT labelInfo = momo_vkInit::debug_label(aName, aColor);
+        const VkDebugUtilsLabelEXT labelInfo = Momo_VkInit::debug_label(aName, aColor);
         vkCmdBeginDebugUtilsLabelEXT(aCmd, &labelInfo);
     }
 

@@ -107,7 +107,7 @@ void LoadedGLTF::ClearAll()
 // load_gltf
 // ---------------------------------------------------------------------------
 
-std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_view aFilePath)
+std::optional<std::shared_ptr<LoadedGLTF>> Momo_VkGLTF::load_gltf(std::string_view aFilePath)
 {
     PROFILE_SCOPE_N("load_gltf")
     auto& engine = VulkanEngine::Get();
@@ -195,7 +195,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
         VkFilter magFilter      = extract_filter(sampler.magFilter.value_or(fastgltf::Filter::Nearest));
         VkFilter minFilter      = extract_filter(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
         VkSamplerMipmapMode mm  = extract_mipmap_mode(sampler.minFilter.value_or(fastgltf::Filter::Nearest));
-        VkSamplerCreateInfo sci = momo_vkInit::sampler_create_info(magFilter, minFilter, VK_LOD_CLAMP_NONE, 0, mm);
+        VkSamplerCreateInfo sci = Momo_VkInit::sampler_create_info(magFilter, minFilter, VK_LOD_CLAMP_NONE, 0, mm);
 
         VkSampler newSampler;
         VK_CHECK(vkCreateSampler(engine.GetDevice(), &sci, nullptr, &newSampler));
@@ -242,14 +242,14 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
         {
             for (const auto& p : pendingUploads)
             {
-                momo_vkUtil::transition_image(aCmd, p._image._image,
+                Momo_VkUtil::transition_image(aCmd, p._image._image,
                     VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                     p._image._imageFormat);
-                VkBufferImageCopy copyRegion = momo_vkInit::buffer_image_copy(
+                VkBufferImageCopy copyRegion = Momo_VkInit::buffer_image_copy(
                     p._image._imageExtent, p._image._imageFormat);
                 vkCmdCopyBufferToImage(aCmd, p._stagingBuffer._buffer, p._image._image,
                                        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
-                momo_vkUtil::generate_mipmaps(aCmd, p._image._image,
+                Momo_VkUtil::generate_mipmaps(aCmd, p._image._image,
                     VkExtent2D{.width = p._image._imageExtent.width,
                                .height = p._image._imageExtent.height},
                     p._image._imageFormat);
@@ -516,7 +516,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
 // Sampler helpers
 // ---------------------------------------------------------------------------
 
-VkFilter momo_vkGLTF::extract_filter(const fastgltf::Filter aFilter)
+VkFilter Momo_VkGLTF::extract_filter(const fastgltf::Filter aFilter)
 {
     switch (aFilter)
     {
@@ -529,7 +529,7 @@ VkFilter momo_vkGLTF::extract_filter(const fastgltf::Filter aFilter)
     }
 }
 
-VkSamplerMipmapMode momo_vkGLTF::extract_mipmap_mode(const fastgltf::Filter aFilter)
+VkSamplerMipmapMode Momo_VkGLTF::extract_mipmap_mode(const fastgltf::Filter aFilter)
 {
     switch (aFilter)
     {

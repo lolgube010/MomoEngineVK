@@ -96,9 +96,9 @@ void PipelineBuilder::Set_Shaders(const VkShaderModule aVertexShader, const VkSh
 {
 	_shaderStages.clear();
 
-	_shaderStages.push_back(momo_vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, aVertexShader));
+	_shaderStages.push_back(Momo_VkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_VERTEX_BIT, aVertexShader));
 
-	_shaderStages.push_back(momo_vkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, aFragmentShader));
+	_shaderStages.push_back(Momo_VkInit::pipeline_shader_stage_create_info(VK_SHADER_STAGE_FRAGMENT_BIT, aFragmentShader));
 }
 
 void PipelineBuilder::Set_Input_Topology(const VkPrimitiveTopology aTopology)
@@ -315,7 +315,7 @@ void PipelineBuilder::Set_Multisampling_AlphaToCoverage(const VkSampleCountFlagB
     _multisampling.alphaToOneEnable = VK_FALSE;
 }
 
-bool momo_shaderUtil::load_shader_module(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
+bool Momo_ShaderUtil::load_shader_module(const char* aFilePath, const VkDevice aDevice, VkShaderModule* aOutShaderModule, VkResult& aOutVkResult)
 {
     // open the file. With cursor at the end
     std::ifstream file(aFilePath, std::ios::ate | std::ios::binary);
@@ -361,7 +361,7 @@ bool momo_shaderUtil::load_shader_module(const char* aFilePath, const VkDevice a
     return true;
 }
 
-std::string momo_shaderUtil::build_spv_shader_path(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
+std::string Momo_ShaderUtil::build_spv_shader_path(const std::string& aFileName, const ShaderType aType, const ShaderLang aShaderLang)
 {
 	// NOTE: this is targeting the BUILT SPV files, not the raw shader files! we'll write another function for that.
 	// glsl frag:   shaders/bin/debug/glsl/fragment/fullscreen.frag.spv
@@ -406,7 +406,7 @@ std::string momo_shaderUtil::build_spv_shader_path(const std::string& aFileName,
     return fullPath;
 }
 
-std::optional<VkShaderModule> momo_shaderUtil::load_shader(const std::string& aName, const momo_shaderUtil::ShaderType aType, const ShaderLang aShaderLang, const VkDevice aDevice)
+std::optional<VkShaderModule> Momo_ShaderUtil::load_shader(const std::string& aName, const Momo_ShaderUtil::ShaderType aType, const ShaderLang aShaderLang, const VkDevice aDevice)
 {
     const std::string path = build_spv_shader_path(aName, aType, aShaderLang);
 

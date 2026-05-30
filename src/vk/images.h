@@ -1,7 +1,7 @@
 #pragma once
 #include <Volk/volk.h>
 
-namespace momo_vkUtil
+namespace Momo_VkUtil
 {
 	VkImageAspectFlags aspect_flags_from_format(VkFormat aFormat);
 

@@ -15,9 +15,12 @@ struct Camera
     float _cameraFOV = 90.f;
     bool _isLocked = false;
     bool _wantMouseCaptured = false;
+    const float _mouseSensitivity = 0.005f;
+    const float _maxPitch = 1.50f;
+    const float _moveSpeed = 30.0f; // units/second (was 0.5f/frame * 60fps)
 };
 
-namespace CameraUtil
+namespace Camera_Util
 {
     inline glm::mat4 get_rotation_matrix(const Camera& aCamera)
     {

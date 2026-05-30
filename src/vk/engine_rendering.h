@@ -95,7 +95,7 @@ private:
     SDL_Window*      _window{};
     VkExtent2D       _windowExtent{};
 
-    momo_vkDebug::ValidationCapture _validationCapture;
+    Momo_VkDebug::ValidationCapture _validationCapture;
     RenderDocWrapper _renderDoc;
 
     // Pointer to VulkanEngine-owned stats; set in Init()

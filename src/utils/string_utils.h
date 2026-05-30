@@ -5,7 +5,7 @@
 #include <locale>
 #include <fmt/format.h>
 
-namespace momo_stringUtils
+namespace Momo_StringUtils
 {
     // FNV-1a 32bit hashing algorithm.
     // ReSharper disable once CppInconsistentNaming

@@ -1,7 +1,7 @@
 #include <vk/debug.h>
 #include <imgui/imgui.h>
 
-namespace momo_vkDebug
+namespace Momo_VkDebug
 {
 
 void ValidationCapture::Init(const VkInstance aInstance)

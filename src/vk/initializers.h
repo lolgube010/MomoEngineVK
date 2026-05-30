@@ -3,7 +3,7 @@
 
 // This will contain helpers to create vulkan structures
 
-namespace momo_vkInit
+namespace Momo_VkInit
 {
 	//> init_cmd
 	VkCommandPoolCreateInfo command_pool_create_info(uint32_t aQueueFamilyIndex, VkCommandPoolCreateFlags aFlags = 0);

@@ -77,7 +77,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
         {
         if (momo_imgui::CategoryHeader("CVars", momo_imgui::ENGINE_TINT))
         {
-            momo_cvars::CVarSystem::Get()->DrawImGuiEditor();
+            Momo_Cvars::CVarSystem::Get()->DrawImGuiEditor();
         }
 
         if (momo_imgui::CategoryHeader("Lighting", momo_imgui::ENGINE_TINT))
@@ -111,10 +111,10 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
             ImGui::Text("Draw Time:   %.3f ms", stats._meshDrawTime);
             ImGui::Text("Update Time: %.3f ms", stats._sceneUpdateTime);
             ImGui::Separator();
-            ImGui::Text("Triangles:         %s", momo_stringUtils::format_with_commas(stats._triCount).c_str());
-            ImGui::Text("Total Draws:       %s", momo_stringUtils::format_with_commas(stats._totalDrawCallCount).c_str());
-            ImGui::Text("Opaque Draws:      %s", momo_stringUtils::format_with_commas(stats._opaqueDrawCallCount).c_str());
-            ImGui::Text("Transparent Draws: %s", momo_stringUtils::format_with_commas(stats._transparentDrawCallCount).c_str());
+            ImGui::Text("Triangles:         %s", Momo_StringUtils::format_with_commas(stats._triCount).c_str());
+            ImGui::Text("Total Draws:       %s", Momo_StringUtils::format_with_commas(stats._totalDrawCallCount).c_str());
+            ImGui::Text("Opaque Draws:      %s", Momo_StringUtils::format_with_commas(stats._opaqueDrawCallCount).c_str());
+            ImGui::Text("Transparent Draws: %s", Momo_StringUtils::format_with_commas(stats._transparentDrawCallCount).c_str());
             ImGui::Separator();
             ImGui::Text("Models Loaded:        %llu", aScene._loadedModels.size());
             ImGui::Text("Opaque Surfaces:      %llu", aScene.GetDrawContext()._opaqueSurfaces.size());
@@ -207,8 +207,8 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
 
 void EngineImGui::RenderDrawData(const VkCommandBuffer aCmd, const VkImageView aTargetImageView, const VkExtent2D aSwapchainExtent, VkDevice aDevice)
 {
-    const VkRenderingAttachmentInfo colorAttachment = momo_vkInit::attachment_info(aTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    const VkRenderingInfo renderInfo = momo_vkInit::rendering_info(aSwapchainExtent, &colorAttachment, nullptr);
+    const VkRenderingAttachmentInfo colorAttachment = Momo_VkInit::attachment_info(aTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    const VkRenderingInfo renderInfo = Momo_VkInit::rendering_info(aSwapchainExtent, &colorAttachment, nullptr);
     vkCmdBeginRendering(aCmd, &renderInfo);
     ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), aCmd);
     vkCmdEndRendering(aCmd);

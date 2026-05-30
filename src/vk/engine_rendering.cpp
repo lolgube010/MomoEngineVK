@@ -25,7 +25,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/norm.hpp>
 
-static momo_cvars::AutoCVar_Int CVAR_Wireframe("r.wireframe", "render geometry as wireframe", 0, momo_cvars::CVarFlags::EditFloatDrag);
+static Momo_Cvars::AutoCVar_Int CVAR_Wireframe("Render.Wireframe", "render geometry as wireframe", 0, Momo_Cvars::CVarFlags::EditFloatDrag);
 
 // ---------------------------------------------------------------------------
 // Init / Cleanup
@@ -293,7 +293,7 @@ void EngineRenderer::Draw(const DrawContext& aDrawContext, const GPUSceneData& a
     {
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "begin command buffer");
         PROFILE_SCOPE_N("begin command buffer")
-        const VkCommandBufferBeginInfo cmdBeginInfo = momo_vkInit::command_buffer_begin_info(
+        const VkCommandBufferBeginInfo cmdBeginInfo = Momo_VkInit::command_buffer_begin_info(
             VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
         _drawExtent.height = static_cast<uint32_t>(static_cast<float>(
@@ -314,9 +314,9 @@ void EngineRenderer::Draw(const DrawContext& aDrawContext, const GPUSceneData& a
             PROFILE_SCOPE_N("transition draw img 1")
             PROFILE_GPU(_tracyVkCtx, cmd, "transition draw img 1")
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw img 1");
-            momo_vkUtil::transition_image(cmd, _drawImage._image,
+            Momo_VkUtil::transition_image(cmd, _drawImage._image,
                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, _drawImage._imageFormat);
-            momo_vkUtil::transition_image(cmd, _depthImage._image,
+            Momo_VkUtil::transition_image(cmd, _depthImage._image,
                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage._imageFormat);
         }
         {
@@ -328,13 +328,13 @@ void EngineRenderer::Draw(const DrawContext& aDrawContext, const GPUSceneData& a
         {
             PROFILE_GPU(_tracyVkCtx, cmd, "transition draw & swapchain img 3")
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition draw & swapchain img 3");
-            momo_vkUtil::transition_image(cmd, _drawImage._image,
+            Momo_VkUtil::transition_image(cmd, _drawImage._image,
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, _drawImage._imageFormat);
-            momo_vkUtil::transition_image(cmd, _swapchain.GetImages()[swapchainImageIndex],
+            Momo_VkUtil::transition_image(cmd, _swapchain.GetImages()[swapchainImageIndex],
                 VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, _swapchain.GetFormat());
-            momo_vkUtil::copy_image_to_image(cmd, _drawImage._image,
+            Momo_VkUtil::copy_image_to_image(cmd, _drawImage._image,
                 _swapchain.GetImages()[swapchainImageIndex], _drawExtent, _swapchain.GetExtent());
-            momo_vkUtil::transition_image(cmd, _swapchain.GetImages()[swapchainImageIndex],
+            Momo_VkUtil::transition_image(cmd, _swapchain.GetImages()[swapchainImageIndex],
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _swapchain.GetFormat());
         }
         {
@@ -348,7 +348,7 @@ void EngineRenderer::Draw(const DrawContext& aDrawContext, const GPUSceneData& a
             PROFILE_GPU(_tracyVkCtx, cmd, "transition swapchain img 4")
             MOMO_VK_SCOPED_CMD_LABEL(cmd, "transition swapchain img 4");
             PROFILE_SCOPE_N("transition swapchain img 4")
-            momo_vkUtil::transition_image(cmd, _swapchain.GetImages()[swapchainImageIndex],
+            Momo_VkUtil::transition_image(cmd, _swapchain.GetImages()[swapchainImageIndex],
                 VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, _swapchain.GetFormat());
         }
     }
@@ -361,20 +361,20 @@ void EngineRenderer::Draw(const DrawContext& aDrawContext, const GPUSceneData& a
     {
         PROFILE_SCOPE_N("submit command buffer queue")
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "submit command buffer queue");
-        const VkCommandBufferSubmitInfo cmdInfo  = momo_vkInit::command_buffer_submit_info(cmd);
-        const VkSemaphoreSubmitInfo waitInfo     = momo_vkInit::semaphore_submit_info(
+        const VkCommandBufferSubmitInfo cmdInfo  = Momo_VkInit::command_buffer_submit_info(cmd);
+        const VkSemaphoreSubmitInfo waitInfo     = Momo_VkInit::semaphore_submit_info(
             VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT_KHR,
             GetCurrentFrame(aFrameNumber)._swapchainSemaphore);
-        const VkSemaphoreSubmitInfo signalInfo   = momo_vkInit::semaphore_submit_info(
+        const VkSemaphoreSubmitInfo signalInfo   = Momo_VkInit::semaphore_submit_info(
             VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, _readyForPresentSemaphores[swapchainImageIndex]);
-        const VkSubmitInfo2 submit = momo_vkInit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
+        const VkSubmitInfo2 submit = Momo_VkInit::submit_info(&cmdInfo, &signalInfo, &waitInfo);
         VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, GetCurrentFrame(aFrameNumber)._renderFence));
     }
     {
         PROFILE_SCOPE_N("present")
         MOMO_VK_SCOPED_QUEUE_LABEL(_graphicsQueue, "present");
         VkSwapchainKHR swapchainHandle = _swapchain.Get();
-        const VkPresentInfoKHR presentInfo = momo_vkInit::present_info(
+        const VkPresentInfoKHR presentInfo = Momo_VkInit::present_info(
             &swapchainHandle, &_readyForPresentSemaphores[swapchainImageIndex], &swapchainImageIndex);
         if (const VkResult presentResult = vkQueuePresentKHR(_graphicsQueue, &presentInfo);
             presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR)
@@ -401,9 +401,9 @@ void EngineRenderer::Draw_Main(const VkCommandBuffer aCmd, const DrawContext& aD
     {
         PROFILE_GPU(_tracyVkCtx, aCmd, "transition draw & depth img 2")
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "transition draw & depth img 2");
-        momo_vkUtil::transition_image(aCmd, _drawImage._image,
+        Momo_VkUtil::transition_image(aCmd, _drawImage._image,
             VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _drawImage._imageFormat);
-        momo_vkUtil::transition_image(aCmd, _depthImage._image,
+        Momo_VkUtil::transition_image(aCmd, _depthImage._image,
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage._imageFormat);
     }
     {
@@ -504,11 +504,11 @@ void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext
         return ra._indexBuffer < rb._indexBuffer;
     });
 
-    const VkRenderingAttachmentInfo colorAttachment = momo_vkInit::attachment_info(
+    const VkRenderingAttachmentInfo colorAttachment = Momo_VkInit::attachment_info(
         _drawImage._imageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    const VkRenderingAttachmentInfo depthAttachment = momo_vkInit::depth_attachment_info(
+    const VkRenderingAttachmentInfo depthAttachment = Momo_VkInit::depth_attachment_info(
         _depthImage._imageView, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL);
-    const VkRenderingInfo renderInfo = momo_vkInit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
+    const VkRenderingInfo renderInfo = Momo_VkInit::rendering_info(_drawExtent, &colorAttachment, &depthAttachment);
     vkCmdBeginRendering(aCmd, &renderInfo);
 
     VkViewport viewport{};
@@ -720,7 +720,7 @@ void EngineRenderer::Init_Swapchain()
     drawImageUsages |= VK_IMAGE_USAGE_STORAGE_BIT;
     drawImageUsages |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    const VkImageCreateInfo rimg_info = momo_vkInit::image_create_info(_drawImage._imageFormat, drawImageUsages, drawImageExtent);
+    const VkImageCreateInfo rimg_info = Momo_VkInit::image_create_info(_drawImage._imageFormat, drawImageUsages, drawImageExtent);
 
     VmaAllocationCreateInfo rimg_allocinfo = {};
     rimg_allocinfo.usage         = VMA_MEMORY_USAGE_AUTO;
@@ -730,7 +730,7 @@ void EngineRenderer::Init_Swapchain()
                    &_drawImage._image, &_drawImage._allocation, nullptr);
     vmaSetAllocationName(_allocator, _drawImage._allocation, "Draw Image");
 
-    const VkImageViewCreateInfo rview_info = momo_vkInit::imageview_create_info(
+    const VkImageViewCreateInfo rview_info = Momo_VkInit::imageview_create_info(
         _drawImage._imageFormat, _drawImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
     VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage._imageView));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE,      _drawImage._image,     "_Image Main Draw");
@@ -741,12 +741,12 @@ void EngineRenderer::Init_Swapchain()
     VkImageUsageFlags depthImageUsages{};
     depthImageUsages |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-    const VkImageCreateInfo dimg_info = momo_vkInit::image_create_info(_depthImage._imageFormat, depthImageUsages, drawImageExtent);
+    const VkImageCreateInfo dimg_info = Momo_VkInit::image_create_info(_depthImage._imageFormat, depthImageUsages, drawImageExtent);
     vmaCreateImage(_allocator, &dimg_info, &rimg_allocinfo,
                    &_depthImage._image, &_depthImage._allocation, nullptr);
     vmaSetAllocationName(_allocator, _depthImage._allocation, "Depth Image");
 
-    const VkImageViewCreateInfo dview_info = momo_vkInit::imageview_create_info(
+    const VkImageViewCreateInfo dview_info = Momo_VkInit::imageview_create_info(
         _depthImage._imageFormat, _depthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);
     VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage._imageView));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE,      _depthImage._image,     "_Image Main Depth");
@@ -764,7 +764,7 @@ void EngineRenderer::Init_Swapchain()
 void EngineRenderer::Init_Commands()
 {
     PROFILE_SCOPE_N("Init_Commands")
-    const VkCommandPoolCreateInfo commandPoolInfo = momo_vkInit::command_pool_create_info(
+    const VkCommandPoolCreateInfo commandPoolInfo = Momo_VkInit::command_pool_create_info(
         _graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
     for (auto& frame : _frames)
@@ -773,7 +773,7 @@ void EngineRenderer::Init_Commands()
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, frame._commandPool,
                                "_Command Pool Main, FIF: {}", &frame - _frames);
 
-        VkCommandBufferAllocateInfo cmdAllocInfo = momo_vkInit::command_buffer_allocate_info(frame._commandPool, 1);
+        VkCommandBufferAllocateInfo cmdAllocInfo = Momo_VkInit::command_buffer_allocate_info(frame._commandPool, 1);
         VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &frame._mainCommandBuffer));
         MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, frame._mainCommandBuffer,
                                "_Command Buffer Main, FIF: {}", &frame - _frames);
@@ -785,8 +785,8 @@ void EngineRenderer::Init_Commands()
 void EngineRenderer::Init_Sync_Structures()
 {
     PROFILE_SCOPE_N("Init_Sync_Structures")
-    const VkFenceCreateInfo     fenceCreateInfo     = momo_vkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
-    const VkSemaphoreCreateInfo semaphoreCreateInfo = momo_vkInit::semaphore_create_info();
+    const VkFenceCreateInfo     fenceCreateInfo     = Momo_VkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+    const VkSemaphoreCreateInfo semaphoreCreateInfo = Momo_VkInit::semaphore_create_info();
 
     for (auto& frame : _frames)
     {
@@ -983,7 +983,7 @@ void EngineRenderer::Init_Background_Pipelines()
     pushConstant.size       = sizeof(ComputePushConstants);
     pushConstant.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
-    VkPipelineLayoutCreateInfo computeLayout = momo_vkInit::pipeline_layout_create_info();
+    VkPipelineLayoutCreateInfo computeLayout = Momo_VkInit::pipeline_layout_create_info();
     computeLayout.pSetLayouts         = &_drawImageDescriptorLayout;
     computeLayout.setLayoutCount      = 1;
     computeLayout.pPushConstantRanges = &pushConstant;
@@ -993,13 +993,13 @@ void EngineRenderer::Init_Background_Pipelines()
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _computePipelineLayout,
                            "_Pipeline Layout Compute Background");
 
-    constexpr auto shaderLang = momo_shaderUtil::ShaderLang::GLSL;
-    auto gradientShader = momo_shaderUtil::load_shader("gradient_color", momo_shaderUtil::ShaderType::Compute, shaderLang, _device);
-    auto skyShader      = momo_shaderUtil::load_shader("sky",            momo_shaderUtil::ShaderType::Compute, shaderLang, _device);
+    constexpr auto shaderLang = Momo_ShaderUtil::ShaderLang::GLSL;
+    auto gradientShader = Momo_ShaderUtil::load_shader("gradient_color", Momo_ShaderUtil::ShaderType::Compute, shaderLang, _device);
+    auto skyShader      = Momo_ShaderUtil::load_shader("sky",            Momo_ShaderUtil::ShaderType::Compute, shaderLang, _device);
 
-    VkPipelineShaderStageCreateInfo stageInfo = momo_vkInit::pipeline_shader_stage_create_info(
+    VkPipelineShaderStageCreateInfo stageInfo = Momo_VkInit::pipeline_shader_stage_create_info(
         VK_SHADER_STAGE_COMPUTE_BIT, gradientShader.value());
-    VkComputePipelineCreateInfo computePipelineCreateInfo = momo_vkInit::compute_pipeline_create_info(
+    VkComputePipelineCreateInfo computePipelineCreateInfo = Momo_VkInit::compute_pipeline_create_info(
         _computePipelineLayout, stageInfo);
 
     ComputeEffect gradient{};
@@ -1061,7 +1061,7 @@ void EngineRenderer::Init_Default_Data()
     _texCache.MarkEngineImage(_blackImage._imageView);
     _texCache.MarkEngineImage(_errorCheckerboardImage._imageView);
 
-    VkSamplerCreateInfo sampler = momo_vkInit::sampler_create_info(VK_FILTER_NEAREST);
+    VkSamplerCreateInfo sampler = Momo_VkInit::sampler_create_info(VK_FILTER_NEAREST);
     VK_CHECK(vkCreateSampler(_device, &sampler, nullptr, &_defaultSamplerNearest));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_SAMPLER, _defaultSamplerNearest, "_Sampler Default Nearest");
 
@@ -1135,11 +1135,11 @@ void EngineRenderer::Resize_Draw_Images()
     img_allocinfo.usage         = VMA_MEMORY_USAGE_AUTO;
     img_allocinfo.requiredFlags = static_cast<VkMemoryPropertyFlags>(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-    const VkImageCreateInfo rimg_info = momo_vkInit::image_create_info(_drawImage._imageFormat, drawImageUsages, drawImageExtent);
+    const VkImageCreateInfo rimg_info = Momo_VkInit::image_create_info(_drawImage._imageFormat, drawImageUsages, drawImageExtent);
     vmaCreateImage(_allocator, &rimg_info, &img_allocinfo, &_drawImage._image, &_drawImage._allocation, nullptr);
     vmaSetAllocationName(_allocator, _drawImage._allocation, "Draw Image");
 
-    const VkImageViewCreateInfo rview_info = momo_vkInit::imageview_create_info(_drawImage._imageFormat, _drawImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
+    const VkImageViewCreateInfo rview_info = Momo_VkInit::imageview_create_info(_drawImage._imageFormat, _drawImage._image, VK_IMAGE_ASPECT_COLOR_BIT);
     VK_CHECK(vkCreateImageView(_device, &rview_info, nullptr, &_drawImage._imageView));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE,      _drawImage._image,     "_Image Main Draw");
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _drawImage._imageView, "_Image View Main Draw");
@@ -1147,11 +1147,11 @@ void EngineRenderer::Resize_Draw_Images()
     _depthImage._imageFormat = VK_FORMAT_D32_SFLOAT;
     _depthImage._imageExtent = drawImageExtent;
 
-    const VkImageCreateInfo dimg_info = momo_vkInit::image_create_info(_depthImage._imageFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, drawImageExtent);
+    const VkImageCreateInfo dimg_info = Momo_VkInit::image_create_info(_depthImage._imageFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, drawImageExtent);
     vmaCreateImage(_allocator, &dimg_info, &img_allocinfo, &_depthImage._image, &_depthImage._allocation, nullptr);
     vmaSetAllocationName(_allocator, _depthImage._allocation, "Depth Image");
 
-    const VkImageViewCreateInfo dview_info = momo_vkInit::imageview_create_info(_depthImage._imageFormat, _depthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);
+    const VkImageViewCreateInfo dview_info = Momo_VkInit::imageview_create_info(_depthImage._imageFormat, _depthImage._image, VK_IMAGE_ASPECT_DEPTH_BIT);
     VK_CHECK(vkCreateImageView(_device, &dview_info, nullptr, &_depthImage._imageView));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE,      _depthImage._image,     "_Image Main Depth");
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_IMAGE_VIEW, _depthImage._imageView, "_Image View Main Depth");
@@ -1175,7 +1175,7 @@ void EngineRenderer::Resize_Swapchain(VkExtent2D& aWindowExtent)
         }
         _readyForPresentSemaphores.clear();
         _readyForPresentSemaphores.resize(_swapchain.GetImageCount());
-        const VkSemaphoreCreateInfo info = momo_vkInit::semaphore_create_info();
+        const VkSemaphoreCreateInfo info = Momo_VkInit::semaphore_create_info();
         for (size_t i = 0; i < _readyForPresentSemaphores.size(); ++i)
         {
             VK_CHECK(vkCreateSemaphore(_device, &info, nullptr, &_readyForPresentSemaphores[i]));

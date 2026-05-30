@@ -45,14 +45,14 @@ void DebugDraw::Init(VkDevice aDevice, VmaAllocator aAllocator, VkFormat aDrawFo
     pushRange.offset     = 0;
     pushRange.size       = sizeof(glm::mat4) + sizeof(VkDeviceAddress);
 
-    VkPipelineLayoutCreateInfo layoutInfo = momo_vkInit::pipeline_layout_create_info();
+    VkPipelineLayoutCreateInfo layoutInfo = Momo_VkInit::pipeline_layout_create_info();
     layoutInfo.pPushConstantRanges    = &pushRange;
     layoutInfo.pushConstantRangeCount = 1;
     VK_CHECK(vkCreatePipelineLayout(aDevice, &layoutInfo, nullptr, &_layout));
     MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_PIPELINE_LAYOUT, _layout, "_Pipeline Layout Debug Lines");
 
-    auto vert = momo_shaderUtil::load_shader("debug_line", momo_shaderUtil::ShaderType::Vertex,   momo_shaderUtil::ShaderLang::GLSL, aDevice);
-    auto frag = momo_shaderUtil::load_shader("debug_line", momo_shaderUtil::ShaderType::Fragment, momo_shaderUtil::ShaderLang::GLSL, aDevice);
+    auto vert = Momo_ShaderUtil::load_shader("debug_line", Momo_ShaderUtil::ShaderType::Vertex,   Momo_ShaderUtil::ShaderLang::GLSL, aDevice);
+    auto frag = Momo_ShaderUtil::load_shader("debug_line", Momo_ShaderUtil::ShaderType::Fragment, Momo_ShaderUtil::ShaderLang::GLSL, aDevice);
 
     PipelineBuilder pb;
     pb.Set_Shaders(vert.value(), frag.value());
@@ -94,9 +94,9 @@ void DebugDraw::Draw(const VkCommandBuffer aCmd, const VkImageView aTargetView, 
     std::memcpy(_buffers[slot]._info.pMappedData, _pending.data(), count * sizeof(Vertex));
     _pending.clear();
 
-    const VkRenderingAttachmentInfo colorAttachment = momo_vkInit::attachment_info(
+    const VkRenderingAttachmentInfo colorAttachment = Momo_VkInit::attachment_info(
         aTargetView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
-    const VkRenderingInfo renderInfo = momo_vkInit::rendering_info(aDrawExtent, &colorAttachment, nullptr);
+    const VkRenderingInfo renderInfo = Momo_VkInit::rendering_info(aDrawExtent, &colorAttachment, nullptr);
     vkCmdBeginRendering(aCmd, &renderInfo);
 
     vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_GRAPHICS, _pipeline);

@@ -20,7 +20,7 @@ void GLTFMetallic_Roughness::Build_Pipelines(const VkDevice aDevice,
     matrixRange.size       = sizeof(GPUDrawPushConstants);
     matrixRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-    VkPipelineLayoutCreateInfo mesh_layout_info = momo_vkInit::pipeline_layout_create_info();
+    VkPipelineLayoutCreateInfo mesh_layout_info = Momo_VkInit::pipeline_layout_create_info();
     mesh_layout_info.setLayoutCount         = 2;
     mesh_layout_info.pSetLayouts            = layouts;
     mesh_layout_info.pPushConstantRanges    = &matrixRange;
@@ -37,9 +37,9 @@ void GLTFMetallic_Roughness::Build_Pipelines(const VkDevice aDevice,
     _opaqueWireframePipeline2._layout     = newLayout;
     _opaqueWireframePipeline3._layout     = newLayout;
 
-    constexpr auto shaderLang = momo_shaderUtil::ShaderLang::GLSL;
-    auto meshFragShader   = momo_shaderUtil::load_shader("mesh_pbr", momo_shaderUtil::ShaderType::Fragment, shaderLang, aDevice);
-    auto meshVertexShader = momo_shaderUtil::load_shader("mesh",     momo_shaderUtil::ShaderType::Vertex,   shaderLang, aDevice);
+    constexpr auto shaderLang = Momo_ShaderUtil::ShaderLang::GLSL;
+    auto meshFragShader   = Momo_ShaderUtil::load_shader("mesh_pbr", Momo_ShaderUtil::ShaderType::Fragment, shaderLang, aDevice);
+    auto meshVertexShader = Momo_ShaderUtil::load_shader("mesh",     Momo_ShaderUtil::ShaderType::Vertex,   shaderLang, aDevice);
 
     PipelineBuilder pipelineBuilder;
     pipelineBuilder.Set_Shaders(meshVertexShader.value(), meshFragShader.value());
@@ -70,8 +70,8 @@ void GLTFMetallic_Roughness::Build_Pipelines(const VkDevice aDevice,
     pipelineBuilder.Enable_DepthTest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
     _transparentWireframePipeline._pipeline = pipelineBuilder.Build_Pipeline(aDevice, "GLTFMetallic_Roughness Transparent Wireframe");
 
-    auto whiteShader = momo_shaderUtil::load_shader("white", momo_shaderUtil::ShaderType::Fragment, shaderLang, aDevice);
-    auto orangeShader = momo_shaderUtil::load_shader("orange", momo_shaderUtil::ShaderType::Fragment, shaderLang, aDevice);
+    auto whiteShader = Momo_ShaderUtil::load_shader("white", Momo_ShaderUtil::ShaderType::Fragment, shaderLang, aDevice);
+    auto orangeShader = Momo_ShaderUtil::load_shader("orange", Momo_ShaderUtil::ShaderType::Fragment, shaderLang, aDevice);
     pipelineBuilder.Disable_Blending();
     pipelineBuilder.Enable_DepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
 

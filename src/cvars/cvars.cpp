@@ -9,7 +9,7 @@
 #include <imgui/imgui_internal.h>
 #include <shared_mutex>
 
-namespace momo_cvars
+namespace Momo_Cvars
 {
     namespace
     {
@@ -116,20 +116,20 @@ namespace momo_cvars
     class CVarSystemImpl : public CVarSystem
     {
     public:
-        CVarParameter* GetCVar(momo_stringUtils::StringHash aHash) final;
+        CVarParameter* GetCVar(Momo_StringUtils::StringHash aHash) final;
         
         CVarParameter* CreateFloatCVar(const char* aName, const char* aDescription, double aDefaultValue, double aCurrentValue) final;
         CVarParameter* CreateIntCVar(const char* aName, const char* aDescription, int32_t aDefaultValue, int32_t aCurrentValue) final;
         CVarParameter* CreateStringCVar(const char* aName, const char* aDescription, const char* aDefaultValue, const char* aCurrentValue) final;
 
-        double* GetFloatCVar(momo_stringUtils::StringHash aHash) final;
-        int32_t* GetIntCVar(momo_stringUtils::StringHash aHash) final;
-        const char* GetStringCVar(momo_stringUtils::StringHash aHash) final;
+        double* GetFloatCVar(Momo_StringUtils::StringHash aHash) final;
+        int32_t* GetIntCVar(Momo_StringUtils::StringHash aHash) final;
+        const char* GetStringCVar(Momo_StringUtils::StringHash aHash) final;
 
 
-        void SetFloatCVar(momo_stringUtils::StringHash aHash, double aValue) final;
-        void SetIntCVar(momo_stringUtils::StringHash aHash, int32_t aValue) final;
-        void SetStringCVar(momo_stringUtils::StringHash aHash, const char* aValue) final;
+        void SetFloatCVar(Momo_StringUtils::StringHash aHash, double aValue) final;
+        void SetIntCVar(Momo_StringUtils::StringHash aHash, int32_t aValue) final;
+        void SetStringCVar(Momo_StringUtils::StringHash aHash, const char* aValue) final;
 
         void DrawImGuiEditor() final;
 
@@ -169,7 +169,7 @@ namespace momo_cvars
         template <typename T>
         T* GetCVarCurrent(const uint32_t aNameHash)
         {
-            if (CVarParameter* par = GetCVar(static_cast<momo_stringUtils::StringHash>(aNameHash)); 
+            if (CVarParameter* par = GetCVar(static_cast<Momo_StringUtils::StringHash>(aNameHash)); 
                 !par)
             {
                 return nullptr;
@@ -183,7 +183,7 @@ namespace momo_cvars
         template <typename T>
         void SetCVarCurrent(const uint32_t aNameHash, const T& aValue)
         {
-            if (CVarParameter* cvar = GetCVar(static_cast<momo_stringUtils::StringHash>(aNameHash)))
+            if (CVarParameter* cvar = GetCVar(static_cast<Momo_StringUtils::StringHash>(aNameHash)))
             {
                 GetCVarArray<T>()->SetCurrent(aValue, cvar->_arrayIndex);
             }
@@ -201,11 +201,11 @@ namespace momo_cvars
         std::vector<CVarParameter*> _cachedEditParameters;
     };
 
-double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {return GetCVarCurrent<double>(static_cast<uint32_t>(aHash)); }
+double* CVarSystemImpl::GetFloatCVar(const Momo_StringUtils::StringHash aHash) {return GetCVarCurrent<double>(static_cast<uint32_t>(aHash)); }
 
-    int32_t* CVarSystemImpl::GetIntCVar(const momo_stringUtils::StringHash aHash) {return GetCVarCurrent<int32_t>(static_cast<uint32_t>(aHash)); }
+    int32_t* CVarSystemImpl::GetIntCVar(const Momo_StringUtils::StringHash aHash) {return GetCVarCurrent<int32_t>(static_cast<uint32_t>(aHash)); }
 
-    const char* CVarSystemImpl::GetStringCVar(const momo_stringUtils::StringHash aHash)
+    const char* CVarSystemImpl::GetStringCVar(const Momo_StringUtils::StringHash aHash)
     {
         const std::string* str = GetCVarCurrent<std::string>(static_cast<uint32_t>(aHash));
         return str ? str->c_str() : nullptr;
@@ -219,7 +219,7 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
     }
 
 
-    CVarParameter* CVarSystemImpl::GetCVar(const momo_stringUtils::StringHash aHash)
+    CVarParameter* CVarSystemImpl::GetCVar(const Momo_StringUtils::StringHash aHash)
     {
         std::shared_lock lock(_mutex_);
 
@@ -231,11 +231,11 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
         return nullptr;
     }
 
-    void CVarSystemImpl::SetFloatCVar(const momo_stringUtils::StringHash aHash, const double aValue) {SetCVarCurrent<double>(static_cast<uint32_t>(aHash), aValue); }
+    void CVarSystemImpl::SetFloatCVar(const Momo_StringUtils::StringHash aHash, const double aValue) {SetCVarCurrent<double>(static_cast<uint32_t>(aHash), aValue); }
 
-    void CVarSystemImpl::SetIntCVar(const momo_stringUtils::StringHash aHash, const int32_t aValue) {SetCVarCurrent<int32_t>(static_cast<uint32_t>(aHash), aValue); }
+    void CVarSystemImpl::SetIntCVar(const Momo_StringUtils::StringHash aHash, const int32_t aValue) {SetCVarCurrent<int32_t>(static_cast<uint32_t>(aHash), aValue); }
 
-    void CVarSystemImpl::SetStringCVar(const momo_stringUtils::StringHash aHash, const char* aValue) {SetCVarCurrent<std::string>(static_cast<uint32_t>(aHash), aValue); }
+    void CVarSystemImpl::SetStringCVar(const Momo_StringUtils::StringHash aHash, const char* aValue) {SetCVarCurrent<std::string>(static_cast<uint32_t>(aHash), aValue); }
 
 
     CVarParameter* CVarSystemImpl::CreateFloatCVar(const char* aName, const char* aDescription, const double aDefaultValue, const double aCurrentValue)
@@ -290,7 +290,7 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
 
     CVarParameter* CVarSystemImpl::InitCVar(const char* aName, const char* aDescription)
     {
-        const uint32_t nameHash = static_cast<uint32_t>(momo_stringUtils::StringHash{aName});
+        const uint32_t nameHash = static_cast<uint32_t>(Momo_StringUtils::StringHash{aName});
         if (_savedCVars.contains(nameHash))
         {
             return nullptr;
@@ -428,8 +428,8 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
 
         std::ranges::sort(_cachedEditParameters, [](const CVarParameter* aA, const CVarParameter* aB) { return aA->_name < aB->_name; });
 
-        if (_cachedEditParameters.size() > 10)
-        {
+        // if (_cachedEditParameters.size() > 10)
+        // {
             std::unordered_map<std::string, std::vector<CVarParameter*>> categorizedParams;
             for (auto p : _cachedEditParameters)
             {
@@ -453,19 +453,19 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
                     }
                 }
             }
-        }
-        else
-        {
-            float maxTextWidth = 0;
-            for (const auto p : _cachedEditParameters)
-            {
-                maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->_name.c_str()).x);
-            }
-            for (const auto p : _cachedEditParameters)
-            {
-                EditParameter(p, maxTextWidth);
-            }
-        }
+        // }
+        // else
+        // {
+        //     float maxTextWidth = 0;
+        //     for (const auto p : _cachedEditParameters)
+        //     {
+        //         maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->_name.c_str()).x);
+        //     }
+        //     for (const auto p : _cachedEditParameters)
+        //     {
+        //         EditParameter(p, maxTextWidth);
+        //     }
+        // }
     }
 
     static constexpr ImVec4 MODIFIED_COLOR = {1.0f, 0.75f, 0.2f, 1.0f};

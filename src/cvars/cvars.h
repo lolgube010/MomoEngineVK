@@ -17,7 +17,7 @@
 // AutoCVar_String CVAR_TestString("test.string", "just a configurable string", "just a configurable string");
 
 
-namespace momo_cvars
+namespace Momo_Cvars
 {
     class CVarParameter;
 
@@ -40,19 +40,19 @@ namespace momo_cvars
         static CVarSystem* Get();
 
         // pimpl
-        virtual CVarParameter* GetCVar(momo_stringUtils::StringHash aHash) = 0;
+        virtual CVarParameter* GetCVar(Momo_StringUtils::StringHash aHash) = 0;
 
-        virtual double* GetFloatCVar(momo_stringUtils::StringHash aHash) = 0;
+        virtual double* GetFloatCVar(Momo_StringUtils::StringHash aHash) = 0;
 
-        virtual int32_t* GetIntCVar(momo_stringUtils::StringHash aHash) = 0;
+        virtual int32_t* GetIntCVar(Momo_StringUtils::StringHash aHash) = 0;
 
-        virtual const char* GetStringCVar(momo_stringUtils::StringHash aHash) = 0;
+        virtual const char* GetStringCVar(Momo_StringUtils::StringHash aHash) = 0;
 
-        virtual void SetFloatCVar(momo_stringUtils::StringHash aHash, double aValue) = 0;
+        virtual void SetFloatCVar(Momo_StringUtils::StringHash aHash, double aValue) = 0;
 
-        virtual void SetIntCVar(momo_stringUtils::StringHash aHash, int32_t aValue) = 0;
+        virtual void SetIntCVar(Momo_StringUtils::StringHash aHash, int32_t aValue) = 0;
 
-        virtual void SetStringCVar(momo_stringUtils::StringHash aHash, const char* aValue) = 0;
+        virtual void SetStringCVar(Momo_StringUtils::StringHash aHash, const char* aValue) = 0;
 
 
         virtual CVarParameter* CreateFloatCVar(const char* aName, const char* aDescription, double aDefaultValue, double aCurrentValue) = 0;

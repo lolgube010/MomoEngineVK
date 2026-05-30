@@ -4,7 +4,7 @@
 #include <optional>
 #include <string_view>
 
-namespace momo_vkGLTF
+namespace Momo_VkGLTF
 {
     // CPU-side decode result + staging buffer ready for a batched GPU upload.
     // The VkImage is allocated but contains no data yet; Immediate_Submit fills it.

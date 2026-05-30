@@ -10,8 +10,8 @@
 #endif
 #include <glm/gtx/transform.hpp>
 
-std::optional<momo_vkGLTF::PendingTextureUpload>
-momo_vkGLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage,
+std::optional<Momo_VkGLTF::PendingTextureUpload>
+Momo_VkGLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage,
                                std::string_view aFilePath)
 {
     // Decodes one GLTF image to RGBA pixels, allocates the VkImage and a host-visible staging

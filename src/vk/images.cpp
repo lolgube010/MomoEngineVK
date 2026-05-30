@@ -4,7 +4,7 @@
 #include <stb_image.h>
 
 // https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples 
-VkImageAspectFlags momo_vkUtil::aspect_flags_from_format(const VkFormat aFormat)
+VkImageAspectFlags Momo_VkUtil::aspect_flags_from_format(const VkFormat aFormat)
 {
     switch (aFormat)
     {
@@ -24,7 +24,7 @@ VkImageAspectFlags momo_vkUtil::aspect_flags_from_format(const VkFormat aFormat)
 }
 
 // given this layout, what stage & access flag goes with it?
-std::pair<VkPipelineStageFlags2, VkAccessFlags2> momo_vkUtil::get_mask_info(const VkImageLayout aLayout)
+std::pair<VkPipelineStageFlags2, VkAccessFlags2> Momo_VkUtil::get_mask_info(const VkImageLayout aLayout)
 {
     switch (aLayout)
     {
@@ -61,7 +61,7 @@ std::pair<VkPipelineStageFlags2, VkAccessFlags2> momo_vkUtil::get_mask_info(cons
 //             Tighter masks (e.g. COMPUTE_SHADER src → COLOR_ATTACHMENT_OUTPUT dst) let unrelated work overlap.
 //   Aspect — which image planes the barrier covers: COLOR, DEPTH, STENCIL, or DEPTH|STENCIL.
 //             Comes from the VkFormat (via aspect_flags_from_format), NOT from the layouts.
-void momo_vkUtil::transition_image(const VkCommandBuffer aCmd, const VkImage aImg, const VkImageLayout aCurrentLayout, const VkImageLayout aNewLayout, const VkFormat aFormat)
+void Momo_VkUtil::transition_image(const VkCommandBuffer aCmd, const VkImage aImg, const VkImageLayout aCurrentLayout, const VkImageLayout aNewLayout, const VkFormat aFormat)
 {
 	VkImageMemoryBarrier2 imageBarrier{.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2, .pNext = nullptr};
     
@@ -75,7 +75,7 @@ void momo_vkUtil::transition_image(const VkCommandBuffer aCmd, const VkImage aIm
 
 	imageBarrier.oldLayout = aCurrentLayout;
 	imageBarrier.newLayout = aNewLayout;
-	imageBarrier.subresourceRange = momo_vkInit::image_subresource_range(aspect_flags_from_format(aFormat));
+	imageBarrier.subresourceRange = Momo_VkInit::image_subresource_range(aspect_flags_from_format(aFormat));
 	imageBarrier.image = aImg;
 
 	VkDependencyInfo depInfo{};
@@ -87,7 +87,7 @@ void momo_vkUtil::transition_image(const VkCommandBuffer aCmd, const VkImage aIm
 	vkCmdPipelineBarrier2(aCmd, &depInfo);
 }
 
-void momo_vkUtil::copy_image_to_image(const VkCommandBuffer aCmd, const VkImage aSource, const VkImage aDestination, const VkExtent2D aSrcSize, const VkExtent2D aDstSize)
+void Momo_VkUtil::copy_image_to_image(const VkCommandBuffer aCmd, const VkImage aSource, const VkImage aDestination, const VkExtent2D aSrcSize, const VkExtent2D aDstSize)
 {
 	VkImageBlit2 blitRegion{.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2, .pNext = nullptr};
 
@@ -123,7 +123,7 @@ void momo_vkUtil::copy_image_to_image(const VkCommandBuffer aCmd, const VkImage 
 
 // TODO: ADD KTX
 // note: as it works right now we need to transition all mip levels to transfer_dst_optimal beforehand.
-void momo_vkUtil::generate_mipmaps(const VkCommandBuffer aCmd, const VkImage aImage, VkExtent2D aImageSize, const VkFormat aFormat)
+void Momo_VkUtil::generate_mipmaps(const VkCommandBuffer aCmd, const VkImage aImage, VkExtent2D aImageSize, const VkFormat aFormat)
 {
 	const int mipLevels = static_cast<int>(std::floor(std::log2(std::max(aImageSize.width, aImageSize.height)))) + 1;
 	for (int mip = 0; mip < mipLevels; mip++) 
@@ -145,7 +145,7 @@ void momo_vkUtil::generate_mipmaps(const VkCommandBuffer aCmd, const VkImage aIm
 		imageBarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
 
 		constexpr VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-		imageBarrier.subresourceRange = momo_vkInit::image_subresource_range(aspectMask);
+		imageBarrier.subresourceRange = Momo_VkInit::image_subresource_range(aspectMask);
 		imageBarrier.subresourceRange.levelCount = 1;
 		imageBarrier.subresourceRange.baseMipLevel = mip;
 		imageBarrier.image = aImage;

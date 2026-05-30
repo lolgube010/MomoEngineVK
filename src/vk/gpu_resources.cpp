@@ -15,15 +15,15 @@ void GpuResources::Init(const VkDevice aDevice, const VmaAllocator aAllocator, c
     _allocator     = aAllocator;
     _graphicsQueue = aGraphicsQueue;
 
-    const VkCommandPoolCreateInfo commandPoolInfo = momo_vkInit::command_pool_create_info(aGraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    const VkCommandPoolCreateInfo commandPoolInfo = Momo_VkInit::command_pool_create_info(aGraphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
     VK_CHECK(vkCreateCommandPool(_device, &commandPoolInfo, nullptr, &_immCommandPool));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_POOL, _immCommandPool, "_Command Pool Immediate");
 
-    const VkCommandBufferAllocateInfo cmdAllocInfo = momo_vkInit::command_buffer_allocate_info(_immCommandPool, 1);
+    const VkCommandBufferAllocateInfo cmdAllocInfo = Momo_VkInit::command_buffer_allocate_info(_immCommandPool, 1);
     VK_CHECK(vkAllocateCommandBuffers(_device, &cmdAllocInfo, &_immCommandBuffer));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_COMMAND_BUFFER, _immCommandBuffer, "_Command Buffer Immediate");
 
-    const VkFenceCreateInfo fenceCreateInfo = momo_vkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+    const VkFenceCreateInfo fenceCreateInfo = Momo_VkInit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
     VK_CHECK(vkCreateFence(_device, &fenceCreateInfo, nullptr, &_immFence));
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_FENCE, _immFence, "_Fence Immediate");
 }
@@ -39,14 +39,14 @@ void GpuResources::Immediate_Submit(const std::function<void(VkCommandBuffer aCm
     VK_CHECK(vkResetFences(_device, 1, &_immFence));
     VK_CHECK(vkResetCommandBuffer(_immCommandBuffer, 0));
 
-    const VkCommandBufferBeginInfo cmdBeginInfo = momo_vkInit::command_buffer_begin_info(
+    const VkCommandBufferBeginInfo cmdBeginInfo = Momo_VkInit::command_buffer_begin_info(
         VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
     VK_CHECK(vkBeginCommandBuffer(_immCommandBuffer, &cmdBeginInfo));
     aFunction(_immCommandBuffer);
     VK_CHECK(vkEndCommandBuffer(_immCommandBuffer));
 
-    const VkCommandBufferSubmitInfo cmdInfo = momo_vkInit::command_buffer_submit_info(_immCommandBuffer);
-    const VkSubmitInfo2 submit = momo_vkInit::submit_info(&cmdInfo, nullptr, nullptr);
+    const VkCommandBufferSubmitInfo cmdInfo = Momo_VkInit::command_buffer_submit_info(_immCommandBuffer);
+    const VkSubmitInfo2 submit = Momo_VkInit::submit_info(&cmdInfo, nullptr, nullptr);
     VK_CHECK(vkQueueSubmit2(_graphicsQueue, 1, &submit, _immFence));
     VK_CHECK(vkWaitForFences(_device, 1, &_immFence, true, 9999999999));
 }
@@ -57,7 +57,7 @@ AllocatedImage GpuResources::Create_Image(const VkExtent3D aSize, const VkFormat
     newImage._imageFormat = aFormat;
     newImage._imageExtent = aSize;
 
-    VkImageCreateInfo img_Info = momo_vkInit::image_create_info(aFormat, aUsage, aSize);
+    VkImageCreateInfo img_Info = Momo_VkInit::image_create_info(aFormat, aUsage, aSize);
     if (aMipmapped)
     {
         img_Info.mipLevels = static_cast<uint32_t>(
@@ -73,7 +73,7 @@ AllocatedImage GpuResources::Create_Image(const VkExtent3D aSize, const VkFormat
     VkImageAspectFlags aspectFlag = (aFormat == VK_FORMAT_D32_SFLOAT)
         ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 
-    VkImageViewCreateInfo view_Info = momo_vkInit::imageview_create_info(aFormat, newImage._image, aspectFlag);
+    VkImageViewCreateInfo view_Info = Momo_VkInit::imageview_create_info(aFormat, newImage._image, aspectFlag);
     view_Info.subresourceRange.levelCount = img_Info.mipLevels;
     VK_CHECK(vkCreateImageView(_device, &view_Info, nullptr, &newImage._imageView));
 
@@ -104,20 +104,20 @@ AllocatedImage GpuResources::Create_Image(const void* aData, const VkExtent3D aS
 
     Immediate_Submit([&](const VkCommandBuffer aCmd)
     {
-        momo_vkUtil::transition_image(aCmd, new_Image._image,
+        Momo_VkUtil::transition_image(aCmd, new_Image._image,
             VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, new_Image._imageFormat);
-        const VkBufferImageCopy copyRegion = momo_vkInit::buffer_image_copy(aSize, new_Image._imageFormat);
+        const VkBufferImageCopy copyRegion = Momo_VkInit::buffer_image_copy(aSize, new_Image._imageFormat);
         vkCmdCopyBufferToImage(aCmd, uploadBuffer._buffer, new_Image._image,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
         if (aMipmapped)
         {
-            momo_vkUtil::generate_mipmaps(aCmd, new_Image._image,
+            Momo_VkUtil::generate_mipmaps(aCmd, new_Image._image,
                 VkExtent2D{.width = new_Image._imageExtent.width, .height = new_Image._imageExtent.height},
                 new_Image._imageFormat);
         }
         else
         {
-            momo_vkUtil::transition_image(aCmd, new_Image._image,
+            Momo_VkUtil::transition_image(aCmd, new_Image._image,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, new_Image._imageFormat);
         }
     });

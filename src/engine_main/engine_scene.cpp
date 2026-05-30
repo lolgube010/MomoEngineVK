@@ -17,10 +17,10 @@
 // Test CVars
 // ---------------------------------------------------------------------------
 
-momo_cvars::AutoCVar_Int    CVAR_TestCheckbox("test.checkbox", "just a checkbox",           0,     momo_cvars::CVarFlags::EditCheckbox);
-momo_cvars::AutoCVar_Int    CVAR_TestInt(     "test.int",      "just a configurable int",   42);
-momo_cvars::AutoCVar_Int    CVAR_TestFloat(   "test.float",    "just a configurable float", 13.37f);
-momo_cvars::AutoCVar_String CVAR_TestString(  "test.string",   "just a configurable string", "just a configurable string");
+Momo_Cvars::AutoCVar_Int    CVAR_TestCheckbox("test.checkbox", "just a checkbox",           0,     Momo_Cvars::CVarFlags::EditCheckbox);
+Momo_Cvars::AutoCVar_Int    CVAR_TestInt(     "test.int",      "just a configurable int",   42);
+Momo_Cvars::AutoCVar_Int    CVAR_TestFloat(   "test.float",    "just a configurable float", 13.37f);
+Momo_Cvars::AutoCVar_String CVAR_TestString(  "test.string",   "just a configurable string", "just a configurable string");
 
 // ---------------------------------------------------------------------------
 // Init
@@ -29,11 +29,11 @@ momo_cvars::AutoCVar_String CVAR_TestString(  "test.string",   "just a configura
 void EngineScene::Init()
 {
     const std::string structurePath = {R"(..\..\assets\structure.glb)"};
-    const auto structureFile = momo_vkGLTF::load_gltf(structurePath);
+    const auto structureFile = Momo_VkGLTF::load_gltf(structurePath);
     assert(structureFile.has_value());
 
     const std::string sponzaPath = {R"(..\..\assets\sponza\sponza-png.glb)"};
-    const auto sponzaFile = momo_vkGLTF::load_gltf(sponzaPath);
+    const auto sponzaFile = Momo_VkGLTF::load_gltf(sponzaPath);
     assert(sponzaFile.has_value());
 
     Momo_Model structure;
@@ -94,7 +94,7 @@ glm::mat4 EngineScene::GetProjectionMatrix(const Camera& aCamera, const float aW
 glm::mat4 EngineScene::GetViewMatrix(const Camera& aCamera)
 {
     const glm::mat4 cameraTranslation = glm::translate(glm::mat4(1.f), aCamera._position);
-    const glm::mat4 cameraRotation = CameraUtil::get_rotation_matrix(aCamera);
+    const glm::mat4 cameraRotation = Camera_Util::get_rotation_matrix(aCamera);
     return glm::inverse(cameraTranslation * cameraRotation);
 }
 
