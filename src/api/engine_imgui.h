@@ -11,10 +11,10 @@ public:
     void Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDevice, uint32_t aQueueFamily, VkQueue aQueue, uint32_t aImageCount, VkFormat aSwapchainFormat, SDL_Window* aWindow);
     void Cleanup(VkDevice aDevice);
     void Update(EngineRenderer& aRenderer, EngineScene& aScene);
-    void RenderDrawData(VkCommandBuffer aCmd, VkImageView aTargetImageView, VkExtent2D aSwapchainExtent, VkDevice aDevice) const;
+    static void RenderDrawData(VkCommandBuffer aCmd, VkImageView aTargetImageView, VkExtent2D aSwapchainExtent, VkDevice aDevice);
 
 private:
-    VkDescriptorPool _imguiPool{};
+    VkDescriptorPool _imGuiPool{};
 
     void Run(EngineRenderer& aRenderer, EngineScene& aScene);
 };

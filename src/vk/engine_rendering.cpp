@@ -31,7 +31,7 @@ static momo_cvars::AutoCVar_Int CVAR_Wireframe("r.wireframe", "render geometry a
 // Init / Cleanup
 // ---------------------------------------------------------------------------
 
-void EngineRenderer::Init(SDL_Window* aWindow, VkExtent2D aWindowExtent, EngineStats& aStats)
+void EngineRenderer::Init(SDL_Window* aWindow, const VkExtent2D aWindowExtent, EngineStats& aStats)
 {
     _window       = aWindow;
     _windowExtent = aWindowExtent;
@@ -377,11 +377,10 @@ void EngineRenderer::Draw(const DrawContext& aDrawContext, const GPUSceneData& a
 
 void EngineRenderer::Draw_ImGui_Cmd(const VkCommandBuffer aCmd, const VkImageView aTargetImageView) const
 {
-    _imgui.RenderDrawData(aCmd, aTargetImageView, _swapchain.GetExtent(), _device);
+    EngineImGui::RenderDrawData(aCmd, aTargetImageView, _swapchain.GetExtent(), _device);
 }
 
-void EngineRenderer::Draw_Main(VkCommandBuffer aCmd, const DrawContext& aDrawContext,
-                                const GPUSceneData& aSceneData, int aFrameNumber)
+void EngineRenderer::Draw_Main(const VkCommandBuffer aCmd, const DrawContext& aDrawContext, const GPUSceneData& aSceneData, const int aFrameNumber)
 {
     {
         PROFILE_GPU(_tracyVkCtx, aCmd, "draw background")
@@ -619,12 +618,12 @@ void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext
 // ---------------------------------------------------------------------------
 
 void EngineRenderer::Immediate_Submit(const std::function<void(VkCommandBuffer aCmd)>& aFunction) const { _gpuResources.Immediate_Submit(aFunction); }
-AllocatedImage EngineRenderer::Create_Image(VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, const char* aName, bool aMipmapped) const { return _gpuResources.Create_Image(aSize, aFormat, aUsage, aName, aMipmapped); }
-AllocatedImage EngineRenderer::Create_Image(const void* aData, VkExtent3D aSize, VkFormat aFormat, VkImageUsageFlags aUsage, const char* aName, bool aMipmapped) const { return _gpuResources.Create_Image(aData, aSize, aFormat, aUsage, aName, aMipmapped); }
-AllocatedBuffer EngineRenderer::Create_Buffer(size_t anAllocSize, VkBufferUsageFlags aUsage, VmaMemoryUsage aMemoryUsage, const char* aName) const { return _gpuResources.Create_Buffer(anAllocSize, aUsage, aMemoryUsage, aName); }
+AllocatedImage EngineRenderer::Create_Image(const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const char* aName, const bool aMipmapped) const { return _gpuResources.Create_Image(aSize, aFormat, aUsage, aName, aMipmapped); }
+AllocatedImage EngineRenderer::Create_Image(const void* aData, const VkExtent3D aSize, const VkFormat aFormat, const VkImageUsageFlags aUsage, const char* aName, const bool aMipmapped) const { return _gpuResources.Create_Image(aData, aSize, aFormat, aUsage, aName, aMipmapped); }
+AllocatedBuffer EngineRenderer::Create_Buffer(const size_t anAllocSize, const VkBufferUsageFlags aUsage, const VmaMemoryUsage aMemoryUsage, const char* aName) const { return _gpuResources.Create_Buffer(anAllocSize, aUsage, aMemoryUsage, aName); }
 void EngineRenderer::Destroy_Image(const AllocatedImage& aImg) const { _gpuResources.Destroy_Image(aImg); }
 void EngineRenderer::Destroy_Buffer(const AllocatedBuffer& aBuffer) const { _gpuResources.Destroy_Buffer(aBuffer); }
-GPUMeshBuffers EngineRenderer::UploadMesh(std::span<uint32_t> aIndices, std::span<Vertex> aVertices, const char* aMeshName) const { return _gpuResources.UploadMesh(aIndices, aVertices, aMeshName); }
+GPUMeshBuffers EngineRenderer::UploadMesh(const std::span<uint32_t> aIndices, const std::span<Vertex> aVertices, const char* aMeshName) const { return _gpuResources.UploadMesh(aIndices, aVertices, aMeshName); }
 
 VkDevice EngineRenderer::GetDevice() const
 { return _device; }

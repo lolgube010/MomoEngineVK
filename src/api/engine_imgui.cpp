@@ -12,7 +12,7 @@
 #include <chrono>
 #include <api/MomoTracy.h>
 
-void EngineImGui::Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDevice, uint32_t aQueueFamily, VkQueue aQueue, uint32_t aImageCount, VkFormat aSwapchainFormat, SDL_Window* aWindow)
+void EngineImGui::Init(const VkInstance aInstance, const VkPhysicalDevice aGPU, const VkDevice aDevice, const uint32_t aQueueFamily, const VkQueue aQueue, const uint32_t aImageCount, const VkFormat aSwapchainFormat, SDL_Window* aWindow)
 {
     PROFILE_SCOPE_N("Init_ImGui")
     const VkDescriptorPoolSize pool_sizes[] = {
@@ -36,7 +36,7 @@ void EngineImGui::Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDe
     pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
     pool_info.pPoolSizes    = pool_sizes;
 
-    VK_CHECK(vkCreateDescriptorPool(aDevice, &pool_info, nullptr, &_imguiPool));
+    VK_CHECK(vkCreateDescriptorPool(aDevice, &pool_info, nullptr, &_imGuiPool));
     MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_POOL, _imguiPool, "_Descriptor Pool imGui");
 
     IMGUI_CHECKVERSION();
@@ -55,7 +55,7 @@ void EngineImGui::Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDe
     init_info.Device          = aDevice;
     init_info.QueueFamily     = aQueueFamily;
     init_info.Queue           = aQueue;
-    init_info.DescriptorPool  = _imguiPool;
+    init_info.DescriptorPool  = _imGuiPool;
     init_info.MinImageCount   = aImageCount;
     init_info.ImageCount      = aImageCount;
     init_info.UseDynamicRendering = true;
@@ -68,12 +68,12 @@ void EngineImGui::Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDe
     ImGui_ImplVulkan_Init(&init_info);
 }
 
-void EngineImGui::Cleanup(VkDevice aDevice)
+void EngineImGui::Cleanup(const VkDevice aDevice)
 {
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
-    vkDestroyDescriptorPool(aDevice, _imguiPool, nullptr);
+    vkDestroyDescriptorPool(aDevice, _imGuiPool, nullptr);
 }
 
 void EngineImGui::Update(EngineRenderer& aRenderer, EngineScene& aScene)
@@ -174,8 +174,8 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
             }
             ImGui::Separator();
             {
-                const auto now = std::chrono::steady_clock::now();
-                if (now - aRenderer._lastVmaStatsTime >= std::chrono::seconds(5))
+                if (const auto now = std::chrono::steady_clock::now(); 
+                    now - aRenderer._lastVmaStatsTime >= std::chrono::seconds(5))
                 {
                     vmaCalculateStatistics(aRenderer._allocator, &aRenderer._cachedVmaStats);
                     aRenderer._lastVmaStatsTime = now;
@@ -194,14 +194,16 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
             }
         }
 
-        if (const bool isRenderDocLoaded = aRenderer._renderDoc.Is_Loaded();
+        if (const bool isRenderDocLoaded = aRenderer._renderDoc.Is_Loaded();  // NOLINT(readability-static-accessed-through-instance)
             ImGui::CollapsingHeader("RenderDoc", isRenderDocLoaded ? ImGuiTreeNodeFlags_DefaultOpen : 0))
         {
             if (isRenderDocLoaded)
             {
-                if (ImGui::Button("Trigger Capture"))    aRenderer._renderDoc.Trigger_Capture();
+                if (ImGui::Button("Trigger Capture"))    
+                    aRenderer._renderDoc.Trigger_Capture();  // NOLINT(readability-static-accessed-through-instance)
                 ImGui::SameLine();
-                if (ImGui::Button("Open in RenderDoc"))  aRenderer._renderDoc.Launch_Replay_UI();
+                if (ImGui::Button("Open in RenderDoc"))  
+                    aRenderer._renderDoc.Launch_Replay_UI(); // NOLINT(readability-static-accessed-through-instance)
             }
             else
             {
@@ -213,7 +215,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
     }
 }
 
-void EngineImGui::RenderDrawData(VkCommandBuffer aCmd, VkImageView aTargetImageView, VkExtent2D aSwapchainExtent, VkDevice aDevice) const
+void EngineImGui::RenderDrawData(const VkCommandBuffer aCmd, const VkImageView aTargetImageView, const VkExtent2D aSwapchainExtent, VkDevice aDevice)
 {
     const VkRenderingAttachmentInfo colorAttachment = momo_vkInit::attachment_info(aTargetImageView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     const VkRenderingInfo renderInfo = momo_vkInit::rendering_info(aSwapchainExtent, &colorAttachment, nullptr);
