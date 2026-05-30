@@ -2,7 +2,6 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
 #include <input/Input.h>
-#include <SDL3/SDL.h>
 
 glm::mat4 Camera::GetViewMatrix() const
 {
@@ -28,14 +27,13 @@ glm::mat4 Camera::GetProjectionMatrix(const float aWidth, const float aHeight) c
 
 void Camera::Update(const float aDt, const InputData& aInputData)
 {
-    const auto& inputInstance = Input::Instance();
     if (aInputData.IsKeyPressed(SDL_SCANCODE_TAB))
     {
         _camData._isLocked = !_camData._isLocked;
     }
     if (aInputData.IsKeyPressed(SDL_SCANCODE_CAPSLOCK))
     {
-        inputInstance.ToggleRelativeMouseMode();
+        _camData._wantMouseCaptured = !_camData._wantMouseCaptured;
     }
 
     if (_camData._isLocked)

@@ -87,6 +87,7 @@ void VulkanEngine::Run()
             accumulator -= fixed_Step;
         }
 
+        input.SetRelativeMouseMode(_scene._mainCamera._camData._wantMouseCaptured);
         _renderer.ImGui_Update(_scene);
         Draw();
         PROFILE_FRAME;

@@ -1,5 +1,4 @@
 #pragma once
-#include <SDL3/SDL_events.h>
 
 struct InputData;
 struct SDL_Window;
@@ -14,7 +13,7 @@ struct Camera_POV
     float _yaw = 0.f;
     float _cameraFov = 90.f;
     bool _isLocked = false;
-    bool _padd[3]{};
+    bool _wantMouseCaptured = false;
 };
 
 class Camera

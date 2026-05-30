@@ -21,6 +21,7 @@ struct InputData
 
     int16_t _axes[SDL_GAMEPAD_AXIS_COUNT]{};
 
+    bool _relativeMouseActive = false;
     bool IsKeyHeld(SDL_Scancode aKey) const;
     bool IsKeyPressed(SDL_Scancode aKey) const;
     bool IsKeyReleased(SDL_Scancode aKey) const;
@@ -47,8 +48,8 @@ public:
     // Clears just-pressed/released sets. Call after each fixed update step.
     void FlushKeyEvents();
     void ResetMouseDelta();
-    void SetRelativeMouseMode(bool aState) const;
-    void ToggleRelativeMouseMode() const;
+    void SetRelativeMouseMode(bool aState);
+    // void ToggleRelativeMouseMode();
     const InputData& GetInputDataSnapShot() const;
 private:
     InputData _inputData;

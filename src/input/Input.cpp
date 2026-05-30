@@ -146,6 +146,7 @@ void Input::Init(SDL_Window* aSDLWindow)
     _inputData._currButtons.resize(SDL_GAMEPAD_BUTTON_COUNT, 0);
     _inputData._prevButtons.resize(SDL_GAMEPAD_BUTTON_COUNT, 0);
     _SDL_Window = aSDLWindow;
+    _inputData._relativeMouseActive = SDL_GetWindowRelativeMouseMode(_SDL_Window);
 }
 
 
@@ -155,15 +156,21 @@ void Input::ResetMouseDelta()
     _inputData._mouseDeltaY = 0.f;
 }
 
-void Input::SetRelativeMouseMode(const bool aState) const
+void Input::SetRelativeMouseMode(const bool aState)
 {
+    if (aState == _inputData._relativeMouseActive)
+    {
+        return;
+    }
+    _inputData._relativeMouseActive = aState;
     SDL_SetWindowRelativeMouseMode(_SDL_Window, aState);
 }
 
-void Input::ToggleRelativeMouseMode() const
-{
-    SDL_SetWindowRelativeMouseMode(_SDL_Window, !SDL_GetWindowRelativeMouseMode(_SDL_Window));
-}
+// void Input::ToggleRelativeMouseMode()
+// {
+//     _inputData._relativeMouseActive = !_inputData._relativeMouseActive;
+//     SDL_SetWindowRelativeMouseMode(_SDL_Window, !_inputData._relativeMouseActive);
+// }
 
 const InputData& Input::GetInputDataSnapShot() const
 {
