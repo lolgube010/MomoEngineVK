@@ -62,7 +62,9 @@ void MeshNode::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 void LoadedGLTF::Draw(const glm::mat4& aTopMatrix, DrawContext& aCtx)
 {
     for (const auto& n : _topNodes)
+    {
         n->Draw(aTopMatrix, aCtx);
+    }
 }
 
 void LoadedGLTF::ClearAll()
@@ -89,12 +91,16 @@ void LoadedGLTF::ClearAll()
     for (auto& v : _images)
     {
         if (v._image == creator.GetErrorCheckerboardImage()._image)
+        {
             continue;
+        }
         creator.Destroy_Image(v);
     }
 
     for (const auto& sampler : _samplers)
+    {
         vkDestroySampler(dv, sampler, nullptr);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -138,7 +144,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
             type == fastgltf::GltfType::glTF)
         {
             auto load = parser.loadGltf(data, path.parent_path(), gltfOptions, categories);
-            if (load) gltf = std::move(load.get());
+            if (load)
+            {
+                gltf = std::move(load.get());
+            }
             else
             {
                 fmt::print(stderr, "Failed to load glTF '{}': {} ({})\n", aFilePath,
@@ -149,7 +158,10 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
         else if (type == fastgltf::GltfType::GLB)
         {
             auto load = parser.loadGltfBinary(data, path.parent_path(), gltfOptions, categories);
-            if (load) gltf = std::move(load.get());
+            if (load)
+            {
+                gltf = std::move(load.get());
+            }
             else
             {
                 fmt::print(stderr, "Failed to load glTF '{}': {} ({})\n", aFilePath,
@@ -244,7 +256,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
             }
         });
         for (auto& p : pendingUploads)
+        {
             engine.Destroy_Buffer(p._stagingBuffer);
+        }
     }
 
 #ifdef MOMOVK_ENABLE_DEBUG_NAMES
@@ -300,7 +314,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
             {
                 const fastgltf::Texture& tex = gltf.textures[mat.pbrData.baseColorTexture.value().textureIndex];
                 if (tex.imageIndex.has_value())
+                {
                     materialResources._colorImage = images[tex.imageIndex.value()];
+                }
                 materialResources._colorSampler = tex.samplerIndex.has_value()
                     ? file._samplers[tex.samplerIndex.value()] : engine.GetDefaultSamplerLinear();
             }
@@ -308,7 +324,9 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
             {
                 const fastgltf::Texture& tex = gltf.textures[mat.pbrData.metallicRoughnessTexture.value().textureIndex];
                 if (tex.imageIndex.has_value())
+                {
                     materialResources._metalRoughImage = images[tex.imageIndex.value()];
+                }
                 materialResources._metalRoughSampler = tex.samplerIndex.has_value()
                     ? file._samplers[tex.samplerIndex.value()] : engine.GetDefaultSamplerLinear();
             }
@@ -364,7 +382,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
                 fastgltf::Accessor& indexAccessor = gltf.accessors[p.indicesAccessor.value()];
                 indices.reserve(indices.size() + indexAccessor.count);
                 fastgltf::iterateAccessor<std::uint32_t>(gltf, indexAccessor,
-                    [&](std::uint32_t idx) { indices.push_back(idx + static_cast<uint32_t>(initial_vtx)); });
+                    [&](const std::uint32_t idx) { indices.push_back(idx + static_cast<uint32_t>(initial_vtx)); });
             }
 
             auto minPos = glm::vec3(FLT_MAX);
@@ -373,7 +391,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
                 fastgltf::Accessor& posAccessor = gltf.accessors[p.findAttribute("POSITION")->accessorIndex];
                 vertices.resize(vertices.size() + posAccessor.count);
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, posAccessor,
-                    [&](glm::vec3 v, size_t index)
+                    [&](const glm::vec3 v, const size_t index)
                     {
                         Vertex newVtx;
                         newVtx._pos    = v;
@@ -389,27 +407,37 @@ std::optional<std::shared_ptr<LoadedGLTF>> momo_vkGLTF::load_gltf(std::string_vi
 
             auto normals = p.findAttribute("NORMAL");
             if (normals != p.attributes.end())
+            {
                 fastgltf::iterateAccessorWithIndex<glm::vec3>(gltf, gltf.accessors[normals->accessorIndex],
-                    [&](glm::vec3 v, size_t index) { vertices[initial_vtx + index]._normal = v; });
+                    [&](const glm::vec3 v, const size_t index) { vertices[initial_vtx + index]._normal = v; });
+            }
 
             auto uv = p.findAttribute("TEXCOORD_0");
             if (uv != p.attributes.end())
+            {
                 fastgltf::iterateAccessorWithIndex<glm::vec2>(gltf, gltf.accessors[uv->accessorIndex],
-                    [&](glm::vec2 v, size_t index)
+                    [&](const glm::vec2 v, const size_t index)
                     {
                         vertices[initial_vtx + index]._uvX = v.x;
                         vertices[initial_vtx + index]._uvY = v.y;
                     });
+            }
 
             auto colors = p.findAttribute("COLOR_0");
             if (colors != p.attributes.end())
+            {
                 fastgltf::iterateAccessorWithIndex<glm::vec4>(gltf, gltf.accessors[colors->accessorIndex],
-                    [&](glm::vec4 v, size_t index) { vertices[initial_vtx + index]._color = v; });
+                    [&](const glm::vec4 v, const size_t index) { vertices[initial_vtx + index]._color = v; });
+            }
 
             if (p.materialIndex.has_value())
+            {
                 newSurface._material = materials[p.materialIndex.value()];
+            }
             else if (!materials.empty())
+            {
                 newSurface._material = materials[0];
+            }
 
             newSurface._bounds._origin       = (maxPos + minPos) / 2.f;
             newSurface._bounds._extents      = (maxPos - minPos) / 2.f;

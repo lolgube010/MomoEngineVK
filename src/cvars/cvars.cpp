@@ -243,7 +243,9 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
         std::unique_lock lock(_mutex_);
         CVarParameter* param = InitCVar(aName, aDescription);
         if (!param)
+        {
             return nullptr;
+        }
 
         param->_type = CVarType::Float;
 
@@ -258,7 +260,9 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
         std::unique_lock lock(_mutex_);
         CVarParameter* param = InitCVar(aName, aDescription);
         if (!param)
+        {
             return nullptr;
+        }
 
         param->_type = CVarType::Int;
 
@@ -273,7 +277,9 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
         std::unique_lock lock(_mutex_);
         CVarParameter* param = InitCVar(aName, aDescription);
         if (!param)
+        {
             return nullptr;
+        }
 
         param->_type = CVarType::String;
 
@@ -286,7 +292,9 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
     {
         const uint32_t nameHash = static_cast<uint32_t>(momo_stringUtils::StringHash{aName});
         if (_savedCVars.contains(nameHash))
+        {
             return nullptr;
+        }
 
         _savedCVars[nameHash] = CVarParameter{};
 
@@ -386,7 +394,9 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
         ImGui::InputText("##filter", &searchText);
         ImGui::SameLine();
         if (ImGui::SmallButton("Clear"))
+        {
             searchText.clear();
+        }
 
         ImGui::Checkbox("Advanced", &bShowAdvanced);
         ImGui::Separator();
@@ -398,15 +408,23 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
             const bool bHidden     = static_cast<uint32_t>(aParameter->_flags) & static_cast<uint32_t>(CVarFlags::NoEdit);
             const bool bIsAdvanced = static_cast<uint32_t>(aParameter->_flags) & static_cast<uint32_t>(CVarFlags::Advanced);
             if (!bHidden && (bShowAdvanced || !bIsAdvanced) && aParameter->_name.find(searchText) != std::string::npos)
+            {
                 _cachedEditParameters.push_back(aParameter);
+            }
         };
 
         for (int i = 0; i < GetCVarArray<int32_t>()->_lastCVar; i++)
+        {
             add_to_edit_list(GetCVarArray<int32_t>()->_cvars[i]._parameter);
+        }
         for (int i = 0; i < GetCVarArray<double>()->_lastCVar; i++)
+        {
             add_to_edit_list(GetCVarArray<double>()->_cvars[i]._parameter);
+        }
         for (int i = 0; i < GetCVarArray<std::string>()->_lastCVar; i++)
+        {
             add_to_edit_list(GetCVarArray<std::string>()->_cvars[i]._parameter);
+        }
 
         std::ranges::sort(_cachedEditParameters, [](const CVarParameter* aA, const CVarParameter* aB) { return aA->_name < aB->_name; });
 
@@ -426,9 +444,13 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
                 {
                     float maxTextWidth = 0;
                     for (const auto p : parameters)
+                    {
                         maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->_name.c_str()).x);
+                    }
                     for (const auto p : parameters)
+                    {
                         EditParameter(p, maxTextWidth);
+                    }
                 }
             }
         }
@@ -436,9 +458,13 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
         {
             float maxTextWidth = 0;
             for (const auto p : _cachedEditParameters)
+            {
                 maxTextWidth = std::max(maxTextWidth, ImGui::CalcTextSize(p->_name.c_str()).x);
+            }
             for (const auto p : _cachedEditParameters)
+            {
                 EditParameter(p, maxTextWidth);
+            }
         }
     }
 
@@ -494,7 +520,9 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
                 label(aP->_name.c_str(), aTextWidth, !isDefault);
                 ImGui::PushID(aP->_name.c_str());
                 if (ImGui::Checkbox("", &bCheckbox))
+                {
                     GetCVarArray<int32_t>()->SetCurrent(bCheckbox ? 1 : 0, aP->_arrayIndex);
+                }
                 if (!isDefault) reset_button([&]{ GetCVarArray<int32_t>()->ResetToDefault(aP->_arrayIndex); });
                 ImGui::PopID();
             }
@@ -522,9 +550,13 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
                 label(aP->_name.c_str(), aTextWidth, !isDefault);
                 ImGui::PushID(aP->_name.c_str());
                 if (dragFlag)
+                {
                     ImGui::DragScalar("", ImGuiDataType_Double, GetCVarArray<double>()->GetCurrentPtr(aP->_arrayIndex), 0.1f, nullptr, nullptr, "%.3f");
+                }
                 else
+                {
                     ImGui::InputDouble("", GetCVarArray<double>()->GetCurrentPtr(aP->_arrayIndex), 0, 0, "%.3f");
+                }
                 if (!isDefault) reset_button([&]{ GetCVarArray<double>()->ResetToDefault(aP->_arrayIndex); });
                 ImGui::PopID();
             }
@@ -557,6 +589,8 @@ double* CVarSystemImpl::GetFloatCVar(const momo_stringUtils::StringHash aHash) {
         }
 
         if (ImGui::IsItemHovered())
+        {
             ImGui::SetTooltip(aP->_description.c_str());
+        }
     }
 }

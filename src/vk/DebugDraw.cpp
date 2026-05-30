@@ -71,18 +71,23 @@ void DebugDraw::Init(VkDevice aDevice, VmaAllocator aAllocator, VkFormat aDrawFo
     vkDestroyShaderModule(aDevice, frag.value(), nullptr);
 }
 
-void DebugDraw::Cleanup(VkDevice aDevice, VmaAllocator aAllocator)
+void DebugDraw::Cleanup(const VkDevice aDevice, const VmaAllocator aAllocator)
 {
     for (auto& buf : _buffers)
+    {
         vmaDestroyBuffer(aAllocator, buf._buffer, buf._allocation);
+    }
     vkDestroyPipeline(aDevice, _pipeline, nullptr);
     vkDestroyPipelineLayout(aDevice, _layout, nullptr);
 }
 
-void DebugDraw::Draw(VkCommandBuffer aCmd, VkImageView aTargetView, VkExtent2D aDrawExtent,
-                     const glm::mat4& aViewProj, int aFrameNumber)
+void DebugDraw::Draw(const VkCommandBuffer aCmd, const VkImageView aTargetView, const VkExtent2D aDrawExtent,
+                     const glm::mat4& aViewProj, const int aFrameNumber)
 {
-    if (_pending.empty()) return;
+    if (_pending.empty())
+    {
+        return;
+    }
 
     const uint32_t count = std::min(static_cast<uint32_t>(_pending.size()), MAX_VERTICES);
     const int slot = aFrameNumber % 2;
@@ -117,7 +122,10 @@ void DebugDraw::Draw(VkCommandBuffer aCmd, VkImageView aTargetView, VkExtent2D a
 
 void DebugDraw::Line(const glm::vec3 aFrom, const glm::vec3 aTo, const glm::vec4 aColor)
 {
-    if (_pending.size() + 2 > MAX_VERTICES) return;
+    if (_pending.size() + 2 > MAX_VERTICES)
+    {
+        return;
+    }
     const uint32_t c = PackColor(aColor);
     _pending.push_back({aFrom, c});
     _pending.push_back({aTo,   c});

@@ -5,7 +5,9 @@ TextureID TextureCache::AddTexture(const VkImageView& aImage, const VkSampler aS
     const ViewSamplerKey key{._imageView = aImage, ._sampler = aSampler};
 
     if (const auto it = _lookup.find(key); it != _lookup.end())
+    {
         return TextureID{it->second};
+    }
 
     const VkDescriptorImageInfo info{
         .sampler     = aSampler,

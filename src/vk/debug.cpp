@@ -4,7 +4,7 @@
 namespace momo_vkDebug
 {
 
-void ValidationCapture::Init(VkInstance aInstance)
+void ValidationCapture::Init(const VkInstance aInstance)
 {
     VkDebugUtilsMessengerCreateInfoEXT info{};
     info.sType           = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
@@ -18,7 +18,7 @@ void ValidationCapture::Init(VkInstance aInstance)
     vkCreateDebugUtilsMessengerEXT(aInstance, &info, nullptr, &_messenger);
 }
 
-void ValidationCapture::Destroy(VkInstance aInstance)
+void ValidationCapture::Destroy(const VkInstance aInstance)
 {
     if (_messenger != VK_NULL_HANDLE)
     {
@@ -28,31 +28,41 @@ void ValidationCapture::Destroy(VkInstance aInstance)
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL ValidationCapture::Callback(
-    VkDebugUtilsMessageSeverityFlagBitsEXT aMessageSeverity,
+    const VkDebugUtilsMessageSeverityFlagBitsEXT aMessageSeverity,
     VkDebugUtilsMessageTypeFlagsEXT /*messageType*/,
     const VkDebugUtilsMessengerCallbackDataEXT* /*pCallbackData*/,
     void* a_pUserData)
 {
     auto* self = static_cast<ValidationCapture*>(a_pUserData);
     if (aMessageSeverity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT)
+    {
         self->_hasErrors.store(true, std::memory_order_relaxed);
+    }
     else
+    {
         self->_hasWarnings.store(true, std::memory_order_relaxed);
+    }
     return VK_FALSE;
 }
 
 void ValidationCapture::DrawImGui() const
 {
     if (_messenger == VK_NULL_HANDLE)
+    {
         return;
+    }
 
     const bool errors   = _hasErrors.load(std::memory_order_relaxed);
     const bool warnings = _hasWarnings.load(std::memory_order_relaxed);
 
     if (errors)
+    {
         ImGui::TextColored(ImVec4(1.f, 0.25f, 0.25f, 1.f), "Validation errors detected - check console");
+    }
     else if (warnings)
+    {
         ImGui::TextColored(ImVec4(1.f, 0.85f, 0.f, 1.f), "Validation warnings detected - check console");
+    }
 
     // if ((errors || warnings) && ImGui::Button("Clear##val"))
     // {

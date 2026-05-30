@@ -3,17 +3,17 @@
 #include <SDL3/SDL.h>
 #include <VkBootstrap.h>
 
-void Swapchain::Init(VkDevice aDevice, VkPhysicalDevice aGPU, VkSurfaceKHR aSurface, SDL_Window* aWindow, VkExtent2D aWindowExtent)
+void Swapchain::Init(const VkDevice aDevice, const VkPhysicalDevice aGPU, const VkSurfaceKHR aSurface, SDL_Window* aWindow, const VkExtent2D aWindowExtent)
 {
     Create(aDevice, aGPU, aSurface, aWindow, aWindowExtent.width, aWindowExtent.height);
 }
 
-void Swapchain::Cleanup(VkDevice aDevice) const
+void Swapchain::Cleanup(const VkDevice aDevice) const
 {
     Destroy(aDevice);
 }
 
-void Swapchain::Resize(VkDevice aDevice, VkPhysicalDevice aGPU, VkSurfaceKHR aSurface, SDL_Window* aWindow, VkExtent2D& aWindowExtent)
+void Swapchain::Resize(const VkDevice aDevice, const VkPhysicalDevice aGPU, const VkSurfaceKHR aSurface, SDL_Window* aWindow, VkExtent2D& aWindowExtent)
 {
     Destroy(aDevice);
     int w, h;
@@ -23,7 +23,7 @@ void Swapchain::Resize(VkDevice aDevice, VkPhysicalDevice aGPU, VkSurfaceKHR aSu
     Create(aDevice, aGPU, aSurface, aWindow, aWindowExtent.width, aWindowExtent.height);
 }
 
-void Swapchain::Create(VkDevice aDevice, VkPhysicalDevice aGPU, VkSurfaceKHR aSurface, SDL_Window* aWindow, const uint32_t aWidth, const uint32_t aHeight)
+void Swapchain::Create(const VkDevice aDevice, const VkPhysicalDevice aGPU, const VkSurfaceKHR aSurface, SDL_Window* aWindow, const uint32_t aWidth, const uint32_t aHeight)
 {
     vkb::SwapchainBuilder swapchainBuilder{aGPU, aDevice, aSurface};
 
@@ -54,9 +54,11 @@ void Swapchain::Create(VkDevice aDevice, VkPhysicalDevice aGPU, VkSurfaceKHR aSu
     }
 }
 
-void Swapchain::Destroy(VkDevice aDevice) const
+void Swapchain::Destroy(const VkDevice aDevice) const
 {
     vkDestroySwapchainKHR(aDevice, _swapchain, nullptr);
     for (const auto& view : _imageViews)
+    {
         vkDestroyImageView(aDevice, view, nullptr);
+    }
 }

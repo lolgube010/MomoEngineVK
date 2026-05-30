@@ -9,7 +9,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/norm.hpp>
 
-void GpuResources::Init(VkDevice aDevice, VmaAllocator aAllocator, VkQueue aGraphicsQueue, uint32_t aGraphicsQueueFamily)
+void GpuResources::Init(const VkDevice aDevice, const VmaAllocator aAllocator, const VkQueue aGraphicsQueue, const uint32_t aGraphicsQueueFamily)
 {
     _device        = aDevice;
     _allocator     = aAllocator;
@@ -28,7 +28,7 @@ void GpuResources::Init(VkDevice aDevice, VmaAllocator aAllocator, VkQueue aGrap
     MOMO_VK_SET_DEBUG_NAME(_device, VK_OBJECT_TYPE_FENCE, _immFence, "_Fence Immediate");
 }
 
-void GpuResources::Cleanup(VkDevice aDevice)
+void GpuResources::Cleanup(const VkDevice aDevice)
 {
     vkDestroyFence(aDevice, _immFence, nullptr);
     vkDestroyCommandPool(aDevice, _immCommandPool, nullptr);
@@ -59,8 +59,10 @@ AllocatedImage GpuResources::Create_Image(const VkExtent3D aSize, const VkFormat
 
     VkImageCreateInfo img_Info = momo_vkInit::image_create_info(aFormat, aUsage, aSize);
     if (aMipmapped)
+    {
         img_Info.mipLevels = static_cast<uint32_t>(
             std::floor(std::log2(std::max(aSize.width, aSize.height)))) + 1;
+    }
 
     VmaAllocationCreateInfo allocInfo = {};
     allocInfo.usage         = VMA_MEMORY_USAGE_AUTO;
@@ -108,12 +110,16 @@ AllocatedImage GpuResources::Create_Image(const void* aData, const VkExtent3D aS
         vkCmdCopyBufferToImage(aCmd, uploadBuffer._buffer, new_Image._image,
                                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
         if (aMipmapped)
+        {
             momo_vkUtil::generate_mipmaps(aCmd, new_Image._image,
                 VkExtent2D{.width = new_Image._imageExtent.width, .height = new_Image._imageExtent.height},
                 new_Image._imageFormat);
+        }
         else
+        {
             momo_vkUtil::transition_image(aCmd, new_Image._image,
                 VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, new_Image._imageFormat);
+        }
     });
 
     Destroy_Buffer(uploadBuffer);

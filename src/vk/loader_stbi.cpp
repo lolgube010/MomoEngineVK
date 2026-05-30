@@ -51,7 +51,9 @@ momo_vkGLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage,
                                        aGLTFImageFilePath.uri.path().end());
                 pixels = stbi_load(path.c_str(), &width, &height, &nrChannels, 4);
                 if (!pixels)
+                {
                     fmt::print(stderr, "load_image_stbi: stbi failed to load '{}': {}\n", path, stbi_failure_reason());
+                }
             },
             [&](fastgltf::sources::Array& anArray)
             {
@@ -59,8 +61,10 @@ momo_vkGLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage,
                 pixels = stbi_load_from_memory(bytes, static_cast<int>(anArray.bytes.size()),
                                                &width, &height, &nrChannels, 4);
                 if (!pixels)
+                {
                     fmt::print(stderr, "load_image_stbi: stbi failed to decode embedded array for image '{}': {}\n",
                                aImage.name, stbi_failure_reason());
+                }
             },
             [&](const fastgltf::sources::BufferView& aView)
             {
@@ -79,8 +83,10 @@ momo_vkGLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage,
                         pixels = stbi_load_from_memory(bytes, static_cast<int>(bufferView.byteLength),
                                                        &width, &height, &nrChannels, 4);
                         if (!pixels)
+                        {
                             fmt::print(stderr, "load_image_stbi: stbi failed to decode buffer view for image '{}': {}\n",
                                        aImage.name, stbi_failure_reason());
+                        }
                     },
                     [&](fastgltf::sources::ByteView&)
                     {
@@ -92,7 +98,9 @@ momo_vkGLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage,
         aImage.data);
 
     if (!pixels)
+    {
         return std::nullopt;
+    }
 
     const VkExtent3D extent = {
         .width  = static_cast<uint32_t>(width),

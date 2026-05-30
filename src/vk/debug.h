@@ -55,7 +55,9 @@ namespace momo_vkDebug
     static void Set_Debug_Name(const VkDevice aDevice, const VkObjectType aObjectType, T aHandle, fmt::string_view aFmtString, Args&&... aArgs)
     {
         if (!vkSetDebugUtilsObjectNameEXT)
+        {
             return;
+        }
 
         fmt::memory_buffer buf;
         fmt::vformat_to(std::back_inserter(buf), aFmtString, fmt::make_format_args(aArgs...));

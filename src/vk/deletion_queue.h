@@ -12,7 +12,9 @@ struct DeletionQueue
     void Flush()
     {
         for (auto& deleter : std::ranges::reverse_view(_deleters))
+        {
             deleter();
+        }
         _deleters.clear();
     }
 };

@@ -26,7 +26,7 @@ glm::mat4 Camera::GetProjectionMatrix(const float aWidth, const float aHeight) c
     return matrix;
 }
 
-void Camera::Update(SDL_Window* aWindow, float aDt)
+void Camera::Update(SDL_Window* aWindow, const float aDt)
 {
     const auto& input = Input::Instance();
     if (input.IsKeyPressed(SDL_SCANCODE_TAB))

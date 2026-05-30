@@ -116,12 +116,16 @@ bool Input::IsButtonJustPressed(const SDL_GamepadButton aButton) const
 float Input::GetAxis(const SDL_GamepadAxis aAxis) const
 {
     if (!_controller)
+    {
         return 0.0f;
+    }
 
     const int16_t value = SDL_GetGamepadAxis(_controller, aAxis);
 
     if (abs(value) < 8000)
+    {
         return 0.0f;
+    }
 
     return static_cast<float>(value) / 32767.0f;
 }

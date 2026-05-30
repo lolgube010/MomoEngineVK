@@ -111,7 +111,9 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
         }
 
         if (ImGui::CollapsingHeader("CVars"))
+        {
             momo_cvars::CVarSystem::Get()->DrawImGuiEditor();
+        }
 
         if (ImGui::CollapsingHeader("Lighting"))
         {
@@ -199,11 +201,15 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
         {
             if (isRenderDocLoaded)
             {
-                if (ImGui::Button("Trigger Capture"))    
+                if (ImGui::Button("Trigger Capture"))
+                {
                     aRenderer._renderDoc.Trigger_Capture();  // NOLINT(readability-static-accessed-through-instance)
+                }
                 ImGui::SameLine();
-                if (ImGui::Button("Open in RenderDoc"))  
+                if (ImGui::Button("Open in RenderDoc"))
+                {
                     aRenderer._renderDoc.Launch_Replay_UI(); // NOLINT(readability-static-accessed-through-instance)
+                }
             }
             else
             {

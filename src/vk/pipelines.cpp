@@ -394,9 +394,13 @@ std::string momo_shaderUtil::build_spv_shader_path(const std::string& aFileName,
     std::string fullPath = std::string(basePath) + std::string(langSubdir) + "/" + std::string(typeSubdir) + "/" + aFileName;
 
     if (aShaderLang == ShaderLang::HLSL)
+    {
         fullPath += ".hlsl";
+    }
     else
+    {
         fullPath += std::string(typeExt);
+    }
 
     fullPath += ".spv";
     return fullPath;

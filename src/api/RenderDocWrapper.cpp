@@ -17,7 +17,9 @@ static std::string Find_RenderDoc_DLL()
         if (!path.empty())
         {
             if (path.back() == '\\' || path.back() == '/')
+            {
                 path += "renderdoc.dll";
+            }
             return path;
         }
     }
@@ -61,11 +63,17 @@ void RenderDocWrapper::Load()
 
 void RenderDocWrapper::Set_Window(const VkInstance aInstance, SDL_Window* aWindow)
 {
-    if (!_rdoc_api) return;
+    if (!_rdoc_api)
+    {
+        return;
+    }
 
     auto* hwnd = static_cast<HWND>(SDL_GetPointerProperty(
         SDL_GetWindowProperties(aWindow), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr));
-    if (!hwnd) return;
+    if (!hwnd)
+    {
+        return;
+    }
 
     _devicePtr = RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE(aInstance);
     _rdoc_api->SetActiveWindow(_devicePtr, hwnd);
@@ -73,34 +81,54 @@ void RenderDocWrapper::Set_Window(const VkInstance aInstance, SDL_Window* aWindo
 
 void RenderDocWrapper::Annotate_Draw(const VkCommandBuffer aCmd, const char* aMaterial, const char* aMesh, const char* aPass) const
 {
-    if (!_rdoc_api || !_devicePtr || !_rdoc_api->SetCommandAnnotation) return;
+    if (!_rdoc_api || !_devicePtr || !_rdoc_api->SetCommandAnnotation)
+    {
+        return;
+    }
 
     _rdoc_api->SetCommandAnnotation(_devicePtr, aCmd, "pass",     eRENDERDOC_String, 0, RDAnnotationHelper(aPass));
     if (aMaterial)
+    {
         _rdoc_api->SetCommandAnnotation(_devicePtr, aCmd, "material", eRENDERDOC_String, 0, RDAnnotationHelper(aMaterial));
+    }
     if (aMesh)
+    {
         _rdoc_api->SetCommandAnnotation(_devicePtr, aCmd, "mesh",     eRENDERDOC_String, 0, RDAnnotationHelper(aMesh));
+    }
 }
 
 void RenderDocWrapper::Trigger_Capture() const
 {
-    if (!_rdoc_api) return;
+    if (!_rdoc_api)
+    {
+        return;
+    }
     _rdoc_api->TriggerCapture();
 }
 
 void RenderDocWrapper::Launch_Replay_UI() const
 {
-    if (!_rdoc_api) return;
+    if (!_rdoc_api)
+    {
+        return;
+    }
     // If the replay UI is already open and connected, just bring it to front
     if (_rdoc_api->IsTargetControlConnected())
+    {
         _rdoc_api->ShowReplayUI();
+    }
     else
+    {
         _rdoc_api->LaunchReplayUI(1, nullptr);
+    }
 }
 
 void RenderDocWrapper::Annotate_Object(const VkInstance aInst, void* aVulkanObj) const
 {
-    if (!_rdoc_api) return;
+    if (!_rdoc_api)
+    {
+        return;
+    }
     void* dev = RENDERDOC_DEVICEPOINTER_FROM_VKINSTANCE(aInst);
     const auto res = _rdoc_api->SetObjectAnnotation(dev, aVulkanObj, "key", eRENDERDOC_String, 0, RDAnnotationHelper("value"));
     Evaluate_Result(res);

@@ -114,7 +114,9 @@ void EngineRenderer::Init_Vulkan()
     volkLoadInstance(_instance);
 
     if (USE_VALIDATION_LAYERS)
+    {
         _validationCapture.Init(_instance);
+    }
 
     SDL_Vulkan_CreateSurface(_window, _instance, nullptr, &_surface);
 
@@ -146,7 +148,9 @@ void EngineRenderer::Init_Vulkan()
         .select();
 
     if (!phys_ret)
+    {
         throw std::runtime_error("failed to find a suitable GPU: " + phys_ret.error().message());
+    }
 
     vkb::PhysicalDevice& physicalDevice = phys_ret.value();
     if (const std::vector desiredExtensions = {"VK_EXT_memory_budget", "VK_EXT_calibrated_timestamps"};
@@ -156,7 +160,9 @@ void EngineRenderer::Init_Vulkan()
         for (const auto& ext : desiredExtensions)
         {
             if (!physicalDevice.enable_extension_if_present(ext))
+            {
                 fmt::print("failed to load this specific extension!: {}\n", ext);
+            }
         }
     }
 
@@ -270,9 +276,13 @@ void EngineRenderer::Draw(const DrawContext& aDrawContext, const GPUSceneData& a
             return;
         }
         if (res == VK_SUBOPTIMAL_KHR)
+        {
             aResizeRequested = true;
+        }
         else
+        {
             VK_CHECK(res);
+        }
     }
 
     VK_CHECK(vkResetFences(_device, 1, &GetCurrentFrame(aFrameNumber)._renderFence));
@@ -453,20 +463,31 @@ void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext
     std::vector<uint32_t> opaque_draws;
     opaque_draws.reserve(aDrawContext._opaqueSurfaces.size());
     for (uint32_t i = 0; i < aDrawContext._opaqueSurfaces.size(); i++)
+    {
         if (Is_Visible(aDrawContext._opaqueSurfaces[i], aSceneData._viewProj))
+        {
             opaque_draws.push_back(i);
+        }
+    }
 
     std::vector<uint32_t> transparent_draws;
     transparent_draws.reserve(aDrawContext._transparentSurfaces.size());
     for (uint32_t i = 0; i < aDrawContext._transparentSurfaces.size(); i++)
+    {
         if (Is_Visible(aDrawContext._transparentSurfaces[i], aSceneData._viewProj))
+        {
             transparent_draws.push_back(i);
+        }
+    }
 
     std::ranges::sort(opaque_draws, [&](const auto& a, const auto& b)
     {
         const RenderObject& ra = aDrawContext._opaqueSurfaces[a];
         const RenderObject& rb = aDrawContext._opaqueSurfaces[b];
-        if (ra._material == rb._material) return ra._indexBuffer < rb._indexBuffer;
+        if (ra._material == rb._material)
+        {
+            return ra._indexBuffer < rb._indexBuffer;
+        }
         return ra._material < rb._material;
     });
 
@@ -474,12 +495,21 @@ void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext
     {
         const RenderObject& ra = aDrawContext._transparentSurfaces[a];
         const RenderObject& rb = aDrawContext._transparentSurfaces[b];
-        if (ra._material != rb._material) return ra._material < rb._material;
+        if (ra._material != rb._material)
+        {
+            return ra._material < rb._material;
+        }
         const glm::vec3 cameraPos = aSceneData._view[3];
         const float distA = distance2(cameraPos, ra._bounds._origin);
         const float distB = distance2(cameraPos, rb._bounds._origin);
-        if (distA > distB) return true;
-        if (distA < distB) return false;
+        if (distA > distB)
+        {
+            return true;
+        }
+        if (distA < distB)
+        {
+            return false;
+        }
         return ra._indexBuffer < rb._indexBuffer;
     });
 
@@ -760,7 +790,9 @@ void EngineRenderer::Init_Sync_Structures()
     _deletionQueue.Push_Function([this]
     {
         for (const auto sem : _readyForPresentSemaphores)
+        {
             vkDestroySemaphore(_device, sem, nullptr);
+        }
     });
 }
 
@@ -977,8 +1009,12 @@ void EngineRenderer::Init_Default_Data()
     const uint32_t magenta = glm::packUnorm4x8(glm::vec4(1, 0, 1, 1));
     std::array<uint32_t, 16 * 16> pixels;
     for (int x = 0; x < 16; x++)
+    {
         for (int y = 0; y < 16; y++)
+        {
             pixels[y * 16 + x] = ((x % 2) ^ (y % 2)) ? magenta : black;
+        }
+    }
     _errorCheckerboardImage = Create_Image(pixels.data(), {16,16,1},
                                             VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_SAMPLED_BIT,
                                             "Default_ErrorCheckerboard");
@@ -1097,7 +1133,9 @@ void EngineRenderer::Resize_Swapchain(VkExtent2D& aWindowExtent)
     if (_swapchain.GetImageCount() != oldImageCount)
     {
         for (const auto sem : _readyForPresentSemaphores)
+        {
             vkDestroySemaphore(_device, sem, nullptr);
+        }
         _readyForPresentSemaphores.clear();
         _readyForPresentSemaphores.resize(_swapchain.GetImageCount());
         const VkSemaphoreCreateInfo info = momo_vkInit::semaphore_create_info();
@@ -1132,7 +1170,10 @@ bool EngineRenderer::Is_Visible(const RenderObject& aObj, const glm::mat4& aView
     {
         const float d = glm::dot(glm::vec3(planes[i]), aObj._bounds._origin) + planes[i].w;
         const float r = glm::dot(glm::abs(glm::vec3(planes[i])), aObj._bounds._extents);
-        if (d < -r) return false;
+        if (d < -r)
+        {
+            return false;
+        }
     }
     return true;
 }
