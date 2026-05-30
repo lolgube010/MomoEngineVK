@@ -79,8 +79,8 @@ void VulkanEngine::Run()
         auto& input = Input::Instance();
         input.PostUpdate();
 
-        // Swap in a freshly-built game DLL at a safe point (no DLL call in flight).
-        _gameModule.PollAutoReload();
+        // Rebuild-on-save + swap in the result at a safe point (no DLL call in flight).
+        _gameModule.PollAutoRebuild();
         _gameModule.PollBuild();
 
         if (_freezeRendering)

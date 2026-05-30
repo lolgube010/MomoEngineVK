@@ -1,6 +1,7 @@
 #include "game_module.h"
 #include <windows.h>
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <vector>
 #include <cstdio>
@@ -103,10 +104,20 @@ bool GameModule::LoadCopy(void*& outHandle, GameAPI& outApi, std::string& outPat
         return false;
     }
 
+    // One symbol to resolve: it fills the whole table. Adding game entry points never
+    // touches this code again.
+    using GameGetAPI_t = void (*)(GameAPI*);
+    const auto getApi = reinterpret_cast<GameGetAPI_t>(GetProcAddress(h, "Game_GetAPI"));
+    if (!getApi)
+    {
+        FreeLibrary(h);
+        DeleteFileA(copyPath.c_str());
+        if (!pdbCopyPath.empty()) { DeleteFileA(pdbCopyPath.c_str()); }
+        return false;
+    }
+
     GameAPI api{};
-    api.Init      = reinterpret_cast<GameInit_t>(GetProcAddress(h, "Game_Init"));
-    api.Update    = reinterpret_cast<GameUpdate_t>(GetProcAddress(h, "Game_Update"));
-    api.DrawImGui = reinterpret_cast<GameDrawImGui_t>(GetProcAddress(h, "Game_DrawImGui"));
+    getApi(&api);
     if (!api.Init || !api.Update || !api.DrawImGui)
     {
         FreeLibrary(h);
@@ -133,11 +144,11 @@ bool GameModule::Load()
         return false;
     }
 
-    _handle          = handle;
-    _api             = api;
-    _livePath        = path;
-    _livePdbPath     = pdbPath;
-    _loadedWriteTime = QuerySourceWriteTime();
+    _handle         = handle;
+    _api            = api;
+    _livePath       = path;
+    _livePdbPath    = pdbPath;
+    _lastSourceTime = QueryGameSourceTime(); // baseline so we don't rebuild on startup
     return true;
 }
 
@@ -182,11 +193,10 @@ bool GameModule::Reload()
     if (!_livePath.empty())    { DeleteFileA(_livePath.c_str()); }
     if (!_livePdbPath.empty()) { DeleteFileA(_livePdbPath.c_str()); }
 
-    _handle          = newHandle;
-    _api             = newApi;
-    _livePath        = newPath;
-    _livePdbPath     = newPdbPath;
-    _loadedWriteTime = QuerySourceWriteTime();
+    _handle      = newHandle;
+    _api         = newApi;
+    _livePath    = newPath;
+    _livePdbPath = newPdbPath;
 
     // Fresh module = fresh ImGui globals (and any game-side statics reset), so the
     // handshake must run again. GameState lives in the host, so its contents carry over.
@@ -204,15 +214,19 @@ void GameModule::Init(GameState* aState, const ImGuiBridge* aBridge)
     _api.Init(_state, &_bridge);
 }
 
-void GameModule::PollAutoReload()
+void GameModule::PollAutoRebuild()
 {
-    if (_buildProc)
+    if (!_autoRebuild || _buildProc)
     {
-        return; // an in-app rebuild is running; PollBuild owns the reload on completion
+        return; // disabled, or a build is already running (PollBuild handles its completion)
     }
-    if (_autoReload && SourceChanged())
+    const uint64_t now = QueryGameSourceTime();
+    if (now != 0 && now != _lastSourceTime)
     {
-        Reload(); // failure is fine: SourceChanged stays true and we retry next frame
+        // A game source file was saved. Record it first so a failed compile (or a save
+        // mid-build) retries cleanly, then kick off the build; PollBuild reloads on success.
+        _lastSourceTime = now;
+        RequestRebuild();
     }
 }
 
@@ -272,21 +286,33 @@ void GameModule::PollBuild()
     _lastBuildFailed = (exitCode != 0);
 }
 
-bool GameModule::SourceChanged() const
+uint64_t GameModule::QueryGameSourceTime() const
 {
-    const uint64_t now = QuerySourceWriteTime();
-    return now != 0 && now != _loadedWriteTime;
-}
+    namespace fs = std::filesystem;
 
-uint64_t GameModule::QuerySourceWriteTime() const
-{
-    WIN32_FILE_ATTRIBUTE_DATA data{};
-    if (!GetFileAttributesExA(SourceDllPath().c_str(), GetFileExInfoStandard, &data))
+    // The game sources live at <repo>/src/game (two levels up from <repo>/bin/<config>).
+    // Absent in a shipped build -> return 0 so the watcher simply does nothing.
+    const fs::path dir = fs::path(ExeDir()) / ".." / ".." / "src" / "game";
+
+    std::error_code ec;
+    if (!fs::exists(dir, ec))
     {
         return 0;
     }
-    ULARGE_INTEGER t{};
-    t.LowPart  = data.ftLastWriteTime.dwLowDateTime;
-    t.HighPart = data.ftLastWriteTime.dwHighDateTime;
-    return t.QuadPart;
+
+    fs::file_time_type newest{};
+    bool found = false;
+    for (const auto& entry : fs::recursive_directory_iterator(dir, ec))
+    {
+        if (ec) { break; }
+        if (!entry.is_regular_file()) { continue; }
+        const fs::path ext = entry.path().extension();
+        if (ext != ".cpp" && ext != ".h") { continue; }
+
+        const fs::file_time_type t = fs::last_write_time(entry, ec);
+        if (ec) { continue; }
+        if (!found || t > newest) { newest = t; found = true; }
+    }
+
+    return found ? static_cast<uint64_t>(newest.time_since_epoch().count()) : 0;
 }

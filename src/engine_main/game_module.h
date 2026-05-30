@@ -18,13 +18,12 @@ public:
     // re-run the Game_Init handshake on its own (both stay valid across reloads).
     void Init(GameState* aState, const ImGuiBridge* aBridge);
 
-    void Update(GameState* aState, double aDT, const InputData* aInput) const { _api.Update(aState, aDT, aInput); }
+    void Update(GameState* aState, const double aDT, const InputData* aInput) const { _api.Update(aState, aDT, aInput); }
     void DrawImGui(GameState* aState) const { _api.DrawImGui(aState); }
 
     // Hot-reload controls (host-only; the DLL knows nothing about them).
-    void PollAutoReload();              // call once per frame: reloads if enabled and the build changed
-    bool SourceChanged() const;         // is the built DLL newer than the one we loaded?
-    bool& AutoReloadEnabled() { return _autoReload; }
+    void PollAutoRebuild();             // call once per frame: rebuilds when a game source file changes
+    bool& AutoRebuildEnabled() { return _autoRebuild; }
 
     // Rebuild from inside the app: spawns the compile, then reloads when it finishes.
     void RequestRebuild();              // kick off an async `cmake --build ... --target MomoGame`
@@ -37,7 +36,7 @@ private:
     // loads + resolves it into the given outputs, without touching the currently-live
     // module. Returns false on any failure (e.g. the build is mid-link and still locked).
     bool LoadCopy(void*& outHandle, GameAPI& outApi, std::string& outPath, std::string& outPdbPath);
-    uint64_t QuerySourceWriteTime() const;
+    uint64_t QueryGameSourceTime() const; // newest mtime across game/*.cpp|.h, 0 if the tree is absent
 
     GameAPI     _api{};
     void*       _handle = nullptr;   // HMODULE of the live copy; void* keeps <windows.h> out of the header
@@ -47,9 +46,9 @@ private:
     GameState*  _state  = nullptr;   // host-owned; stable across reloads
     ImGuiBridge _bridge{};           // cached; its context + allocator stay valid across reloads
 
-    uint64_t _loadedWriteTime = 0;   // write time of the built DLL at our last (re)load
+    uint64_t _lastSourceTime  = 0;   // newest game-source mtime we've already (re)built from
     int      _copyCounter     = 0;   // makes each live-copy filename unique
-    bool     _autoReload      = true;
+    bool     _autoRebuild     = true;
 
     void* _buildProc       = nullptr; // HANDLE of an in-flight rebuild process (void* keeps <windows.h> out)
     bool  _lastBuildFailed = false;

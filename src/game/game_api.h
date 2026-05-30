@@ -2,9 +2,9 @@
 #pragma once
 #include <cstddef> // size_t (for the allocator function-pointer signatures below)
 
-// Marks the DLL's entry points. MOMO_GAME_EXPORTS is defined only while building the
-// MomoGame target, so the game exports them and the host (which resolves them by name
-// via GetProcAddress) sees plain declarations with no import dependency.
+// Marks the DLL's one exported entry point (Game_GetAPI). MOMO_GAME_EXPORTS is defined
+// only while building the MomoGame target, so the game exports it and the host (which
+// resolves it by name via GetProcAddress) sees a plain declaration with no import dep.
 #ifdef MOMO_GAME_EXPORTS
     #define GAME_API __declspec(dllexport)
 #else
@@ -34,26 +34,20 @@ extern "C"
 {
 #endif
 
-// The exported entry points, defined in game_api.cpp. Today the host calls these
-// directly (static link). At the DLL stage the host stops linking them and instead
-// resolves them by name via GetProcAddress into the function-pointer table below.
-GAME_API void Game_Init(GameState* aState, const ImGuiBridge* aImGui);
-GAME_API void Game_Update(GameState* aState, double aDT, const InputData* aInput);
-GAME_API void Game_DrawImGui(GameState* aState);
-
-// The Function Pointer Types. These MUST match the Game_* signatures above
-// exactly; GetProcAddress can't check it for you.
-typedef void (*GameInit_t)(GameState* aState, const ImGuiBridge* aImGui);
-typedef void (*GameUpdate_t)(GameState* aState, double aDT, const InputData* aInput);
-typedef void (*GameDrawImGui_t)(GameState* aState);
-
-// The Function Table (The Seam)
+// The gameplay module's function table, and the single source of truth for the boundary.
+// To add an entry point: add a member here, define it in game_api.cpp, and assign it in
+// Game_GetAPI. The host side (resolution in GameModule) never changes. Inline function-
+// pointer types avoid maintaining a separate typedef per entry.
 struct GameAPI
 {
-    GameInit_t Init;
-    GameUpdate_t Update;
-    GameDrawImGui_t DrawImGui;
+    void (*Init)(GameState* aState, const ImGuiBridge* aImGui);
+    void (*Update)(GameState* aState, double aDT, const InputData* aInput);
+    void (*DrawImGui)(GameState* aState);
 };
+
+// The ONLY exported symbol. The host resolves just this name, calls it, and receives the
+// whole table at once; the individual game functions stay internal to the DLL.
+GAME_API void Game_GetAPI(GameAPI* aOutApi);
 
 #ifdef __cplusplus
 }

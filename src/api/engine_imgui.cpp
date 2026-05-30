@@ -86,12 +86,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule
             ImGui::EndDisabled();
 
             ImGui::SameLine();
-            if (ImGui::Button("Reload now"))
-            {
-                aGameModule.Reload();
-            }
-            ImGui::SameLine();
-            ImGui::Checkbox("Auto-reload on rebuild", &aGameModule.AutoReloadEnabled());
+            ImGui::Checkbox("Auto rebuild on save", &aGameModule.AutoRebuildEnabled());
 
             if (building)
             {
