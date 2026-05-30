@@ -64,5 +64,5 @@ static void Update_Camera(Camera& aCamera, const float aDt, const InputData& aIn
     aCamera._velocity.x += static_cast<float>(aInput.IsKeyHeld(SDL_SCANCODE_D) - aInput.IsKeyHeld(SDL_SCANCODE_A));
 
     const glm::mat4 cameraRotation = Camera_Util::get_rotation_matrix(aCamera);
-    aCamera._position += glm::vec3(cameraRotation * glm::vec4(aCamera._velocity * aCamera._moveSpeed * aDt * 10.f, 0.f));
+    aCamera._position += glm::vec3(cameraRotation * glm::vec4(aCamera._velocity * aCamera._moveSpeed * aDt, 0.f));
 }

@@ -1,23 +1,8 @@
 #pragma once
 #include "camera.h"
 
-// struct InputData;
-//
-// class GameState
-// {
-// public:
-//     void Update(double aDT, const InputData& aInputData);
-//     void Update_Camera(Camera& aCameraPOV, float aDt, const InputData& aInputData) const;
-//
-//     const Camera& GetCameraData() const;
-//     Camera& GetCameraDataMutable();
-//     
-// private:
-//     Camera _cameraData;
-// };
-
+// Host-owned POD: lives in the EXE so it survives DLL reloads; the game writes it only through Game_Update, the engine reads it back directly.
 struct GameState
 {
-public:
     Camera _cameraData;
 };

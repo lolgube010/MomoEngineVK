@@ -1,5 +1,6 @@
 #pragma once
 #include "game/game_api.h"
+#include <chrono>
 #include <cstdint>
 #include <string>
 
@@ -36,6 +37,7 @@ private:
     // loads + resolves it into the given outputs, without touching the currently-live
     // module. Returns false on any failure (e.g. the build is mid-link and still locked).
     bool LoadCopy(void*& outHandle, GameAPI& outApi, std::string& outPath, std::string& outPdbPath);
+    void AdoptModule(void* aHandle, const GameAPI& aApi, std::string aDllPath, std::string aPdbPath);
     uint64_t QueryGameSourceTime() const; // newest mtime across game/*.cpp|.h, 0 if the tree is absent
 
     GameAPI     _api{};
@@ -49,6 +51,7 @@ private:
     uint64_t _lastSourceTime  = 0;   // newest game-source mtime we've already (re)built from
     int      _copyCounter     = 0;   // makes each live-copy filename unique
     bool     _autoRebuild     = true;
+    std::chrono::steady_clock::time_point _lastSourceCheck{}; // throttles the per-frame source scan
 
     void* _buildProc       = nullptr; // HANDLE of an in-flight rebuild process (void* keeps <windows.h> out)
     bool  _lastBuildFailed = false;

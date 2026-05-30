@@ -94,7 +94,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule
             }
             else if (aGameModule.LastBuildFailed())
             {
-                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Build FAILED (run build_game.bat to see errors)");
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Build FAILED (build MomoGame in a terminal to see errors)");
             }
             else
             {
