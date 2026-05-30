@@ -25,7 +25,7 @@
 #include <glm/gtx/transform.hpp>
 #include <glm/gtx/norm.hpp>
 
-static momo_cvars::AutoCVar_Int CVAR_Wireframe("r.wireframe", "render geometry as wireframe", 0, momo_cvars::CVarFlags::EditCheckbox);
+static momo_cvars::AutoCVar_Int CVAR_Wireframe("r.wireframe", "render geometry as wireframe", 0, momo_cvars::CVarFlags::EditFloatDrag);
 
 // ---------------------------------------------------------------------------
 // Init / Cleanup
@@ -545,7 +545,7 @@ void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext
 
     const VkDescriptorSet globalDescriptor = _persistentGlobalDescriptors[aFrameNumber % FRAME_OVERLAP];
 
-    const bool wireframe = CVAR_Wireframe.Get() != 0;
+    const int wireframe = CVAR_Wireframe.Get();
 
     MaterialPipeline* lastPipeline  = nullptr;
     MaterialInstance* lastMaterial  = nullptr;
@@ -553,11 +553,22 @@ void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext
 
     auto draw = [&](const RenderObject& aR)
     {
-        MaterialPipeline* const activePipeline = wireframe
-            ? ((aR._material->_passType == MaterialPass::Transparent)
-                ? &_metalRoughMaterial._transparentWireframePipeline
-                : &_metalRoughMaterial._opaqueWireframePipeline)
-            : aR._material->_pipeline;
+        MaterialPipeline* activePipeline;
+        switch (wireframe)
+        {
+        default:
+            activePipeline = aR._material->_pipeline;
+            break;
+        case 1:
+            activePipeline = &_metalRoughMaterial._opaqueWireframePipeline;
+            break;
+        case 2:
+            activePipeline = &_metalRoughMaterial._opaqueWireframePipeline2;
+            break;
+        case 3:
+            activePipeline = &_metalRoughMaterial._opaqueWireframePipeline3;
+            break;
+        }
 
         if (aR._material != lastMaterial)
         {

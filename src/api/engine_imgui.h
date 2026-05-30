@@ -20,7 +20,7 @@ class EngineScene;
 class EngineImGui
 {
 public:
-    void Init(const ImGui_InitInfo& anInfo);
+    static void Init(const ImGui_InitInfo& anInfo);
     static void Cleanup();
     static void Begin_Rendering();
     static void End_Rendering();

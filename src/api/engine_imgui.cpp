@@ -73,7 +73,26 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
     {
         aRenderer._validationCapture.DrawImGui();
 
-        if (ImGui::CollapsingHeader("Background"))
+        if (momo_imgui::BeginSection("Engine", momo_imgui::ENGINE_TINT))
+        {
+        if (momo_imgui::CategoryHeader("CVars", momo_imgui::ENGINE_TINT))
+        {
+            momo_cvars::CVarSystem::Get()->DrawImGuiEditor();
+        }
+
+        if (momo_imgui::CategoryHeader("Lighting", momo_imgui::ENGINE_TINT))
+        {
+            ImGui::ColorEdit4("Sun Color", reinterpret_cast<float*>(&aScene._tempSunColor));
+            ImGui::DragFloat4("Sun Direction", reinterpret_cast<float*>(&aScene._tempSunDir), 0.1f);
+            ImGui::DragFloat4("Ambient Color", reinterpret_cast<float*>(&aScene._tempAmbientColor), 0, 2.f);
+        }
+
+        momo_imgui::EndSection();
+        }
+
+        if (momo_imgui::BeginSection("Renderer", momo_imgui::RENDERER_TINT))
+        {
+        if (momo_imgui::CategoryHeader("Background", momo_imgui::RENDERER_TINT))
         {
             ComputeEffect& selected = aRenderer._backgroundEffects[aRenderer._currentBackgroundEffect];
             ImGui::Text("Selected effect: %s", selected._name);
@@ -85,18 +104,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
             ImGui::ColorEdit4("data4", reinterpret_cast<float*>(&selected._data._data4));
         }
 
-        if (ImGui::CollapsingHeader("CVars"))
-        {
-            momo_cvars::CVarSystem::Get()->DrawImGuiEditor();
-        }
-
-          if (ImGui::CollapsingHeader("Lighting"))
-        {
-            ImGui::ColorEdit4("Sun Color", reinterpret_cast<float*>(&aScene._tempSunColor));
-            ImGui::DragFloat4("Sun Direction", reinterpret_cast<float*>(&aScene._tempSunDir), 0.1f);
-            ImGui::DragFloat4("Ambient Color", reinterpret_cast<float*>(&aScene._tempAmbientColor), 0, 2.f);
-        }
-        if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
+        if (momo_imgui::CategoryHeader("Stats", momo_imgui::RENDERER_TINT, ImGuiTreeNodeFlags_DefaultOpen))
         {
             EngineStats& stats = *aRenderer._pStats;
             ImGui::Text("Frame Time: %.3f ms (%.1f FPS)", stats._frameTime, 1000.0f / stats._frameTime);
@@ -113,14 +121,14 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
             ImGui::Text("Transparent Surfaces: %llu", aScene.GetDrawContext()._transparentSurfaces.size());
         }
 
-        if (ImGui::CollapsingHeader("Textures"))
+        if (momo_imgui::CategoryHeader("Textures", momo_imgui::RENDERER_TINT))
         {
             ImGui::Text("Cache Size:       %llu", aRenderer._texCache.CacheSize());
             ImGui::Text("Engine Defaults:  %llu", aRenderer._texCache.EngineDefaultCount());
             ImGui::Text("Free Slots:       %llu", aRenderer._texCache.FreeSlotCount());
         }
 
-        if (ImGui::CollapsingHeader("Memory", ImGuiTreeNodeFlags_DefaultOpen))
+        if (momo_imgui::CategoryHeader("Memory", momo_imgui::RENDERER_TINT, ImGuiTreeNodeFlags_DefaultOpen))
         {
             {
                 const VkPhysicalDeviceMemoryProperties* memProps;
@@ -171,7 +179,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
         }
 
         if (const bool isRenderDocLoaded = aRenderer._renderDoc.Is_Loaded(); // NOLINT(readability-static-accessed-through-instance)
-            ImGui::CollapsingHeader("RenderDoc", isRenderDocLoaded ? ImGuiTreeNodeFlags_DefaultOpen : 0))
+            momo_imgui::CategoryHeader("RenderDoc", momo_imgui::RENDERER_TINT, isRenderDocLoaded ? ImGuiTreeNodeFlags_DefaultOpen : 0))
         {
             if (isRenderDocLoaded)
             {
@@ -189,6 +197,9 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
             {
                 ImGui::TextDisabled("Not loaded. Enable CMake option or launch via RenderDoc.");
             }
+        }
+
+        momo_imgui::EndSection();
         }
     }
     ImGui::End();

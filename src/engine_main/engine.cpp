@@ -118,7 +118,7 @@ void VulkanEngine::Cleanup()
     {
         vkDeviceWaitIdle(_renderer.GetDevice());
         _scene._loadedModels.clear();
-        _imgui.Cleanup();
+        EngineImGui::Cleanup();
         _renderer.Cleanup();
         SDL_DestroyWindow(_window);
     }

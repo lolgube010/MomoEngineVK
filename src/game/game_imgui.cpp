@@ -8,10 +8,14 @@ void GameImGui::DrawImGui(GameState& aGameState)
 {
     if (ImGui::Begin("settings"))
     {
-        if (ImGui::CollapsingHeader("Camera"))
+        if (momo_imgui::BeginSection("Gameplay", momo_imgui::GAMEPLAY_TINT))
         {
-            ImGui::SliderFloat("FOV", &aGameState.GetCameraDataMutable()._cameraFOV, 1, 180);
-            ImGui::Value("Pitch (rad)", aGameState.GetCameraData()._pitch);
+            if (momo_imgui::CategoryHeader("Camera", momo_imgui::GAMEPLAY_TINT))
+            {
+                ImGui::SliderFloat("FOV", &aGameState.GetCameraDataMutable()._cameraFOV, 1, 180);
+                ImGui::Value("Pitch (rad)", aGameState.GetCameraData()._pitch);
+            }
+            momo_imgui::EndSection();
         }
     }
     ImGui::End();

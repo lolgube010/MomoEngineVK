@@ -11,11 +11,9 @@ void GLTFMetallic_Roughness::Build_Pipelines(const VkDevice aDevice,
 {
     DescriptorLayoutBuilder layoutBuilder;
     layoutBuilder.Add_Binding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
-    _materialLayout = layoutBuilder.Build(aDevice,
-                                          VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                                          "GLTFMetallic_Roughness Material");
+    _materialLayout = layoutBuilder.Build(aDevice, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, "GLTFMetallic_Roughness Material");
 
-    VkDescriptorSetLayout layouts[] = {aSceneDataLayout, _materialLayout};
+    VkDescriptorSetLayout layouts[] = { aSceneDataLayout, _materialLayout };
 
     VkPushConstantRange matrixRange{};
     matrixRange.offset     = 0;
@@ -30,13 +28,14 @@ void GLTFMetallic_Roughness::Build_Pipelines(const VkDevice aDevice,
 
     VkPipelineLayout newLayout;
     VK_CHECK(vkCreatePipelineLayout(aDevice, &mesh_layout_info, nullptr, &newLayout));
-    MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout,
-                           "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
+    MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_PIPELINE_LAYOUT, newLayout, "_Pipeline Layout GLTFMetallic_Roughness Material Opaque and Transparent");
 
     _opaquePipeline._layout               = newLayout;
     _transparentPipeline._layout          = newLayout;
     _opaqueWireframePipeline._layout      = newLayout;
     _transparentWireframePipeline._layout = newLayout;
+    _opaqueWireframePipeline2._layout     = newLayout;
+    _opaqueWireframePipeline3._layout     = newLayout;
 
     constexpr auto shaderLang = momo_shaderUtil::ShaderLang::GLSL;
     auto meshFragShader   = momo_shaderUtil::load_shader("mesh_pbr", momo_shaderUtil::ShaderType::Fragment, shaderLang, aDevice);
@@ -44,8 +43,8 @@ void GLTFMetallic_Roughness::Build_Pipelines(const VkDevice aDevice,
 
     PipelineBuilder pipelineBuilder;
     pipelineBuilder.Set_Shaders(meshVertexShader.value(), meshFragShader.value());
-    // All four pipelines below share newLayout. Clear_Resources only destroys the
-    // transparent variant's layout to avoid double-free; the other three reference the same handle.
+    // All four pipelines below share newLayout. 
+    // Clear_Resources only destroys the transparent variant's layout to avoid double-free; the other three reference the same handle.
     pipelineBuilder.Set_Input_Topology(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
     pipelineBuilder.Set_Polygon_Mode(VK_POLYGON_MODE_FILL);
     pipelineBuilder.Set_Cull_Mode(VK_CULL_MODE_NONE, VK_FRONT_FACE_CLOCKWISE);
@@ -71,6 +70,21 @@ void GLTFMetallic_Roughness::Build_Pipelines(const VkDevice aDevice,
     pipelineBuilder.Enable_DepthTest(false, VK_COMPARE_OP_GREATER_OR_EQUAL);
     _transparentWireframePipeline._pipeline = pipelineBuilder.Build_Pipeline(aDevice, "GLTFMetallic_Roughness Transparent Wireframe");
 
+    auto whiteShader = momo_shaderUtil::load_shader("white", momo_shaderUtil::ShaderType::Fragment, shaderLang, aDevice);
+    auto orangeShader = momo_shaderUtil::load_shader("orange", momo_shaderUtil::ShaderType::Fragment, shaderLang, aDevice);
+    pipelineBuilder.Disable_Blending();
+    pipelineBuilder.Enable_DepthTest(true, VK_COMPARE_OP_GREATER_OR_EQUAL);
+
+    pipelineBuilder.Set_Shaders(meshVertexShader.value(), whiteShader.value());
+    _opaqueWireframePipeline2._pipeline = pipelineBuilder.Build_Pipeline(aDevice, "GLTFMetallic_Roughness Opaque Wireframe2");
+
+    pipelineBuilder.Set_Shaders(meshVertexShader.value(), orangeShader.value());
+    _opaqueWireframePipeline3._pipeline = pipelineBuilder.Build_Pipeline(aDevice, "GLTFMetallic_Roughness Opaque Wireframe3");
+
+    
+    vkDestroyShaderModule(aDevice, whiteShader.value(), nullptr);
+    vkDestroyShaderModule(aDevice, orangeShader.value(), nullptr);
+    
     vkDestroyShaderModule(aDevice, meshFragShader.value(),   nullptr);
     vkDestroyShaderModule(aDevice, meshVertexShader.value(), nullptr);
 }
@@ -81,6 +95,8 @@ void GLTFMetallic_Roughness::Clear_Resources(const VkDevice aDevice) const
     vkDestroyPipelineLayout(aDevice, _transparentPipeline._layout, nullptr);
     vkDestroyPipeline(aDevice, _transparentWireframePipeline._pipeline, nullptr);
     vkDestroyPipeline(aDevice, _opaqueWireframePipeline._pipeline,      nullptr);
+    vkDestroyPipeline(aDevice, _opaqueWireframePipeline2._pipeline,      nullptr);
+    vkDestroyPipeline(aDevice, _opaqueWireframePipeline3._pipeline,      nullptr);
     vkDestroyPipeline(aDevice, _transparentPipeline._pipeline,          nullptr);
     vkDestroyPipeline(aDevice, _opaquePipeline._pipeline,               nullptr);
 }
