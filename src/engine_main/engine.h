@@ -1,6 +1,6 @@
 #pragma once
 #include <vk/engine_rendering.h>
-#include <engine_scene.h>
+#include <engine_main/engine_scene.h>
 
 class VulkanEngine
 {

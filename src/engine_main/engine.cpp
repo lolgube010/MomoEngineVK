@@ -1,4 +1,4 @@
-#include <engine.h>
+#include <engine_main/engine.h>
 
 #include <SDL3/SDL.h>
 
@@ -7,7 +7,7 @@
 #include <cmath>
 #include <thread>
 
-#include <Input.h>
+#include <input/Input.h>
 #include <imgui/backends/imgui_impl_sdl3.h>
 
 constexpr auto APP_NAME = "MomoVK";

@@ -1,6 +1,6 @@
 #pragma once
 #include <vk/render_types.h>
-#include <camera.h>
+#include <game/camera.h>
 #include <vk/loader.h>
 
 struct Momo_Model

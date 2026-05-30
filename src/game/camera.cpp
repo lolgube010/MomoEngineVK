@@ -1,7 +1,7 @@
-#include <camera.h>
-#include <glm/gtx/transform.hpp>
+#include <game/camera.h>
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/quaternion.hpp>
-#include <Input.h>
+#include <input/Input.h>
 #include <SDL3/SDL.h>
 
 glm::mat4 Camera::GetViewMatrix() const

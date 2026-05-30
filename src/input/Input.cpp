@@ -1,10 +1,10 @@
-#include <Input.h>
+#include <input/Input.h>
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_keyboard.h>
 #include <SDL3/SDL_mouse.h>
 
-#include <engine.h>
+#include <engine_main/engine.h>
 
 void Input::Init()
 {

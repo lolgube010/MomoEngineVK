@@ -1,9 +1,9 @@
-#include <engine_scene.h>
-#include <engine.h>
+#include <engine_main/engine_scene.h>
+#include <engine_main/engine.h>
 #include <vk/loader.h>
 
-#include <Input.h>
-#include "cvars.h"
+#include <input/Input.h>
+#include <cvars/cvars.h>
 #include <api/MomoTracy.h>
 
 #include <chrono>

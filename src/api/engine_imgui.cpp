@@ -1,13 +1,13 @@
 #include <api/engine_imgui.h>
 #include <vk/engine_rendering.h>
-#include <engine_scene.h>
+#include <engine_main/engine_scene.h>
 #include <vk/initializers.h>
 #include <vk/debug.h>
-#include <string_utils.h>
+#include <utils/string_utils.h>
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_sdl3.h>
 #include <imgui/backends/imgui_impl_vulkan.h>
-#include "cvars.h"
+#include "cvars/cvars.h"
 #include <SDL3/SDL.h>
 #include <chrono>
 #include <api/MomoTracy.h>

@@ -1,7 +1,7 @@
 #include <vk/engine_rendering.h>
-#include <engine_scene.h>
-#include <api/DebugDraw.h>
-#include "cvars.h"
+#include <engine_main/engine_scene.h>
+#include <vk/DebugDraw.h>
+#include "cvars/cvars.h"
 
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>

@@ -1,5 +1,4 @@
 #pragma once
-#include <vk/render_types.h>
 #include <SDL3/SDL_events.h>
 
 struct SDL_Window;
