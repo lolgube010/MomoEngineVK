@@ -72,9 +72,9 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule
     {
         aRenderer._validationCapture.DrawImGui();
 
-        if (momo_imgui::BeginSection("Engine", momo_imgui::ENGINE_TINT))
+        if (Momo_Imgui::BeginSection("Engine", Momo_Imgui::ENGINE_TINT))
         {
-        if (momo_imgui::CategoryHeader("Game Module (DLL)", momo_imgui::ENGINE_TINT, ImGuiTreeNodeFlags_DefaultOpen))
+        if (Momo_Imgui::CategoryHeader("Game Module (DLL)", Momo_Imgui::ENGINE_TINT, ImGuiTreeNodeFlags_DefaultOpen))
         {
             const bool building = aGameModule.IsBuilding();
 
@@ -102,24 +102,24 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule
             }
         }
 
-        if (momo_imgui::CategoryHeader("CVars", momo_imgui::ENGINE_TINT))
+        if (Momo_Imgui::CategoryHeader("CVars", Momo_Imgui::ENGINE_TINT))
         {
             Momo_Cvars::CVarSystem::Get()->DrawImGuiEditor();
         }
 
-        if (momo_imgui::CategoryHeader("Lighting", momo_imgui::ENGINE_TINT))
+        if (Momo_Imgui::CategoryHeader("Lighting", Momo_Imgui::ENGINE_TINT))
         {
             ImGui::ColorEdit4("Sun Color", reinterpret_cast<float*>(&aScene._tempSunColor));
             ImGui::DragFloat4("Sun Direction", reinterpret_cast<float*>(&aScene._tempSunDir), 0.1f);
             ImGui::DragFloat4("Ambient Color", reinterpret_cast<float*>(&aScene._tempAmbientColor), 0, 2.f);
         }
 
-        momo_imgui::EndSection();
+        Momo_Imgui::EndSection();
         }
 
-        if (momo_imgui::BeginSection("Renderer", momo_imgui::RENDERER_TINT))
+        if (Momo_Imgui::BeginSection("Renderer", Momo_Imgui::RENDERER_TINT))
         {
-        if (momo_imgui::CategoryHeader("Background", momo_imgui::RENDERER_TINT))
+        if (Momo_Imgui::CategoryHeader("Background", Momo_Imgui::RENDERER_TINT))
         {
             ComputeEffect& selected = aRenderer._backgroundEffects[aRenderer._currentBackgroundEffect];
             ImGui::Text("Selected effect: %s", selected._name);
@@ -131,7 +131,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule
             ImGui::ColorEdit4("data4", reinterpret_cast<float*>(&selected._data._data4));
         }
 
-        if (momo_imgui::CategoryHeader("Stats", momo_imgui::RENDERER_TINT, ImGuiTreeNodeFlags_DefaultOpen))
+        if (Momo_Imgui::CategoryHeader("Stats", Momo_Imgui::RENDERER_TINT, ImGuiTreeNodeFlags_DefaultOpen))
         {
             EngineStats& stats = *aRenderer._pStats;
             ImGui::Text("Frame Time: %.3f ms (%.1f FPS)", stats._frameTime, 1000.0f / stats._frameTime);
@@ -148,14 +148,14 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule
             ImGui::Text("Transparent Surfaces: %llu", aScene.GetDrawContext()._transparentSurfaces.size());
         }
 
-        if (momo_imgui::CategoryHeader("Textures", momo_imgui::RENDERER_TINT))
+        if (Momo_Imgui::CategoryHeader("Textures", Momo_Imgui::RENDERER_TINT))
         {
             ImGui::Text("Cache Size:       %llu", aRenderer._texCache.CacheSize());
             ImGui::Text("Engine Defaults:  %llu", aRenderer._texCache.EngineDefaultCount());
             ImGui::Text("Free Slots:       %llu", aRenderer._texCache.FreeSlotCount());
         }
 
-        if (momo_imgui::CategoryHeader("Memory", momo_imgui::RENDERER_TINT, ImGuiTreeNodeFlags_DefaultOpen))
+        if (Momo_Imgui::CategoryHeader("Memory", Momo_Imgui::RENDERER_TINT, ImGuiTreeNodeFlags_DefaultOpen))
         {
             {
                 const VkPhysicalDeviceMemoryProperties* memProps;
@@ -206,7 +206,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule
         }
 
         if (const bool isRenderDocLoaded = aRenderer._renderDoc.Is_Loaded(); // NOLINT(readability-static-accessed-through-instance)
-            momo_imgui::CategoryHeader("RenderDoc", momo_imgui::RENDERER_TINT, isRenderDocLoaded ? ImGuiTreeNodeFlags_DefaultOpen : 0))
+            Momo_Imgui::CategoryHeader("RenderDoc", Momo_Imgui::RENDERER_TINT, isRenderDocLoaded ? ImGuiTreeNodeFlags_DefaultOpen : 0))
         {
             if (isRenderDocLoaded)
             {
@@ -226,7 +226,7 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule
             }
         }
 
-        momo_imgui::EndSection();
+        Momo_Imgui::EndSection();
         }
     }
     ImGui::End();

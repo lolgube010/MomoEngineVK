@@ -11,8 +11,6 @@
 #include <api/engine_imgui.h>
 #include <chrono>
 #include <array>
-#include <functional>
-#include <SDL3/SDL_video.h>
 
 struct SDL_Window;
 class EngineScene;

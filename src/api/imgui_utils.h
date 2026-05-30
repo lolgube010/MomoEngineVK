@@ -19,11 +19,11 @@ namespace ImGui
 
 } // namespace ImGui
 
-namespace momo_imgui
+namespace Momo_Imgui
 {
     // One hue per subsystem so the shared settings window reads at a glance.
     inline constexpr ImVec4 ENGINE_TINT  {0.16f, 0.32f, 0.22f, 1.0f}; // green
-    inline constexpr ImVec4 RENDERER_TINT{0.8f, 0.26f, 0.42f, 1.0f}; // pink
+    inline constexpr ImVec4 RENDERER_TINT{0.1f, 0.6f, 0.6f, 1.0f}; // light blue
     inline constexpr ImVec4 GAMEPLAY_TINT{0.42f, 0.28f, 0.14f, 1.0f}; // amber
     
     inline ImVec4 Scale(const ImVec4& aColor, const float aScale)

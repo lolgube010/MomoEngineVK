@@ -20,7 +20,7 @@ struct Camera
     const float _moveSpeed = 30.0f; // units/second (was 0.5f/frame * 60fps)
 };
 
-namespace Camera_Util
+namespace Momo_CameraUtil
 {
     inline glm::mat4 get_rotation_matrix(const Camera& aCamera)
     {

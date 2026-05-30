@@ -94,7 +94,7 @@ glm::mat4 EngineScene::GetProjectionMatrix(const Camera& aCamera, const float aW
 glm::mat4 EngineScene::GetViewMatrix(const Camera& aCamera)
 {
     const glm::mat4 cameraTranslation = glm::translate(glm::mat4(1.f), aCamera._position);
-    const glm::mat4 cameraRotation = Camera_Util::get_rotation_matrix(aCamera);
+    const glm::mat4 cameraRotation = Momo_CameraUtil::get_rotation_matrix(aCamera);
     return glm::inverse(cameraTranslation * cameraRotation);
 }
 
