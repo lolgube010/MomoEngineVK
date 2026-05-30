@@ -1,9 +1,10 @@
 #pragma once
+#ifndef GLM_ENABLE_EXPERIMENTAL
+#define GLM_ENABLE_EXPERIMENTAL
+#endif
+#include <glm/gtx/quaternion.hpp>
 
-struct InputData;
-struct SDL_Window;
-
-struct Camera_POV
+struct Camera
 {
     glm::vec3 _velocity = {};
     // vertical rotation
@@ -11,19 +12,19 @@ struct Camera_POV
     glm::vec3 _position = {0.f, 5.f, 0.f};
     // horizontal rotation
     float _yaw = 0.f;
-    float _cameraFov = 90.f;
+    float _cameraFOV = 90.f;
     bool _isLocked = false;
     bool _wantMouseCaptured = false;
 };
 
-class Camera
+namespace CameraUtil
 {
-public:
-    Camera_POV _camData;
+    inline glm::mat4 get_rotation_matrix(const Camera& aCamera)
+    {
+        const glm::quat pitchRotation = glm::angleAxis(aCamera._pitch, glm::vec3{1.f, 0.f, 0.f});
+        const glm::quat yawRotation = glm::angleAxis(aCamera._yaw, glm::vec3{0.f, -1.f, 0.f});
 
-    glm::mat4 GetViewMatrix() const;
-    glm::mat4 GetRotationMatrix() const;
-    glm::mat4 GetProjectionMatrix(float aWidth, float aHeight) const;
+        return glm::toMat4(yawRotation) * glm::toMat4(pitchRotation);
 
-    void Update(float aDt, const InputData& aInputData);
-};
+    }
+}

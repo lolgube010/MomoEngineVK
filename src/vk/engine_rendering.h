@@ -12,6 +12,7 @@
 #include <chrono>
 #include <array>
 #include <functional>
+#include <SDL3/SDL_video.h>
 
 struct SDL_Window;
 class EngineScene;
@@ -42,15 +43,13 @@ constexpr unsigned int FRAME_OVERLAP = 2;
 class EngineRenderer
 {
 public:
-    void Init(SDL_Window* aWindow, VkExtent2D aWindowExtent, EngineStats& aStats);
+    void Init(SDL_Window* aWindow, VkExtent2D aWindowExtent, EngineStats& aStats, EngineImGui& aImgui);
 
     void Cleanup();
 
     // Called once per frame
     void Draw(const DrawContext& aDrawContext, const GPUSceneData& aSceneData,
               int& aFrameNumber, bool& aResizeRequested);
-
-    void ImGui_Update(EngineScene& aScene);
 
     // Swapchain resize — pass VulkanEngine's windowExtent so it stays in sync
     void Resize_Swapchain(VkExtent2D& aWindowExtent);
@@ -80,6 +79,7 @@ public:
     FrameData& GetCurrentFrame(int aFrameNumber);
     FrameData& GetLastFrame(int aFrameNumber);
 
+    ImGui_InitInfo GetImGuiInitInfo() const;
 private:
     friend class EngineImGui;
 
@@ -125,7 +125,6 @@ private:
     GpuResources _gpuResources;
 
     // ImGui
-    EngineImGui _imgui;
 
     // Background compute
     std::vector<ComputeEffect> _backgroundEffects;
@@ -153,6 +152,9 @@ private:
     VmaTotalStatistics                   _cachedVmaStats{};
     std::chrono::steady_clock::time_point _lastVmaStatsTime{};
 
+    // for imgui
+    VkDescriptorPool _imGuiPool{};
+
 #if TRACY_ENABLE && TRACY_GPU_ENABLE
     tracy::VkCtx* _tracyVkCtx = nullptr;
 #endif
@@ -167,7 +169,6 @@ private:
     void Init_Descriptors();
     void Init_Pipelines();
     void Init_Background_Pipelines();
-    void Init_ImGui();
     void Init_Default_Data();
     void Init_Tracy();
     void Resize_Draw_Images();

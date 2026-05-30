@@ -1,7 +1,6 @@
 #pragma once
 #include <unordered_set>
 #include <SDL3/SDL_events.h>
-#include <SDL3/SDL_keycode.h>
 
 struct InputData
 {

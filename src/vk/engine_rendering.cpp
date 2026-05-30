@@ -31,7 +31,7 @@ static momo_cvars::AutoCVar_Int CVAR_Wireframe("r.wireframe", "render geometry a
 // Init / Cleanup
 // ---------------------------------------------------------------------------
 
-void EngineRenderer::Init(SDL_Window* aWindow, const VkExtent2D aWindowExtent, EngineStats& aStats)
+void EngineRenderer::Init(SDL_Window* aWindow, const VkExtent2D aWindowExtent, EngineStats& aStats, EngineImGui& aImgui)
 {
     _window       = aWindow;
     _windowExtent = aWindowExtent;
@@ -46,13 +46,14 @@ void EngineRenderer::Init(SDL_Window* aWindow, const VkExtent2D aWindowExtent, E
     Init_Sync_Structures();
     Init_Descriptors();
     Init_Pipelines();
-    Init_ImGui();
     Init_Tracy();
     Init_Default_Data();
 }
 
 void EngineRenderer::Cleanup()
 {
+    vkDestroyDescriptorPool(_device, _imGuiPool, nullptr);
+
     for (auto& frame : _frames)
     {
         vkDestroyCommandPool(_device, frame._commandPool, nullptr);
@@ -71,7 +72,6 @@ void EngineRenderer::Cleanup()
 
     _metalRoughMaterial.Clear_Resources(_device);
     DebugDraw::Get().Cleanup(_device, _allocator);
-    _imgui.Cleanup(_device);
     _deletionQueue.Flush();
     _gpuResources.Cleanup(_device);
     _swapchain.Cleanup(_device);
@@ -438,15 +438,6 @@ void EngineRenderer::Draw_Background(const VkCommandBuffer aCmd) const
 }
 
 // ---------------------------------------------------------------------------
-// ImGui
-// ---------------------------------------------------------------------------
-
-void EngineRenderer::ImGui_Update(EngineScene& aScene)
-{
-    _imgui.Update(*this, aScene);
-}
-
-// ---------------------------------------------------------------------------
 // Geometry pass
 // ---------------------------------------------------------------------------
 
@@ -681,6 +672,22 @@ FrameData& EngineRenderer::GetCurrentFrame(const int aFrameNumber)
 
 FrameData& EngineRenderer::GetLastFrame(const int aFrameNumber)
 { return _frames[(aFrameNumber - 1) % FRAME_OVERLAP]; }
+
+ImGui_InitInfo EngineRenderer::GetImGuiInitInfo() const
+{
+    return
+    {
+        ._instance = _instance,
+        ._gpu = _chosenGPU,
+        ._device = _device,
+        ._queueFamily = _graphicsQueueFamily,
+        ._queue = _graphicsQueue,
+        ._swapchainImageCount = _swapchain.GetImageCount(),
+        ._swapchainFormat = _swapchain.GetFormat(),
+        ._window = _window,
+        ._descriptorPool = _imGuiPool
+    };
+}
 
 // ---------------------------------------------------------------------------
 // Init — rendering subsystems
@@ -924,6 +931,30 @@ void EngineRenderer::Init_Descriptors()
 
         _deletionQueue.Push_Function([this] { vkDestroyDescriptorPool(_device, _persistentDescPool, nullptr); });
     }
+
+    // imgui
+    const VkDescriptorPoolSize pool_sizes[] = {
+        {.type = VK_DESCRIPTOR_TYPE_SAMPLER, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, .descriptorCount = 1000},
+        {.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, .descriptorCount = 1000}};
+
+    VkDescriptorPoolCreateInfo pool_info = {};
+    pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    pool_info.maxSets = 1000;
+    pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
+    pool_info.pPoolSizes = pool_sizes;
+
+    VK_CHECK(vkCreateDescriptorPool(_device, &pool_info, nullptr, &_imGuiPool));
+    MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_POOL, _imguiPool, "_Descriptor Pool imGui");
 }
 
 void EngineRenderer::Init_Pipelines()
@@ -987,11 +1018,6 @@ void EngineRenderer::Init_Background_Pipelines()
         vkDestroyPipeline(_device, sky._pipeline, nullptr);
         vkDestroyPipeline(_device, gradient._pipeline, nullptr);
     });
-}
-
-void EngineRenderer::Init_ImGui()
-{
-    _imgui.Init(_instance, _chosenGPU, _device, _graphicsQueueFamily, _graphicsQueue, _swapchain.GetImageCount(), _swapchain.GetFormat(), _window);
 }
 
 void EngineRenderer::Init_Default_Data()

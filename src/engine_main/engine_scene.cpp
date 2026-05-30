@@ -12,7 +12,7 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #endif
 #include <glm/gtx/transform.hpp>
-
+#include <glm/gtx/quaternion.hpp>
 // ---------------------------------------------------------------------------
 // Test CVars
 // ---------------------------------------------------------------------------
@@ -53,7 +53,7 @@ void EngineScene::Init()
 // Per-frame update
 // ---------------------------------------------------------------------------
 
-void EngineScene::Update(const float aDt, const VkExtent2D aWindowExtent)
+void EngineScene::Update(const double aDt, const VkExtent2D aWindowExtent, const Camera& aCamera)
 {
     PROFILE_SCOPE_N("Update_Scene")
     const auto start = std::chrono::system_clock::now();
@@ -66,10 +66,8 @@ void EngineScene::Update(const float aDt, const VkExtent2D aWindowExtent)
         model._scene->Draw(model._transform, _mainDrawContext); // this runs MeshNode::Draw
     }
 
-    _mainCamera.Update(aDt, Input::Instance().GetInputDataSnapShot());
-
-    const glm::mat4 view       = _mainCamera.GetViewMatrix();
-    const glm::mat4 projection = _mainCamera.GetProjectionMatrix(
+    const glm::mat4 view = GetViewMatrix(aCamera);
+    const glm::mat4 projection = GetProjectionMatrix(aCamera,
         static_cast<float>(aWindowExtent.width),
         static_cast<float>(aWindowExtent.height));
 
@@ -84,5 +82,19 @@ void EngineScene::Update(const float aDt, const VkExtent2D aWindowExtent)
     const auto end     = std::chrono::system_clock::now();
     const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     VulkanEngine::Get()._stats._sceneUpdateTime = elapsed.count() / 1000.f;
+}
+
+glm::mat4 EngineScene::GetProjectionMatrix(const Camera& aCamera, const float aWidth, const float aHeight)
+{
+    auto matrix = glm::perspective(glm::radians(aCamera._cameraFOV), aWidth / aHeight, 10000.f, 0.1f);
+    matrix[1][1] *= -1; // invert the Y direction on projection matrix so that we are more similar to opengl and gltf axis
+    return matrix;
+}
+
+glm::mat4 EngineScene::GetViewMatrix(const Camera& aCamera)
+{
+    const glm::mat4 cameraTranslation = glm::translate(glm::mat4(1.f), aCamera._position);
+    const glm::mat4 cameraRotation = CameraUtil::get_rotation_matrix(aCamera);
+    return glm::inverse(cameraTranslation * cameraRotation);
 }
 

@@ -1,20 +1,30 @@
 #pragma once
-#include <vk/gpu_types.h>
-
 struct SDL_Window;
+
+struct ImGui_InitInfo
+{
+    const VkInstance _instance;
+    const VkPhysicalDevice _gpu;
+    const VkDevice _device;
+    const uint32_t _queueFamily;
+    const VkQueue _queue;
+    const uint32_t _swapchainImageCount;
+    const VkFormat _swapchainFormat;
+    SDL_Window* _window;
+    VkDescriptorPool _descriptorPool;
+};
+
 class EngineRenderer;
 class EngineScene;
 
 class EngineImGui
 {
 public:
-    void Init(VkInstance aInstance, VkPhysicalDevice aGPU, VkDevice aDevice, uint32_t aQueueFamily, VkQueue aQueue, uint32_t aImageCount, VkFormat aSwapchainFormat, SDL_Window* aWindow);
-    void Cleanup(VkDevice aDevice);
-    void Update(EngineRenderer& aRenderer, EngineScene& aScene);
+    void Init(const ImGui_InitInfo& anInfo);
+    static void Cleanup();
+    static void Begin_Rendering();
+    static void End_Rendering();
+
+    static void Run(EngineRenderer& aRenderer, EngineScene& aScene);
     static void RenderDrawData(VkCommandBuffer aCmd, VkImageView aTargetImageView, VkExtent2D aSwapchainExtent, VkDevice aDevice);
-
-private:
-    VkDescriptorPool _imGuiPool{};
-
-    void Run(EngineRenderer& aRenderer, EngineScene& aScene);
 };

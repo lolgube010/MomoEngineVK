@@ -14,13 +14,12 @@ class EngineScene
 {
 public:
     void Init();
-    void Update(float aDt, VkExtent2D aWindowExtent);
+    void Update(double aDt, VkExtent2D aWindowExtent, const Camera& aCamera);
 
     const DrawContext&  GetDrawContext()  const { return _mainDrawContext; }
     const GPUSceneData& GetSceneData()    const { return _sceneData; }
 
     // Public so EngineRenderer::ImGui_Run can read them directly
-    Camera      _mainCamera;
     glm::vec4   _tempAmbientColor = glm::vec4(1.f);
     glm::vec4   _tempSunColor     = glm::vec4(1.f);
     glm::vec4   _tempSunDir       = glm::vec4(0, 1, 0.5, 1.f);
@@ -30,4 +29,7 @@ public:
 private:
     DrawContext  _mainDrawContext;
     GPUSceneData _sceneData = {};
+
+    static glm::mat4 GetProjectionMatrix(const Camera& aCamera, float aWidth, float aHeight);
+    static glm::mat4 GetViewMatrix(const Camera& aCamera);
 };

@@ -11,34 +11,13 @@
 #include <SDL3/SDL.h>
 #include <chrono>
 #include <api/MomoTracy.h>
+#include <api/imgui_utils.h>
 
-void EngineImGui::Init(const VkInstance aInstance, const VkPhysicalDevice aGPU, const VkDevice aDevice, const uint32_t aQueueFamily, const VkQueue aQueue, const uint32_t aImageCount, const VkFormat aSwapchainFormat, SDL_Window* aWindow)
+class GameState;
+
+void EngineImGui::Init(const ImGui_InitInfo& anInfo)
 {
     PROFILE_SCOPE_N("Init_ImGui")
-    const VkDescriptorPoolSize pool_sizes[] = {
-        {.type = VK_DESCRIPTOR_TYPE_SAMPLER,                    .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,     .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,              .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,              .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER,       .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER,       .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,             .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,             .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,     .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC,     .descriptorCount = 1000},
-        {.type = VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,           .descriptorCount = 1000}
-    };
-
-    VkDescriptorPoolCreateInfo pool_info = {};
-    pool_info.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    pool_info.flags         = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    pool_info.maxSets       = 1000;
-    pool_info.poolSizeCount = static_cast<uint32_t>(std::size(pool_sizes));
-    pool_info.pPoolSizes    = pool_sizes;
-
-    VK_CHECK(vkCreateDescriptorPool(aDevice, &pool_info, nullptr, &_imGuiPool));
-    MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_DESCRIPTOR_POOL, _imguiPool, "_Descriptor Pool imGui");
-
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
@@ -46,43 +25,45 @@ void EngineImGui::Init(const VkInstance aInstance, const VkPhysicalDevice aGPU, 
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
     ImGui::StyleColorsClassic();
 
-    ImGui_ImplSDL3_InitForVulkan(aWindow);
+    ImGui_ImplSDL3_InitForVulkan(anInfo._window);
 
     ImGui_ImplVulkan_InitInfo init_info = {};
-    init_info.ApiVersion      = VK_API_VERSION_1_3;
-    init_info.Instance        = aInstance;
-    init_info.PhysicalDevice  = aGPU;
-    init_info.Device          = aDevice;
-    init_info.QueueFamily     = aQueueFamily;
-    init_info.Queue           = aQueue;
-    init_info.DescriptorPool  = _imGuiPool;
-    init_info.MinImageCount   = aImageCount;
-    init_info.ImageCount      = aImageCount;
+    init_info.ApiVersion        = VK_API_VERSION_1_3;
+    init_info.Instance          = anInfo._instance;
+    init_info.PhysicalDevice    = anInfo._gpu;
+    init_info.Device            = anInfo._device;
+    init_info.QueueFamily       = anInfo._queueFamily;
+    init_info.Queue             = anInfo._queue;
+    init_info.DescriptorPool    = anInfo._descriptorPool;
+    init_info.MinImageCount     = anInfo._swapchainImageCount;
+    init_info.ImageCount        = anInfo._swapchainImageCount;
     init_info.UseDynamicRendering = true;
 
-    init_info.PipelineInfoMain.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO};
+    init_info.PipelineInfoMain.PipelineRenderingCreateInfo = {.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO, .pNext = nullptr};
     init_info.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
-    init_info.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &aSwapchainFormat;
+    init_info.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &anInfo._swapchainFormat;
     init_info.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
     ImGui_ImplVulkan_Init(&init_info);
 }
 
-void EngineImGui::Cleanup(const VkDevice aDevice)
+void EngineImGui::Cleanup()
 {
     ImGui_ImplVulkan_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
-    vkDestroyDescriptorPool(aDevice, _imGuiPool, nullptr);
 }
 
-void EngineImGui::Update(EngineRenderer& aRenderer, EngineScene& aScene)
+void EngineImGui::Begin_Rendering()
 {
     PROFILE_SCOPE_N("ImGuiFrame")
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplSDL3_NewFrame();
     ImGui::NewFrame();
-    Run(aRenderer, aScene);
+}
+
+void EngineImGui::End_Rendering()
+{
     ImGui::Render();
 }
 
@@ -104,30 +85,23 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
             ImGui::ColorEdit4("data4", reinterpret_cast<float*>(&selected._data._data4));
         }
 
-        if (ImGui::CollapsingHeader("Camera"))
-        {
-            ImGui::SliderFloat("FOV",        &aScene._mainCamera._camData._cameraFov, 1, 180);
-            ImGui::Value("Pitch (rad)", aScene._mainCamera._camData._pitch);
-        }
-
         if (ImGui::CollapsingHeader("CVars"))
         {
             momo_cvars::CVarSystem::Get()->DrawImGuiEditor();
         }
 
-        if (ImGui::CollapsingHeader("Lighting"))
+          if (ImGui::CollapsingHeader("Lighting"))
         {
-            ImGui::ColorEdit4("Sun Color",     reinterpret_cast<float*>(&aScene._tempSunColor));
+            ImGui::ColorEdit4("Sun Color", reinterpret_cast<float*>(&aScene._tempSunColor));
             ImGui::DragFloat4("Sun Direction", reinterpret_cast<float*>(&aScene._tempSunDir), 0.1f);
             ImGui::DragFloat4("Ambient Color", reinterpret_cast<float*>(&aScene._tempAmbientColor), 0, 2.f);
         }
-
         if (ImGui::CollapsingHeader("Stats", ImGuiTreeNodeFlags_DefaultOpen))
         {
             EngineStats& stats = *aRenderer._pStats;
             ImGui::Text("Frame Time: %.3f ms (%.1f FPS)", stats._frameTime, 1000.0f / stats._frameTime);
-            ImGui::Text("Draw Time:   %.3f ms",  stats._meshDrawTime);
-            ImGui::Text("Update Time: %.3f ms",  stats._sceneUpdateTime);
+            ImGui::Text("Draw Time:   %.3f ms", stats._meshDrawTime);
+            ImGui::Text("Update Time: %.3f ms", stats._sceneUpdateTime);
             ImGui::Separator();
             ImGui::Text("Triangles:         %s", momo_stringUtils::format_with_commas(stats._triCount).c_str());
             ImGui::Text("Total Draws:       %s", momo_stringUtils::format_with_commas(stats._totalDrawCallCount).c_str());
@@ -154,56 +128,56 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
                 VmaBudget budgets[VK_MAX_MEMORY_HEAPS];
                 vmaGetHeapBudgets(aRenderer._allocator, budgets);
 
-                VkDeviceSize totalVramUsage  = 0;
+                VkDeviceSize totalVramUsage = 0;
                 VkDeviceSize totalVramBudget = 0;
                 for (uint32_t i = 0; i < memProps->memoryHeapCount; ++i)
                 {
                     if (memProps->memoryHeaps[i].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT)
                     {
-                        totalVramUsage  += budgets[i].usage;
+                        totalVramUsage += budgets[i].usage;
                         totalVramBudget += budgets[i].budget;
                     }
                 }
-                const double usageMB  = static_cast<double>(totalVramUsage)  / (1024.0 * 1024.0);
+                const double usageMB = static_cast<double>(totalVramUsage) / (1024.0 * 1024.0);
                 const double budgetMB = static_cast<double>(totalVramBudget) / (1024.0 * 1024.0);
                 ImGui::Text("VRAM: %.2f MB / %.2f MB", usageMB, budgetMB);
                 if (totalVramBudget > 0)
                 {
                     const float fraction = static_cast<float>(totalVramUsage) /
-                                           static_cast<float>(totalVramBudget);
+                        static_cast<float>(totalVramBudget);
                     ImGui::ProgressBar(fraction, ImVec2(-1.f, 0.f));
                 }
             }
             ImGui::Separator();
             {
-                if (const auto now = std::chrono::steady_clock::now(); 
+                if (const auto now = std::chrono::steady_clock::now();
                     now - aRenderer._lastVmaStatsTime >= std::chrono::seconds(5))
                 {
                     vmaCalculateStatistics(aRenderer._allocator, &aRenderer._cachedVmaStats);
                     aRenderer._lastVmaStatsTime = now;
                 }
                 const VmaTotalStatistics& stats = aRenderer._cachedVmaStats;
-                const double allocatedMB   = static_cast<double>(stats.total.statistics.allocationBytes) / (1024.0 * 1024.0);
-                const double blockMB       = static_cast<double>(stats.total.statistics.blockBytes)      / (1024.0 * 1024.0);
-                const double allocMaxMB    = static_cast<double>(stats.total.allocationSizeMax)          / (1024.0 * 1024.0);
-                const uint64_t minSize     = (stats.total.statistics.allocationCount == 0) ? 0 : stats.total.allocationSizeMin;
+                const double allocatedMB = static_cast<double>(stats.total.statistics.allocationBytes) / (1024.0 * 1024.0);
+                const double blockMB = static_cast<double>(stats.total.statistics.blockBytes) / (1024.0 * 1024.0);
+                const double allocMaxMB = static_cast<double>(stats.total.allocationSizeMax) / (1024.0 * 1024.0);
+                const uint64_t minSize = (stats.total.statistics.allocationCount == 0) ? 0 : stats.total.allocationSizeMin;
                 ImGui::Text("VMA Allocated:  %.2f MB", allocatedMB);
                 ImGui::Text("VMA Blocks:     %.2f MB", blockMB);
-                ImGui::Text("Alloc Count:    %u",      stats.total.statistics.allocationCount);
-                ImGui::Text("Block Count:    %u",      stats.total.statistics.blockCount);
+                ImGui::Text("Alloc Count:    %u", stats.total.statistics.allocationCount);
+                ImGui::Text("Block Count:    %u", stats.total.statistics.blockCount);
                 ImGui::Text("Alloc Max:      %.2f MB", allocMaxMB);
-                ImGui::Text("Alloc Min:      %llu B",  minSize);
+                ImGui::Text("Alloc Min:      %llu B", minSize);
             }
         }
 
-        if (const bool isRenderDocLoaded = aRenderer._renderDoc.Is_Loaded();  // NOLINT(readability-static-accessed-through-instance)
+        if (const bool isRenderDocLoaded = aRenderer._renderDoc.Is_Loaded(); // NOLINT(readability-static-accessed-through-instance)
             ImGui::CollapsingHeader("RenderDoc", isRenderDocLoaded ? ImGuiTreeNodeFlags_DefaultOpen : 0))
         {
             if (isRenderDocLoaded)
             {
                 if (ImGui::Button("Trigger Capture"))
                 {
-                    aRenderer._renderDoc.Trigger_Capture();  // NOLINT(readability-static-accessed-through-instance)
+                    aRenderer._renderDoc.Trigger_Capture(); // NOLINT(readability-static-accessed-through-instance)
                 }
                 ImGui::SameLine();
                 if (ImGui::Button("Open in RenderDoc"))
@@ -216,9 +190,8 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
                 ImGui::TextDisabled("Not loaded. Enable CMake option or launch via RenderDoc.");
             }
         }
-
-        ImGui::End();
     }
+    ImGui::End();
 }
 
 void EngineImGui::RenderDrawData(const VkCommandBuffer aCmd, const VkImageView aTargetImageView, const VkExtent2D aSwapchainExtent, VkDevice aDevice)

@@ -10,6 +10,8 @@
 #include <input/Input.h>
 #include <imgui/backends/imgui_impl_sdl3.h>
 
+#include "game/game_imgui.h"
+
 constexpr auto APP_NAME = "MomoVK";
 
 VulkanEngine& VulkanEngine::Get()
@@ -23,7 +25,8 @@ void VulkanEngine::Init()
     SDL_Init(SDL_INIT_VIDEO);
     constexpr auto window_flags = SDL_WINDOW_VULKAN | SDL_WINDOW_RESIZABLE;
     _window = SDL_CreateWindow(APP_NAME, _windowExtent.width, _windowExtent.height, window_flags);
-    _renderer.Init(_window, _windowExtent, _stats);
+    _renderer.Init(_window, _windowExtent, _stats, _imgui);
+    _imgui.Init(_renderer.GetImGuiInitInfo());
     _scene.Init();
     Input::Instance().Init(_window);
     _isInitialized = true;
@@ -69,6 +72,7 @@ void VulkanEngine::Run()
         {
             accumulator = 0.0;
             input.EndOfFrame();
+            input.SetRelativeMouseMode(_gameState.GetCameraData()._wantMouseCaptured);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
@@ -82,16 +86,25 @@ void VulkanEngine::Run()
         accumulator += dt;
         while (accumulator >= fixed_Step)
         {
-            _scene.Update(fixed_Step, _windowExtent);
+            _gameState.Update(fixed_Step, input.GetInputDataSnapShot());
             input.EndOfFrame();
+            input.SetRelativeMouseMode(_gameState.GetCameraData()._wantMouseCaptured);
             accumulator -= fixed_Step;
         }
+        Prepare_Draw(fixed_Step);
 
-        input.SetRelativeMouseMode(_scene._mainCamera._camData._wantMouseCaptured);
-        _renderer.ImGui_Update(_scene);
+        EngineImGui::Begin_Rendering();
+        EngineImGui::Run(_renderer, _scene);
+        GameImGui::DrawImGui(_gameState); // different dll, has to be made later.
+        EngineImGui::End_Rendering();
         Draw();
         PROFILE_FRAME;
     }
+}
+
+void VulkanEngine::Prepare_Draw(const double aDT)
+{
+    _scene.Update(aDT, _windowExtent, _gameState.GetCameraData());
 }
 
 void VulkanEngine::Draw()
@@ -105,6 +118,7 @@ void VulkanEngine::Cleanup()
     {
         vkDeviceWaitIdle(_renderer.GetDevice());
         _scene._loadedModels.clear();
+        _imgui.Cleanup();
         _renderer.Cleanup();
         SDL_DestroyWindow(_window);
     }
