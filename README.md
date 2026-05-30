@@ -4,6 +4,7 @@
 # features
 * Modern Vulkan: Dynamic Rendering, Synchronization2, Buffer Device Address, descriptor indexing.
 * Bindless textures & vertex pulling.
+* Hot-reloading gameplay code, handmade-hero style.
 * GLTF loading (models & textures); parallel texture decode; mipmap generation.
 * PBR material pipeline (Blinn-Phong lighting for now, Cook-Torrance in progress).
 * Frustum culling, draw sorting & compute shaders.
@@ -34,6 +35,10 @@ you might need to enable long paths on your system: `git config --system core.lo
 * install [doxygen](https://doxygen.nl/download.html) & [graphvis](https://graphviz.org/download/)
 * build the doxygen target
 * open index.html in build/doxygen.
+
+# hot reloading
+* it auto watches files, so just edit anything in momoGame and it should reload automagically.
+* the hot reload does not reload engine/renderer files, or shaders.
 
 # dependencies
 * based on vkguide.
