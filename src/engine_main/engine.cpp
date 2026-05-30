@@ -25,7 +25,7 @@ void VulkanEngine::Init()
     _window = SDL_CreateWindow(APP_NAME, _windowExtent.width, _windowExtent.height, window_flags);
     _renderer.Init(_window, _windowExtent, _stats);
     _scene.Init();
-    Input::Instance().Init();
+    Input::Instance().Init(_window);
     _isInitialized = true;
 }
 
@@ -62,12 +62,13 @@ void VulkanEngine::Run()
         else if (std::abs(dt - 1.0 /  20.0) < snap_Tol) dt = 1.0 /  20.0;
 
         ProcessEvents(bQuit);
-        Input::Instance().PostUpdate();
+        auto& input = Input::Instance();
+        input.PostUpdate();
 
         if (_freezeRendering)
         {
             accumulator = 0.0;
-            Input::Instance().FlushKeyEvents();
+            input.EndOfFrame();
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
@@ -81,8 +82,8 @@ void VulkanEngine::Run()
         accumulator += dt;
         while (accumulator >= fixed_Step)
         {
-            _scene.Update(static_cast<float>(fixed_Step), _windowExtent);
-            Input::Instance().FlushKeyEvents();
+            _scene.Update(fixed_Step, _windowExtent);
+            input.EndOfFrame();
             accumulator -= fixed_Step;
         }
 

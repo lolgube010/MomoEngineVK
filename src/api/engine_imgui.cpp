@@ -106,8 +106,8 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
 
         if (ImGui::CollapsingHeader("Camera"))
         {
-            ImGui::SliderFloat("FOV",        &aScene._mainCamera._tempCameraFov, 1, 180);
-            ImGui::Value("Pitch (rad)",      aScene._mainCamera._pitch);
+            ImGui::SliderFloat("FOV",        &aScene._mainCamera._camData._cameraFov, 1, 180);
+            ImGui::Value("Pitch (rad)", aScene._mainCamera._camData._pitch);
         }
 
         if (ImGui::CollapsingHeader("CVars"))

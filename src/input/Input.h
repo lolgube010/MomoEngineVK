@@ -3,31 +3,8 @@
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_keycode.h>
 
-class Input
+struct InputData
 {
-public:
-    void Init();
-    void PostUpdate();
-    void ProcessEvent(const SDL_Event& aE);
-
-    bool IsKeyHeld(SDL_Scancode aKey) const;
-    bool IsKeyPressed(SDL_Scancode aKey) const;
-    bool IsKeyReleased(SDL_Scancode aKey) const;
-    // Clears just-pressed/released sets. Call after each fixed update step.
-    void FlushKeyEvents();
-
-    float GetMouseX() const;
-    float GetMouseY() const;
-    float GetMouseDeltaX() const;
-    float GetMouseDeltaY() const;
-    void ResetMouseDelta();
-
-    bool IsButtonHeld(SDL_GamepadButton aButton) const;
-    bool IsButtonJustPressed(SDL_GamepadButton aButton) const;
-
-    float GetAxis(SDL_GamepadAxis aAxis) const;
-
-private:
     // Live SDL keyboard state — valid for IsKeyHeld queries.
     const bool* _currentState = nullptr;
 
@@ -41,6 +18,41 @@ private:
     SDL_Gamepad* _controller = nullptr;
     std::vector<uint8_t> _currButtons;
     std::vector<uint8_t> _prevButtons;
+
+    int16_t _axes[SDL_GAMEPAD_AXIS_COUNT]{};
+
+    bool IsKeyHeld(SDL_Scancode aKey) const;
+    bool IsKeyPressed(SDL_Scancode aKey) const;
+    bool IsKeyReleased(SDL_Scancode aKey) const;
+
+    float GetMouseX() const;
+    float GetMouseY() const;
+    float GetMouseDeltaX() const;
+    float GetMouseDeltaY() const;
+
+    bool IsButtonHeld(SDL_GamepadButton aButton) const;
+    bool IsButtonJustPressed(SDL_GamepadButton aButton) const;
+
+    float GetAxis(SDL_GamepadAxis aAxis) const;
+};
+
+class Input
+{
+public:
+    void Init(SDL_Window* aSDLWindow);
+    void PostUpdate();
+    void ProcessEvent(const SDL_Event& aE);
+    void EndOfFrame();
+
+    // Clears just-pressed/released sets. Call after each fixed update step.
+    void FlushKeyEvents();
+    void ResetMouseDelta();
+    void SetRelativeMouseMode(bool aState) const;
+    void ToggleRelativeMouseMode() const;
+    const InputData& GetInputDataSnapShot() const;
+private:
+    InputData _inputData;
+    SDL_Window* _SDL_Window;
 
 public: // singleton
     static Input& Instance();

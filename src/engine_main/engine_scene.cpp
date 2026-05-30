@@ -66,7 +66,7 @@ void EngineScene::Update(const float aDt, const VkExtent2D aWindowExtent)
         model._scene->Draw(model._transform, _mainDrawContext); // this runs MeshNode::Draw
     }
 
-    _mainCamera.Update(VulkanEngine::Get()._window, aDt);
+    _mainCamera.Update(aDt, Input::Instance().GetInputDataSnapShot());
 
     const glm::mat4 view       = _mainCamera.GetViewMatrix();
     const glm::mat4 projection = _mainCamera.GetProjectionMatrix(

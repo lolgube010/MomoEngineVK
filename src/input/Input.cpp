@@ -6,30 +6,28 @@
 
 #include <engine_main/engine.h>
 
-void Input::Init()
-{
-    int numKeys;
-    _currentState = SDL_GetKeyboardState(&numKeys);
-
-    SDL_InitSubSystem(SDL_INIT_GAMEPAD);
-
-    _currButtons.resize(SDL_GAMEPAD_BUTTON_COUNT, 0);
-    _prevButtons.resize(SDL_GAMEPAD_BUTTON_COUNT, 0);
-}
-
 void Input::PostUpdate()
 {
     float dx, dy;
     SDL_GetRelativeMouseState(&dx, &dy);
-    _mouseDeltaX += dx;
-    _mouseDeltaY += dy;
-    SDL_GetMouseState(&_mouseX, &_mouseY);
+    _inputData._mouseDeltaX += dx;
+    _inputData._mouseDeltaY += dy;
+    SDL_GetMouseState(&_inputData._mouseX, &_inputData._mouseY);
 
-    if (_controller)
+    if (_inputData._controller)
     {
+        // Advance edges: this frame's buttons become last frame's before re-sampling,
+        // so IsButtonJustPressed can compare curr vs prev.
+        _inputData._prevButtons = _inputData._currButtons;
+
         for (int i = 0; i < SDL_GAMEPAD_BUTTON_COUNT; ++i)
         {
-            _currButtons[i] = SDL_GetGamepadButton(_controller, static_cast<SDL_GamepadButton>(i));
+            _inputData._currButtons[i] = SDL_GetGamepadButton(_inputData._controller, static_cast<SDL_GamepadButton>(i));
+        }
+
+        for (int i = 0; i < SDL_GAMEPAD_AXIS_COUNT; ++i)
+        {
+            _inputData._axes[i] = SDL_GetGamepadAxis(_inputData._controller, static_cast<SDL_GamepadAxis>(i));
         }
     }
 }
@@ -38,89 +36,97 @@ void Input::ProcessEvent(const SDL_Event& aE)
 {
     if (aE.type == SDL_EVENT_KEY_DOWN && !aE.key.repeat)
     {
-        _justPressed.insert(aE.key.scancode);
+        _inputData._justPressed.insert(aE.key.scancode);
     }
     else if (aE.type == SDL_EVENT_KEY_UP)
     {
-        _justReleased.insert(aE.key.scancode);
+        _inputData._justReleased.insert(aE.key.scancode);
     }
     else if (aE.type == SDL_EVENT_GAMEPAD_ADDED)
     {
-        if (!_controller)
+        if (!_inputData._controller)
         {
-            _controller = SDL_OpenGamepad(aE.gdevice.which);
+            _inputData._controller = SDL_OpenGamepad(aE.gdevice.which);
             fmt::print("Controller Connected!\n");
         }
     }
     else if (aE.type == SDL_EVENT_GAMEPAD_REMOVED)
     {
-        SDL_Gamepad* closed = SDL_GetGamepadFromID(aE.gdevice.which);
-        if (_controller == closed)
+        const SDL_Gamepad* closed = SDL_GetGamepadFromID(aE.gdevice.which);
+        if (_inputData._controller == closed)
         {
-            SDL_CloseGamepad(_controller);
-            _controller = nullptr;
+            SDL_CloseGamepad(_inputData._controller);
+            _inputData._controller = nullptr;
             fmt::print("Controller Disconnected!\n");
         }
     }
 }
 
-void Input::FlushKeyEvents()
+void Input::EndOfFrame()
 {
-    _justPressed.clear();
-    _justReleased.clear();
+    FlushKeyEvents();
+    ResetMouseDelta();
 }
 
-bool Input::IsKeyHeld(const SDL_Scancode aKey) const
+void Input::FlushKeyEvents()
+{
+    _inputData._justPressed.clear();
+    _inputData._justReleased.clear();
+}
+
+bool InputData::IsKeyHeld(const SDL_Scancode aKey) const
 {
     return _currentState[aKey] != 0;
 }
 
-bool Input::IsKeyPressed(const SDL_Scancode aKey) const
+bool InputData::IsKeyPressed(const SDL_Scancode aKey) const
 {
     return _justPressed.contains(aKey);
 }
 
-bool Input::IsKeyReleased(const SDL_Scancode aKey) const
+bool InputData::IsKeyReleased(const SDL_Scancode aKey) const
 {
     return _justReleased.contains(aKey);
 }
 
-float Input::GetMouseX() const
-{ return _mouseX; }
-
-float Input::GetMouseY() const
-{ return _mouseY; }
-
-float Input::GetMouseDeltaX() const
-{ return _mouseDeltaX; }
-
-float Input::GetMouseDeltaY() const
-{ return _mouseDeltaY; }
-
-void Input::ResetMouseDelta()
+float InputData::GetMouseX() const
 {
-    _mouseDeltaX = 0.f;
-    _mouseDeltaY = 0.f;
+    return _mouseX;
 }
 
-bool Input::IsButtonHeld(const SDL_GamepadButton aButton) const
+float InputData::GetMouseY() const
+{
+    return _mouseY;
+}
+
+float InputData::GetMouseDeltaX() const
+{
+    return _mouseDeltaX;
+}
+
+float InputData::GetMouseDeltaY() const
+{
+    return _mouseDeltaY;
+}
+
+bool InputData::IsButtonHeld(const SDL_GamepadButton aButton) const
 {
     return _controller && _currButtons[aButton] != 0;
 }
 
-bool Input::IsButtonJustPressed(const SDL_GamepadButton aButton) const
+bool InputData::IsButtonJustPressed(const SDL_GamepadButton aButton) const
 {
     return _controller && _currButtons[aButton] != 0 && _prevButtons[aButton] == 0;
 }
 
-float Input::GetAxis(const SDL_GamepadAxis aAxis) const
+float InputData::GetAxis(const SDL_GamepadAxis aAxis) const
 {
     if (!_controller)
     {
         return 0.0f;
     }
 
-    const int16_t value = SDL_GetGamepadAxis(_controller, aAxis);
+    const int16_t value = _axes[aAxis];
 
     if (abs(value) < 8000)
     {
@@ -130,11 +136,45 @@ float Input::GetAxis(const SDL_GamepadAxis aAxis) const
     return static_cast<float>(value) / 32767.0f;
 }
 
+void Input::Init(SDL_Window* aSDLWindow)
+{
+    int numKeys;
+    _inputData._currentState = SDL_GetKeyboardState(&numKeys);
+
+    SDL_InitSubSystem(SDL_INIT_GAMEPAD);
+
+    _inputData._currButtons.resize(SDL_GAMEPAD_BUTTON_COUNT, 0);
+    _inputData._prevButtons.resize(SDL_GAMEPAD_BUTTON_COUNT, 0);
+    _SDL_Window = aSDLWindow;
+}
+
+
+void Input::ResetMouseDelta()
+{
+    _inputData._mouseDeltaX = 0.f;
+    _inputData._mouseDeltaY = 0.f;
+}
+
+void Input::SetRelativeMouseMode(const bool aState) const
+{
+    SDL_SetWindowRelativeMouseMode(_SDL_Window, aState);
+}
+
+void Input::ToggleRelativeMouseMode() const
+{
+    SDL_SetWindowRelativeMouseMode(_SDL_Window, !SDL_GetWindowRelativeMouseMode(_SDL_Window));
+}
+
+const InputData& Input::GetInputDataSnapShot() const
+{
+    return _inputData;
+}
+
 Input::~Input()
 {
-    if (_controller)
+    if (_inputData._controller)
     {
-        SDL_CloseGamepad(_controller);
+        SDL_CloseGamepad(_inputData._controller);
     }
 }
 

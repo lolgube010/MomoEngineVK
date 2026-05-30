@@ -39,12 +39,13 @@ private:
 class RenderDocWrapper
 {
 public:
-    static void Load() {}
-    static void Set_Window(VkInstance, SDL_Window*) {}
-    static void Trigger_Capture() {}
-    static void Launch_Replay_UI() {}
-    static void Annotate_Draw(VkCommandBuffer, const char*, const char*, const char*) {}
-    static bool Is_Loaded() { return false; }
+    // ReSharper disable CppMemberFunctionMayBeStatic
+    void Load() {}
+    void Set_Window(VkInstance, SDL_Window*) {}
+    void Trigger_Capture() {}
+    void Launch_Replay_UI() {}
+    void Annotate_Draw(VkCommandBuffer, const char*, const char*, const char*) {}
+    bool Is_Loaded() { return false; }
 };
 
 #endif
