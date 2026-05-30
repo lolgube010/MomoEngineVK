@@ -10,8 +10,6 @@
 #include <input/Input.h>
 #include <imgui/backends/imgui_impl_sdl3.h>
 
-#include "game/game_imgui.h"
-
 constexpr auto APP_NAME = "MomoVK";
 
 VulkanEngine& VulkanEngine::Get()
@@ -29,6 +27,19 @@ void VulkanEngine::Init()
     _imgui.Init(_renderer.GetImGuiInitInfo());
     _scene.Init();
     Input::Instance().Init(_window);
+
+    if (!_gameModule.Load())
+    {
+        throw std::runtime_error("failed to load dll");
+    }
+
+    // Hand the game module the host's ImGui context + allocator so it shares ours
+    // across the (future) DLL boundary. Re-run this after each hot-reload.
+    ImGuiBridge imguiBridge;
+    imguiBridge.ctx = _imgui._context;
+    ImGui::GetAllocatorFunctions(&imguiBridge.allocFunc, &imguiBridge.freeFunc, &imguiBridge.userData);
+    _gameModule.Init(&_gameState, &imguiBridge);
+
     _isInitialized = true;
 }
 
@@ -68,11 +79,15 @@ void VulkanEngine::Run()
         auto& input = Input::Instance();
         input.PostUpdate();
 
+        // Swap in a freshly-built game DLL at a safe point (no DLL call in flight).
+        _gameModule.PollAutoReload();
+        _gameModule.PollBuild();
+
         if (_freezeRendering)
         {
             accumulator = 0.0;
             input.EndOfFrame();
-            input.SetRelativeMouseMode(_gameState.GetCameraData()._wantMouseCaptured);
+            input.SetRelativeMouseMode(_gameState._cameraData._wantMouseCaptured);
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
         }
@@ -86,16 +101,16 @@ void VulkanEngine::Run()
         accumulator += dt;
         while (accumulator >= fixed_Step)
         {
-            _gameState.Update(fixed_Step, input.GetInputDataSnapShot());
+            _gameModule.Update(&_gameState, fixed_Step, &input.GetInputDataSnapShot());
             input.EndOfFrame();
-            input.SetRelativeMouseMode(_gameState.GetCameraData()._wantMouseCaptured);
+            input.SetRelativeMouseMode(_gameState._cameraData._wantMouseCaptured);
             accumulator -= fixed_Step;
         }
         Prepare_Draw(fixed_Step);
 
         EngineImGui::Begin_Rendering();
-        EngineImGui::Run(_renderer, _scene);
-        GameImGui::DrawImGui(_gameState); // different dll, has to be made later.
+        EngineImGui::Run(_renderer, _scene, _gameModule);
+        _gameModule.DrawImGui(&_gameState);
         EngineImGui::End_Rendering();
         Draw();
         PROFILE_FRAME;
@@ -104,7 +119,7 @@ void VulkanEngine::Run()
 
 void VulkanEngine::Prepare_Draw(const double aDT)
 {
-    _scene.Update(aDT, _windowExtent, _gameState.GetCameraData());
+    _scene.Update(aDT, _windowExtent, _gameState._cameraData);
 }
 
 void VulkanEngine::Draw()

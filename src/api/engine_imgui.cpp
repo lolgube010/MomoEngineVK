@@ -1,6 +1,7 @@
 #include <api/engine_imgui.h>
 #include <vk/engine_rendering.h>
 #include <engine_main/engine_scene.h>
+#include <engine_main/game_module.h>
 #include <vk/initializers.h>
 #include <vk/debug.h>
 #include <utils/string_utils.h>
@@ -13,13 +14,11 @@
 #include <api/MomoTracy.h>
 #include <api/imgui_utils.h>
 
-class GameState;
-
 void EngineImGui::Init(const ImGui_InitInfo& anInfo)
 {
     PROFILE_SCOPE_N("Init_ImGui")
     IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
+    _context = ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
@@ -67,7 +66,7 @@ void EngineImGui::End_Rendering()
     ImGui::Render();
 }
 
-void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
+void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule& aGameModule)
 {
     if (ImGui::Begin("settings"))
     {
@@ -75,6 +74,39 @@ void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene)
 
         if (momo_imgui::BeginSection("Engine", momo_imgui::ENGINE_TINT))
         {
+        if (momo_imgui::CategoryHeader("Game Module (DLL)", momo_imgui::ENGINE_TINT, ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            const bool building = aGameModule.IsBuilding();
+
+            ImGui::BeginDisabled(building);
+            if (ImGui::Button("Rebuild & Reload MomoGame"))
+            {
+                aGameModule.RequestRebuild();
+            }
+            ImGui::EndDisabled();
+
+            ImGui::SameLine();
+            if (ImGui::Button("Reload now"))
+            {
+                aGameModule.Reload();
+            }
+            ImGui::SameLine();
+            ImGui::Checkbox("Auto-reload on rebuild", &aGameModule.AutoReloadEnabled());
+
+            if (building)
+            {
+                ImGui::TextDisabled("Building...");
+            }
+            else if (aGameModule.LastBuildFailed())
+            {
+                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "Build FAILED (run build_game.bat to see errors)");
+            }
+            else
+            {
+                ImGui::Text("Status: %s", aGameModule.IsLoaded() ? "loaded" : "NOT loaded");
+            }
+        }
+
         if (momo_imgui::CategoryHeader("CVars", momo_imgui::ENGINE_TINT))
         {
             Momo_Cvars::CVarSystem::Get()->DrawImGuiEditor();

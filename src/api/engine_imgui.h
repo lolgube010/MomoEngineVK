@@ -1,4 +1,5 @@
 #pragma once
+#include "imgui_utils.h"
 struct SDL_Window;
 
 struct ImGui_InitInfo
@@ -16,15 +17,19 @@ struct ImGui_InitInfo
 
 class EngineRenderer;
 class EngineScene;
+class GameModule;
+struct ImGuiContext;
 
 class EngineImGui
 {
 public:
-    static void Init(const ImGui_InitInfo& anInfo);
+    void Init(const ImGui_InitInfo& anInfo);
     static void Cleanup();
     static void Begin_Rendering();
     static void End_Rendering();
 
-    static void Run(EngineRenderer& aRenderer, EngineScene& aScene);
+    static void Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule& aGameModule);
     static void RenderDrawData(VkCommandBuffer aCmd, VkImageView aTargetImageView, VkExtent2D aSwapchainExtent, VkDevice aDevice);
+
+    ImGuiContext* _context = nullptr;
 };

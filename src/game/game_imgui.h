@@ -1,5 +1,5 @@
 #pragma once
-class GameState;
+struct GameState;
 
 class GameImGui
 {

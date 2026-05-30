@@ -124,8 +124,6 @@ private:
     // GPU resources (immediate submit, buffers, images)
     GpuResources _gpuResources;
 
-    // ImGui
-
     // Background compute
     std::vector<ComputeEffect> _backgroundEffects;
     int _currentBackgroundEffect{0};

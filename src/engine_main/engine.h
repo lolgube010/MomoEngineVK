@@ -1,6 +1,7 @@
 #pragma once
 #include <vk/engine_rendering.h>
 #include <engine_main/engine_scene.h>
+#include <engine_main/game_module.h>
 #include "game/game_state.h"
 
 class VulkanEngine
@@ -21,6 +22,7 @@ public:
     EngineRenderer _renderer;
     EngineScene    _scene;
     GameState      _gameState;
+    GameModule     _gameModule;
     EngineImGui _imgui;
 
     static VulkanEngine& Get();

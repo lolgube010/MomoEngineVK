@@ -3,6 +3,16 @@
 # ---------------------------------------------------------------------------
 file(GLOB_RECURSE HEADER_FILES CONFIGURE_DEPENDS "*.h")
 file(GLOB_RECURSE SOURCE_CPP_FILES CONFIGURE_DEPENDS "*.cpp")
+
+# The gameplay module compiles into its own hot-reloadable DLL (MomoGame, defined at
+# the bottom of this file), so its sources (and headers, for IDE grouping) are pulled
+# out of the engine executable. Headers still resolve in the exe via the include dir;
+# this only moves where they appear in Solution Explorer.
+file(GLOB_RECURSE GAME_CPP_FILES    CONFIGURE_DEPENDS "game/*.cpp")
+file(GLOB_RECURSE GAME_HEADER_FILES CONFIGURE_DEPENDS "game/*.h")
+list(REMOVE_ITEM SOURCE_CPP_FILES ${GAME_CPP_FILES})
+list(REMOVE_ITEM HEADER_FILES     ${GAME_HEADER_FILES})
+
 set(SOURCE_FILES ${HEADER_FILES} ${SOURCE_CPP_FILES})
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Header Files" FILES ${HEADER_FILES})
@@ -128,3 +138,41 @@ if(WIN32)
         COMMAND_EXPAND_LISTS
     )
 endif()
+
+# ---------------------------------------------------------------------------
+# MomoGame — hot-reloadable gameplay module (DLL)
+#
+# Loaded at runtime by the host via LoadLibrary/GetProcAddress (see GameModule),
+# never linked against the executable. Output lands in bin/<config> next to the
+# exe automatically (CMAKE_RUNTIME_OUTPUT_DIRECTORY), so no copy step is needed.
+# ---------------------------------------------------------------------------
+add_library(MomoGame SHARED ${GAME_CPP_FILES} ${GAME_HEADER_FILES})
+
+# Group the game files in Solution Explorer (mirrors the MomoVK grouping above).
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Header Files" FILES ${GAME_HEADER_FILES})
+source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Source Files" FILES ${GAME_CPP_FILES})
+
+target_compile_features(MomoGame PRIVATE cxx_std_20)
+set_target_properties(MomoGame PROPERTIES CXX_EXTENSIONS OFF)
+
+# Same source root so #include "game/...", "input/...", "api/..." resolve as in the exe.
+target_include_directories(MomoGame PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# MOMO_GAME_EXPORTS flips GAME_API to __declspec(dllexport) for this build only;
+# the host sees the same header with the macro empty.
+target_compile_definitions(MomoGame PRIVATE
+    MOMO_GAME_EXPORTS
+    GLM_FORCE_DEPTH_ZERO_TO_ONE
+)
+
+# The game links its OWN copy of ImGui (separate globals — hence the context +
+# allocator handshake in Game_Init). glm for the camera math; SDL3 for the input
+# scancode enums used by the camera controller.
+target_link_libraries(MomoGame PRIVATE
+    imgui
+    glm
+    SDL3::SDL3
+)
+
+# Build the game module whenever the engine builds.
+add_dependencies(MomoVK MomoGame)
