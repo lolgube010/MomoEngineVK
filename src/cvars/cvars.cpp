@@ -1,12 +1,9 @@
 #include "cvars.h"
-
 #include <unordered_map>
-
 #include <algorithm>
 #include <cassert>
 #include <imgui/imgui.h>
 #include <imgui/misc/cpp/imgui_stdlib.h>
-#include <imgui/imgui_internal.h>
 #include <shared_mutex>
 
 namespace Momo_Cvars

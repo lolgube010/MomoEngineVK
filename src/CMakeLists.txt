@@ -42,6 +42,7 @@ target_include_directories(MomoVK PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_compile_definitions(MomoVK
 	PUBLIC
 		GLM_FORCE_DEPTH_ZERO_TO_ONE
+		GLM_ENABLE_EXPERIMENTAL
 		VK_NO_PROTOTYPES          # Required: routes all Vulkan calls through volk
 	PRIVATE
 		# Tracy: 1 when enabled, 0 when disabled — keeps the macro defined either way
@@ -165,7 +166,10 @@ target_include_directories(MomoGame PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # MOMO_GAME_EXPORTS flips GAME_API to __declspec(dllexport) for this build only;
 # the host sees the same header with the macro empty.
-target_compile_definitions(MomoGame PRIVATE
+target_compile_definitions(MomoGame 
+PUBLIC
+	GLM_ENABLE_EXPERIMENTAL
+PRIVATE
 	MOMO_GAME_EXPORTS
 	GLM_FORCE_DEPTH_ZERO_TO_ONE
 )
