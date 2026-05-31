@@ -1,4 +1,6 @@
 ﻿#pragma once
+#include <glm/vec4.hpp>
+#include <vulkan/vulkan_core.h>
 
 // This will contain helpers to create vulkan structures
 

@@ -1,4 +1,6 @@
 #pragma once
+#include <vma/vk_mem_alloc.h>
+#include <vulkan/vulkan_core.h>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
@@ -7,6 +9,9 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <string>
+#include <fmt/format.h>
+// ReSharper disable once CppUnusedIncludeDirective
+#include <vulkan/vk_enum_string_helper.h>
 
 #define VK_CHECK(x)                                                          \
     do                                                                       \

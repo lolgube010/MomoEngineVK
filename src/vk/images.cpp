@@ -2,6 +2,7 @@
 #include <vk/initializers.h>
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
+#include <Volk/volk.h>
 
 // https://github.com/KhronosGroup/Vulkan-Docs/wiki/Synchronization-Examples 
 VkImageAspectFlags Momo_VkUtil::aspect_flags_from_format(const VkFormat aFormat)

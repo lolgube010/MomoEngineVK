@@ -1,0 +1,10 @@
+Checks: '
+  -*,
+  misc-include-cleaner,
+  # Add other checks you want here, separated by commas
+'
+
+# Optional: Configure specific behaviors if needed
+#CheckOptions:
+#  - key: misc-include-cleaner.IgnoreHeaders
+#    value: "stdafx.h;targetver.h" # Example: Ignore specific PCH files if they cause noise

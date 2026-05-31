@@ -2,8 +2,9 @@
 #include <vk/debug.h>
 #include <SDL3/SDL.h>
 #include <VkBootstrap.h>
+#include <Volk/volk.h>
 
-#include "gpu_types.h"
+#include <vk/gpu_types.h>
 
 void Swapchain::Init(const VkDevice aDevice, const VkPhysicalDevice aGPU, const VkSurfaceKHR aSurface, SDL_Window* aWindow, const VkExtent2D aWindowExtent)
 {

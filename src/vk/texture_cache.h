@@ -1,4 +1,5 @@
 #pragma once
+#include <bit>
 #include <vk/gpu_types.h>
 #include <unordered_set>
 #include <unordered_map>

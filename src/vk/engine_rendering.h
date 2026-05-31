@@ -11,7 +11,7 @@
 #include <chrono>
 #include <array>
 
-#include "deletion_queue.h"
+#include <vk/deletion_queue.h>
 
 struct SDL_Window;
 class EngineScene;

@@ -1,10 +1,11 @@
 #pragma once
+#include <vulkan/vulkan_core.h>
 
 struct SDL_Window;
 
 #ifdef MOMOVK_ENABLE_RENDERDOC
 
-#include "renderdoc_app.h"
+#include <api/renderdoc_app.h>
 
 class RenderDocWrapper
 {

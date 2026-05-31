@@ -1,8 +1,8 @@
-#include "game_api.h"
-#include <imgui.h>
-#include "game_state.h"
-#include "game_imgui.h"
-#include "input/Input.h"
+#include <game/game_api.h>
+#include <imgui/imgui.h>
+#include <game/game_state.h>
+#include <game/game_imgui.h>
+#include <input/Input.h>
 
 // Everything here is internal to the DLL now. Only Game_GetAPI (at the bottom) is
 // exported; the host reaches these functions through the table it fills, never by

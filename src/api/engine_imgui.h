@@ -1,5 +1,6 @@
 #pragma once
-#include "imgui_utils.h"
+#include <vulkan/vulkan_core.h>
+
 struct SDL_Window;
 
 struct ImGui_InitInfo

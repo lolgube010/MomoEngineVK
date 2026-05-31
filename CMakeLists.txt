@@ -6,8 +6,28 @@ project(MomoVK
 )
 
 # ---------------------------------------------------------------------------
+# Global Linter Configuration (Enforce Includes & Styles)
+# ---------------------------------------------------------------------------
+find_program(CLANG_TIDY_EXE 
+    NAMES clang-tidy
+    #HINTS "C:/Program Files/LLVM/bin" # Force CMake to check here on Windows
+)
+
+if(CLANG_TIDY_EXE)
+    message(STATUS "clang-tidy found: ${CLANG_TIDY_EXE}")
+    # Forces clang-tidy to run on all C++ targets (like MomoVK) during compilation
+    set(CMAKE_CXX_CLANG_TIDY 
+        ${CLANG_TIDY_EXE}
+        "-extra-arg=-Wno-unknown-warning-option"
+    )
+else()
+    message(WARNING "clang-tidy not found! Header enforcement will not run.")
+endif()
+
+# ---------------------------------------------------------------------------
 # CMake options (declared at root so they appear in CMake-GUI / cmake -L)
 # ---------------------------------------------------------------------------
+option(MOMOVK_USE_PCH            "Use precompiled headers (turn OFF to verify headers are self-contained)" ON)
 option(MOMOVK_ENABLE_DEBUG_NAMES "Enable Vulkan object debug naming in Debug builds" OFF)
 option(MOMOVK_ENABLE_RENDERDOC   "Enable RenderDoc in-app API integration"           OFF)
 option(TRACY_ENABLE              "Enable Tracy profiling client"                      OFF)

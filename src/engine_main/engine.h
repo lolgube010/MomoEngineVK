@@ -2,7 +2,7 @@
 #include <vk/engine_rendering.h>
 #include <engine_main/engine_scene.h>
 #include <engine_main/game_module.h>
-#include "game/game_state.h"
+#include <game/game_state.h>
 
 class VulkanEngine
 {

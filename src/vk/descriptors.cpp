@@ -1,8 +1,9 @@
 ﻿#include <vk/descriptors.h>
 #include <algorithm>
+#include <Volk/volk.h>
 #include <vk/debug.h>
 
-#include "gpu_types.h"
+#include <vk/gpu_types.h>
 
 void DescriptorLayoutBuilder::Add_Binding(const uint32_t aBinding, const VkDescriptorType aType)
 {

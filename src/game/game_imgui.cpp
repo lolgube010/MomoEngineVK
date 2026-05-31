@@ -1,8 +1,8 @@
 #include <game/game_imgui.h>
-#include <imgui.h>
+#include <imgui/imgui.h>
 #include <api/imgui_utils.h>
 
-#include "game_state.h"
+#include <game/game_state.h>
 
 void GameImGui::DrawImGui(GameState& aGameState)
 {

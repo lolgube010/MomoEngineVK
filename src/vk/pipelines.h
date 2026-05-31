@@ -1,4 +1,8 @@
 ﻿#pragma once
+#include <optional>
+#include <string>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 // Will contain abstractions for pipelines.
 

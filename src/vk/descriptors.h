@@ -1,4 +1,8 @@
 ﻿#pragma once
+#include <deque>
+#include <span>
+#include <vector>
+#include <vulkan/vulkan_core.h>
 
 struct DescriptorLayoutBuilder
 {

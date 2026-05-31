@@ -1,4 +1,6 @@
 #include <vk/gpu_resources.h>
+
+#include <Volk/volk.h>
 #include <vk/images.h>
 #include <vk/initializers.h>
 #include <vk/debug.h>

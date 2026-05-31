@@ -5,11 +5,12 @@
 #include <algorithm>
 #include <chrono>
 #include <thread>
+#include <Volk/volk.h>
 
 #include <input/Input.h>
 #include <imgui/backends/imgui_impl_sdl3.h>
 
-#include "api/MomoTracy.h"
+#include <api/MomoTracy.h>
 
 constexpr auto APP_NAME = "MomoVK";
 

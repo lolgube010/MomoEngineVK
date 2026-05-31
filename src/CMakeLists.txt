@@ -89,32 +89,42 @@ endif()
 # ---------------------------------------------------------------------------
 # Precompiled headers
 # ---------------------------------------------------------------------------
-# Added heavier headers to the PCH based on Build Insights hot-headers (fmt, glm)
+# Added heavier headers to the PCH based on Build Insights hot-headers (fmt, glm).
 # Keep list minimal and stable to avoid forcing rebuilds when app headers change.
-target_precompile_headers(MomoVK PUBLIC
-	<chrono>
-	<cstdint>
-	<deque>
-	<fastgltf/types.hpp>
-	<filesystem>
-	<fmt/core.h>
-	<fmt/format.h>
-	<format>
-	<functional>
-	<glm/glm.hpp>
-	<glm/gtx/quaternion.hpp>
-	<glm/mat4x4.hpp>
-	<glm/vec4.hpp>
-	<memory>
-	<optional>
-	<ranges>
-	<string>
-	<unordered_map>
-	<vector>
-	<vma/vk_mem_alloc.h>
-	<Volk/volk.h>
-	<vulkan/vk_enum_string_helper.h>
-)
+#
+# PRIVATE, not PUBLIC: MomoVK is an executable, nothing consumes its usage
+# requirements, so the PCH is for this target's own TUs only.
+#
+# Gated behind MOMOVK_USE_PCH: build with -DMOMOVK_USE_PCH=OFF to prove every
+# header/.cpp is self-contained (Include What You Use). The PCH must only make a
+# correct build faster, never make a build with missing includes succeed.
+if(MOMOVK_USE_PCH)
+	target_precompile_headers(MomoVK PRIVATE
+		<algorithm> 
+		<chrono>
+		<cstdint>
+		<deque>
+		<fastgltf/types.hpp>
+		<fastgltf/deps/simdjson/simdjson.h>
+		<filesystem>
+		<fmt/format.h>
+		<functional>
+		<glm/glm.hpp>
+		<glm/gtx/quaternion.hpp>
+		<glm/mat4x4.hpp>
+		<glm/vec4.hpp>
+		<imgui/imgui.h> 
+		<memory>
+		<optional>
+		<ranges>
+		<string>
+		<unordered_map>
+		<vector>
+		<vma/vk_mem_alloc.h>
+		<Volk/volk.h>
+		<vulkan/vk_enum_string_helper.h>
+	)
+endif()
 
 # ---------------------------------------------------------------------------
 # Linker flags
@@ -182,6 +192,19 @@ target_link_libraries(MomoGame PRIVATE
 	glm
 	SDL3::SDL3
 )
+
+# Precompiled header for the game module — same MOMOVK_USE_PCH gate as MomoVK so
+# the PCH-off build still proves these TUs are self-contained. Externals only
+# (imgui/glm/SDL3); never the game's own headers, which churn during gameplay work.
+# Marginal win at two TUs today, but imgui.h alone makes it worth caching once.
+if(MOMOVK_USE_PCH)
+	target_precompile_headers(MomoGame PRIVATE
+		<imgui/imgui.h>
+		<glm/gtx/quaternion.hpp>
+		<glm/mat4x4.hpp>
+		<glm/vec4.hpp>
+	)
+endif()
 
 # Build the game module whenever the engine builds.
 add_dependencies(MomoVK MomoGame)

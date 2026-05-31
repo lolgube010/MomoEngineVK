@@ -8,7 +8,7 @@
 #include <imgui/imgui.h>
 #include <imgui/backends/imgui_impl_sdl3.h>
 #include <imgui/backends/imgui_impl_vulkan.h>
-#include "cvars/cvars.h"
+#include <cvars/cvars.h>
 #include <SDL3/SDL.h>
 #include <chrono>
 #include <api/MomoTracy.h>
