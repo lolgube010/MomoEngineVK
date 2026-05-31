@@ -9,6 +9,7 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <string>
+// ReSharper disable once CppUnusedIncludeDirective
 #include <fmt/format.h>
 // ReSharper disable once CppUnusedIncludeDirective
 #include <vulkan/vk_enum_string_helper.h>
@@ -59,6 +60,12 @@ struct Vertex
 	glm::vec3 _normal;
 	float _uvY;
 	glm::vec4 _color;
+};
+
+struct DebugDrawVertex
+{
+    glm::vec3 _pos;
+    uint32_t _color;
 };
 
 struct GPUMeshBuffers

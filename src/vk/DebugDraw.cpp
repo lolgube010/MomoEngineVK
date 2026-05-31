@@ -4,7 +4,6 @@
 #include <vk/initializers.h>
 #include <vk/pipelines.h>
 #include <vk/debug.h>
-#include <glm/geometric.hpp>
 
 DebugDraw& DebugDraw::Get()
 {
@@ -17,7 +16,7 @@ void DebugDraw::Init(VkDevice aDevice, VmaAllocator aAllocator, VkFormat aDrawFo
     _pending.reserve(MAX_VERTICES);
 
     VkBufferCreateInfo bufInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
-    bufInfo.size  = MAX_VERTICES * sizeof(Vertex);
+    bufInfo.size = MAX_VERTICES * sizeof(DebugDrawVertex);
     bufInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
     VmaAllocationCreateInfo allocInfo{};
@@ -72,7 +71,7 @@ void DebugDraw::Init(VkDevice aDevice, VmaAllocator aAllocator, VkFormat aDrawFo
     vkDestroyShaderModule(aDevice, frag.value(), nullptr);
 }
 
-void DebugDraw::Cleanup(const VkDevice aDevice, const VmaAllocator aAllocator)
+void DebugDraw::Cleanup(const VkDevice aDevice, const VmaAllocator aAllocator) const
 {
     for (auto& buf : _buffers)
     {
@@ -92,7 +91,7 @@ void DebugDraw::Draw(const VkCommandBuffer aCmd, const VkImageView aTargetView, 
 
     const uint32_t count = std::min(static_cast<uint32_t>(_pending.size()), MAX_VERTICES);
     const int slot = aFrameNumber % 2;
-    std::memcpy(_buffers[slot]._info.pMappedData, _pending.data(), count * sizeof(Vertex));
+    std::memcpy(_buffers[slot]._info.pMappedData, _pending.data(), count * sizeof(DebugDrawVertex));
     _pending.clear();
 
     const VkRenderingAttachmentInfo colorAttachment = Momo_VkInit::attachment_info(
@@ -114,7 +113,7 @@ void DebugDraw::Draw(const VkCommandBuffer aCmd, const VkImageView aTargetView, 
     vkCmdSetScissor(aCmd, 0, 1, &scissor);
 
     struct PushConstants { glm::mat4 viewProj; VkDeviceAddress vb; };
-    const PushConstants pc{ aViewProj, _addresses[slot] };
+    const PushConstants pc{.viewProj = aViewProj, .vb = _addresses[slot] };
     vkCmdPushConstants(aCmd, _layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);
 
     vkCmdDraw(aCmd, count, 1, 0, 0);
@@ -128,8 +127,8 @@ void DebugDraw::Line(const glm::vec3 aFrom, const glm::vec3 aTo, const glm::vec4
         return;
     }
     const uint32_t c = PackColor(aColor);
-    _pending.push_back({aFrom, c});
-    _pending.push_back({aTo,   c});
+    _pending.push_back({._pos = aFrom, ._color = c});
+    _pending.push_back({._pos = aTo, ._color = c});
 }
 
 void DebugDraw::Box(const glm::vec3 aMin, const glm::vec3 aMax, const glm::vec4 aColor)

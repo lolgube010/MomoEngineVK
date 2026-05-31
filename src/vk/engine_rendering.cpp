@@ -1,5 +1,4 @@
 #include <cvars/cvars.h>
-#include <engine_main/engine_scene.h>
 #include <vk/DebugDraw.h>
 #include <vk/engine_rendering.h>
 
@@ -19,8 +18,6 @@
 #include <VkBootstrap.h>
 
 #include <algorithm>
-#include <chrono>
-
 #include <api/MomoTracy.h>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
