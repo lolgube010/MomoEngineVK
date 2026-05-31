@@ -110,7 +110,7 @@ void EngineRenderer::Init_Vulkan()
     vkb::Instance vkb_inst = inst_ret.value();
     _instance       = vkb_inst.instance;
     _debugMessenger = vkb_inst.debug_messenger;
-
+    
     volkLoadInstance(_instance);
 
     if (USE_VALIDATION_LAYERS)
@@ -118,7 +118,11 @@ void EngineRenderer::Init_Vulkan()
         _validationCapture.Init(_instance);
     }
 
-    SDL_Vulkan_CreateSurface(_window, _instance, nullptr, &_surface);
+    if (!SDL_Vulkan_CreateSurface(_window, _instance, nullptr, &_surface))
+    {
+        std::string err = SDL_GetError();
+        fmt::print("{}",err);
+    }
 
     VkPhysicalDeviceVulkan13Features features13{.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES};
     features13.dynamicRendering = true;
@@ -153,8 +157,13 @@ void EngineRenderer::Init_Vulkan()
     }
 
     vkb::PhysicalDevice& physicalDevice = phys_ret.value();
-    if (const std::vector desiredExtensions = {"VK_EXT_memory_budget", "VK_EXT_calibrated_timestamps"};
-        !physicalDevice.enable_extensions_if_present(desiredExtensions))
+
+    constexpr std::array desiredExtensions{
+        "VK_EXT_memory_budget",
+        "VK_EXT_calibrated_timestamps"
+    };
+
+    if (!physicalDevice.enable_extensions_if_present(desiredExtensions.size(),desiredExtensions.data()))
     {
         fmt::print("failed to load some extensions!\n");
         for (const auto& ext : desiredExtensions)
