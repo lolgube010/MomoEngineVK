@@ -1,5 +1,4 @@
 #pragma once
-#include <Volk/volk.h>
 
 namespace Momo_VkUtil
 {

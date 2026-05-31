@@ -19,6 +19,8 @@
 #include <algorithm>
 #include <chrono>
 
+#include "api/MomoTracy.h"
+
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
 #endif

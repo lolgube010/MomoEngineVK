@@ -8,6 +8,8 @@
 #include <fmt/std.h>
 #include <execution>
 
+#include "api/MomoTracy.h"
+
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
 #endif

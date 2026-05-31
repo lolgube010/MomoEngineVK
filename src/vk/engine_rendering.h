@@ -5,7 +5,6 @@
 #include <vk/texture_cache.h>
 #include <vk/debug.h>
 #include <api/RenderDocWrapper.h>
-#include <api/MomoTracy.h>
 #include <vk/swapchain.h>
 #include <vk/gpu_resources.h>
 #include <api/engine_imgui.h>

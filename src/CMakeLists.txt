@@ -92,28 +92,28 @@ endif()
 # Added heavier headers to the PCH based on Build Insights hot-headers (fmt, glm)
 # Keep list minimal and stable to avoid forcing rebuilds when app headers change.
 target_precompile_headers(MomoVK PUBLIC
-	<optional>
-	<vector>
-	<memory>
-	<string>
-	<unordered_map>
-	<filesystem>
 	<chrono>
-	<format>
-	<vector>
-	<functional>
+	<cstdint>
 	<deque>
-	<glm/mat4x4.hpp>
-	<glm/vec4.hpp>
-	<glm/glm.hpp>
-	<glm/gtx/quaternion.hpp>
-	<Volk/volk.h>
-	<vulkan/vk_enum_string_helper.h>
+	<fastgltf/types.hpp>
+	<filesystem>
 	<fmt/core.h>
 	<fmt/format.h>
-	<fastgltf/types.hpp>
-	<vma/vk_mem_alloc.h>
+	<format>
+	<functional>
+	<glm/glm.hpp>
+	<glm/gtx/quaternion.hpp>
+	<glm/mat4x4.hpp>
+	<glm/vec4.hpp>
+	<memory>
+	<optional>
 	<ranges>
+	<string>
+	<unordered_map>
+	<vector>
+	<vma/vk_mem_alloc.h>
+	<Volk/volk.h>
+	<vulkan/vk_enum_string_helper.h>
 )
 
 # ---------------------------------------------------------------------------

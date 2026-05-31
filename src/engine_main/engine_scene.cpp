@@ -12,7 +12,6 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #endif
 #include <glm/gtx/transform.hpp>
-#include <glm/gtx/quaternion.hpp>
 // ---------------------------------------------------------------------------
 // Test CVars
 // ---------------------------------------------------------------------------

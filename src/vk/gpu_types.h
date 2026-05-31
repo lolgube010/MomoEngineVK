@@ -7,7 +7,6 @@
 #include <glm/mat4x4.hpp>
 #include <glm/vec4.hpp>
 #include <string>
-#include <fmt/core.h>
 
 #define VK_CHECK(x)                                                          \
     do                                                                       \

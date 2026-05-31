@@ -2,13 +2,10 @@
 
 #include <stb_image.h>
 #include <engine_main/engine.h>
-#include <vk/images.h>
-#include <vk/initializers.h>
 
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
 #endif
-#include <glm/gtx/transform.hpp>
 
 std::optional<Momo_VkGLTF::PendingTextureUpload>
 Momo_VkGLTF::load_image_stbi(fastgltf::Asset& aAsset, fastgltf::Image& aImage,

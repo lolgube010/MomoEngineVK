@@ -3,6 +3,8 @@
 #include <SDL3/SDL.h>
 #include <VkBootstrap.h>
 
+#include "gpu_types.h"
+
 void Swapchain::Init(const VkDevice aDevice, const VkPhysicalDevice aGPU, const VkSurfaceKHR aSurface, SDL_Window* aWindow, const VkExtent2D aWindowExtent)
 {
     Create(aDevice, aGPU, aSurface, aWindow, aWindowExtent.width, aWindowExtent.height);

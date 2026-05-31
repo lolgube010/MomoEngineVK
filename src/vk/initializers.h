@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include <vk/gpu_types.h>
 
 // This will contain helpers to create vulkan structures
 

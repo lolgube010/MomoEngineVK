@@ -1,5 +1,4 @@
 ﻿#pragma once
-#include <vk/gpu_types.h>
 
 struct DescriptorLayoutBuilder
 {

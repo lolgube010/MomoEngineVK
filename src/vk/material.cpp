@@ -1,7 +1,6 @@
 #include <vk/material.h>
 #include <vk/initializers.h>
 #include <vk/pipelines.h>
-#include <utils/string_utils.h>
 #include <vk/debug.h>
 
 void GLTFMetallic_Roughness::Build_Pipelines(const VkDevice aDevice,

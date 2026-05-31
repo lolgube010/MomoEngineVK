@@ -1,5 +1,4 @@
 #pragma once
-#include <cstdint>
 #include <SDL3/SDL_events.h>
 
 // POD snapshot: trivially copyable so it can cross a DLL boundary by value.

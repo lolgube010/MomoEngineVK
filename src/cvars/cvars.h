@@ -1,4 +1,6 @@
 #pragma once
+#include <cstdint>
+#include <string>
 #include "utils/string_utils.h"
 
 // based on https://vkguide.dev/docs/extra-chapter/cvar_system/

@@ -3,7 +3,6 @@
 #include <vk/pipelines.h>
 #include <vk/debug.h>
 #include <glm/geometric.hpp>
-#include <cstring>
 
 DebugDraw& DebugDraw::Get()
 {

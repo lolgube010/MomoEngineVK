@@ -6,8 +6,6 @@
 #ifndef GLM_ENABLE_EXPERIMENTAL
 #define GLM_ENABLE_EXPERIMENTAL
 #endif
-#include <glm/gtx/transform.hpp>
-#include <glm/gtx/norm.hpp>
 
 void GpuResources::Init(const VkDevice aDevice, const VmaAllocator aAllocator, const VkQueue aGraphicsQueue, const uint32_t aGraphicsQueueFamily)
 {

@@ -1,5 +1,4 @@
 #pragma once
-#include <vk/gpu_types.h>
 #include <vector>
 
 struct SDL_Window;
