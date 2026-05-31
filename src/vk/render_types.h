@@ -1,6 +1,5 @@
 #pragma once
 #include <vk/gpu_types.h>
-#include <vk/deletion_queue.h>
 #include <memory>
 #include <vector>
 #include <string_view>
