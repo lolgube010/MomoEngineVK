@@ -192,7 +192,10 @@ set_source_files_properties(${ALL_SHADER_SOURCES} PROPERTIES
     VS_TOOL_OVERRIDE  "None"
 )
 
-add_custom_target(Shaders ALL
+add_custom_target(MomoShaders ALL
     DEPENDS ${SPIRV_BINARY_FILES}
     SOURCES ${ALL_SHADER_SOURCES}
 )
+
+# put target in momo folder
+set_target_properties(MomoShaders PROPERTIES FOLDER "Momo")

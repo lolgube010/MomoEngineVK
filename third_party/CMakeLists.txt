@@ -1,12 +1,26 @@
+# ===========================================================================
+# Third-Party Dependencies Configuration
+# ===========================================================================
+
 # ---------------------------------------------------------------------------
-# Vulkan SDK components needed inside third-party targets
-# (Vulkan was already found in the root CMakeLists.txt; this call is a no-op
-#  but documents which components the targets below depend on.)
+# Prerequisites & Packages
 # ---------------------------------------------------------------------------
 find_package(Vulkan REQUIRED COMPONENTS volk dxc)
 
+# DXC DLL path — resolved here so src/CMakeLists.txt can copy it at
+# post-build time. find_package(Vulkan) does not expose the DLL as a target.
+if(WIN32)
+    find_file(DXC_DLL NAMES dxcompiler.dll HINTS "$ENV{VULKAN_SDK}/Bin")
+endif()
+
+# ===========================================================================
+# BLOCK 1: Standard Third-Party Libraries (Folder: third_party)
+# ===========================================================================
+
+set (CMAKE_FOLDER "Third Party")
+
 # ---------------------------------------------------------------------------
-# VMA (Vulkan Memory Allocator) — header-only, lives in the Vulkan SDK
+# VMA (Vulkan Memory Allocator) — header-only, Vulkan SDK
 # ---------------------------------------------------------------------------
 find_path(VMA_INCLUDE_DIR NAMES vma/vk_mem_alloc.h
     HINTS "$ENV{VULKAN_SDK}/Include"
@@ -15,7 +29,7 @@ add_library(vma INTERFACE)
 target_include_directories(vma INTERFACE "${VMA_INCLUDE_DIR}")
 
 # ---------------------------------------------------------------------------
-# GLM — header-only, also ships with the Vulkan SDK
+# GLM — header-only, Vulkan SDK
 # ---------------------------------------------------------------------------
 find_path(GLM_INCLUDE_DIR NAMES glm/glm.hpp
     HINTS "$ENV{VULKAN_SDK}/Include"
@@ -24,7 +38,7 @@ add_library(glm INTERFACE)
 target_include_directories(glm INTERFACE "${GLM_INCLUDE_DIR}")
 
 # ---------------------------------------------------------------------------
-# SDL3 — pre-built, ships with the Vulkan SDK
+# SDL3 — pre-built, Vulkan SDK
 # ---------------------------------------------------------------------------
 find_path(SDL3_INCLUDE_DIR NAMES SDL3/SDL.h
     HINTS "$ENV{VULKAN_SDK}/Include"
@@ -73,11 +87,14 @@ add_library(imgui STATIC
     imgui/misc/cpp/imgui_stdlib.h
     imgui/misc/cpp/imgui_stdlib.cpp
 )
+
 target_include_directories(imgui
     PUBLIC  "${CMAKE_CURRENT_SOURCE_DIR}"   # consumers: <imgui/imgui.h>, <imgui/backends/...>, etc.
-    PUBLIC  imgui                            # backend/misc public headers contain #include "imgui.h"
+    PUBLIC  imgui                           # backend/misc public headers contain #include "imgui.h"
 )
+
 target_link_libraries(imgui PUBLIC Vulkan::volk SDL3::SDL3)
+
 target_compile_definitions(imgui PUBLIC
     IMGUI_IMPL_VULKAN_USE_VOLK
     "IMGUI_IMPL_VULKAN_VOLK_FILENAME=<Volk/volk.h>"
@@ -94,6 +111,10 @@ target_include_directories(stb_image INTERFACE stb_image)
 # ---------------------------------------------------------------------------
 add_library(renderdoc_app INTERFACE)
 target_include_directories(renderdoc_app INTERFACE renderdoc_app)
+
+# ===========================================================================
+# BLOCK 1.1: Subdirectories (Inherit CMAKE_FOLDER automatically)
+# ===========================================================================
 
 # ---------------------------------------------------------------------------
 # fastgltf and fmtlib — have their own CMakeLists.txt
@@ -116,6 +137,12 @@ set(JPH_USE_CPU_COMPUTE         OFF CACHE BOOL "" FORCE)
 set(JPH_SHADER_DEBUG_SYMBOLS    OFF CACHE BOOL "" FORCE)       # flip ON when debugging Jolt physics shaders
 set(JPH_SHADER_OPTIMIZATION     ON  CACHE BOOL "" FORCE)
 add_subdirectory(JoltPhysics/Build)
+
+# ===========================================================================
+# BLOCK 2: Development & Tooling (Folder: tools)
+# ===========================================================================
+
+set(CMAKE_FOLDER "Tools")
 
 # ---------------------------------------------------------------------------
 # Tracy profiler client
@@ -145,15 +172,6 @@ add_custom_target(TracyProfiler
     COMMENT "Configuring and building the Tracy Profiler standalone..."
     VERBATIM
 )
-set_target_properties(TracyProfiler PROPERTIES FOLDER "Tools")
-
-# ---------------------------------------------------------------------------
-# DXC DLL path — resolved here so src/CMakeLists.txt can copy it at
-# post-build time. find_package(Vulkan) does not expose the DLL as a target.
-# ---------------------------------------------------------------------------
-if(WIN32)
-    find_file(DXC_DLL NAMES dxcompiler.dll HINTS "$ENV{VULKAN_SDK}/Bin")
-endif()
 
 # ---------------------------------------------------------------------------
 # Doxygen + include-graph generation (requires Doxygen + Graphviz)
@@ -179,3 +197,11 @@ if(DOXYGEN_FOUND)
 else()
     message(STATUS "Doxygen not found — 'GenerateIncludeGraphs' target will not be available.")
 endif()
+
+# ===========================================================================
+# BLOCK 3: Cleanup / Retroactive Fixes
+# ===========================================================================
+set_target_properties(vma glm vkbootstrap imgui stb_image renderdoc_app PROPERTIES FOLDER "Third Party")
+
+# Reset variable so it doesn't bleed into directories appended after this file
+unset(CMAKE_FOLDER)

@@ -1096,9 +1096,7 @@ void EngineRenderer::Init_Default_Data()
     materialResources._metalRoughImage  = _whiteImage;
     materialResources._metalRoughSampler = _defaultSamplerLinear;
 
-    AllocatedBuffer materialConstants = Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants),
-                                                       VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                                                       VMA_MEMORY_USAGE_AUTO, "MaterialConstants");
+    AllocatedBuffer materialConstants = Create_Buffer(sizeof(GLTFMetallic_Roughness::MaterialConstants), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_AUTO, "MaterialConstants");
     auto* sceneUniformData = static_cast<GLTFMetallic_Roughness::MaterialConstants*>(materialConstants._info.pMappedData);
     sceneUniformData->_colorFactors      = glm::vec4{1, 1, 1, 1};
     sceneUniformData->_metalRoughFactors = glm::vec4{1, 0.5, 0, 0};

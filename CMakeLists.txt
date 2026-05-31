@@ -6,6 +6,11 @@ project(MomoVK
 )
 
 # ---------------------------------------------------------------------------
+# set up library grouping.
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Global Linter Configuration (Enforce Includes & Styles)
 # ---------------------------------------------------------------------------
 find_program(CLANG_TIDY_EXE 
@@ -65,7 +70,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/bin")
 add_subdirectory(src)
 add_subdirectory(shaders)
 
-add_dependencies(MomoVK Shaders)
+add_dependencies(MomoVK MomoShaders)
 
 # ---------------------------------------------------------------------------
 # IDE convenience

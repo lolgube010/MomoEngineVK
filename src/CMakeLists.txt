@@ -29,7 +29,10 @@ add_executable(MomoVK ${SOURCE_FILES})
 # Language standard
 # ---------------------------------------------------------------------------
 target_compile_features(MomoVK PRIVATE cxx_std_20)
-set_target_properties(MomoVK PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(MomoVK PROPERTIES 
+	CXX_EXTENSIONS OFF
+	FOLDER "Momo"
+)
 
 # ---------------------------------------------------------------------------
 # Include directories
@@ -169,7 +172,10 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Header Files" FILES ${GA
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" PREFIX "Source Files" FILES ${GAME_CPP_FILES})
 
 target_compile_features(MomoGame PRIVATE cxx_std_20)
-set_target_properties(MomoGame PROPERTIES CXX_EXTENSIONS OFF)
+set_target_properties(MomoGame PROPERTIES 
+	CXX_EXTENSIONS OFF
+	FOLDER "Momo"
+)
 
 # Same source root so #include "game/...", "input/...", "api/..." resolve as in the exe.
 target_include_directories(MomoGame PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
