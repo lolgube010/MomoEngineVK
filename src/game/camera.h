@@ -15,9 +15,9 @@ struct Camera
     float _cameraFOV = 90.f;
     bool _isLocked = false;
     bool _wantMouseCaptured = false;
-    const float _mouseSensitivity = 0.005f;
-    const float _maxPitch = 1.50f;
-    const float _moveSpeed = 30.0f; // units/second (was 0.5f/frame * 60fps)
+    float _mouseSensitivity = 0.005f;
+    float _maxPitch = 1.50f;
+    float _moveSpeed = 30.0f; // units/second (was 0.5f/frame * 60fps)
 };
 
 namespace Momo_CameraUtil
