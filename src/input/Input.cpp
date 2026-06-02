@@ -44,23 +44,40 @@ void Input::PostUpdate()
 
 void Input::ProcessEvent(const SDL_Event& aE)
 {
-    if (aE.type == SDL_EVENT_GAMEPAD_ADDED)
+    switch (aE.type)
+    {
+    case SDL_EVENT_GAMEPAD_ADDED:
     {
         if (!_controller)
         {
             _controller = SDL_OpenGamepad(aE.gdevice.which);
             fmt::print("Controller Connected!\n");
         }
+        break;
     }
-    else if (aE.type == SDL_EVENT_GAMEPAD_REMOVED)
+    case SDL_EVENT_GAMEPAD_REMOVED:
     {
-        const SDL_Gamepad* closed = SDL_GetGamepadFromID(aE.gdevice.which);
-        if (_controller == closed)
+        if (_controller == SDL_GetGamepadFromID(aE.gdevice.which))
         {
             SDL_CloseGamepad(_controller);
             _controller = nullptr;
             fmt::print("Controller Disconnected!\n");
         }
+        break;
+    }
+    case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+    case SDL_EVENT_WINDOW_RESIZED:
+    {
+        if(_inputData._relativeMouseActive)
+        {
+            int w, h;
+            UpdateMouseCenterRect(w, h);
+        }
+        break;
+        
+    }
+    default:
+        break;
     }
 }
 
@@ -88,11 +105,37 @@ void Input::SetRelativeMouseMode(const bool aState)
     }
     _inputData._relativeMouseActive = aState;
     SDL_SetWindowRelativeMouseMode(_SDL_Window, aState);
+    
+    if (aState)
+    {
+        int w, h;
+        UpdateMouseCenterRect(w, h);
+
+        // Optional: Warp once for immediate effect
+        SDL_WarpMouseInWindow(_SDL_Window, w / 2, h / 2);
+    }
+    else
+    {
+        SDL_SetWindowMouseRect(_SDL_Window, nullptr); // remove restriction
+    }
 }
 
 const InputData& Input::GetInputDataSnapShot() const
 {
     return _inputData;
+}
+
+void Input::UpdateMouseCenterRect(int& aOutWidth, int& aOutHeight) const
+{
+    if (!_SDL_Window)
+    {
+        throw;
+    }
+
+    SDL_GetWindowSize(_SDL_Window, &aOutWidth, &aOutHeight);
+
+    SDL_Rect center = {.x = aOutWidth / 2, .y = aOutHeight / 2, .w = 1, .h = 1};
+    SDL_SetWindowMouseRect(_SDL_Window, &center);
 }
 
 Input::~Input()

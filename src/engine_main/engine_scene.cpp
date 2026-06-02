@@ -52,7 +52,7 @@ void EngineScene::Init()
 // Per-frame update
 // ---------------------------------------------------------------------------
 
-void EngineScene::Update(const double aDt, const VkExtent2D aWindowExtent, const Camera& aCamera)
+void EngineScene::Update(const VkExtent2D aWindowExtent, const Camera& aCamera)
 {
     PROFILE_SCOPE_N("Update_Scene")
     const auto start = std::chrono::system_clock::now();
@@ -77,6 +77,8 @@ void EngineScene::Update(const double aDt, const VkExtent2D aWindowExtent, const
     _sceneData._ambientColor      = _tempAmbientColor;
     _sceneData._sunlightColor     = _tempSunColor;
     _sceneData._sunlightDirection = _tempSunDir;
+
+
 
     const auto end     = std::chrono::system_clock::now();
     const auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(end - start);

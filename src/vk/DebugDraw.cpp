@@ -15,7 +15,7 @@ void DebugDraw::Init(VkDevice aDevice, VmaAllocator aAllocator, VkFormat aDrawFo
 {
     _pending.reserve(MAX_VERTICES);
 
-    VkBufferCreateInfo bufInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
+    VkBufferCreateInfo bufInfo{.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO, .pNext = nullptr };
     bufInfo.size = MAX_VERTICES * sizeof(DebugDrawVertex);
     bufInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT;
 
@@ -26,8 +26,7 @@ void DebugDraw::Init(VkDevice aDevice, VmaAllocator aAllocator, VkFormat aDrawFo
     for (int i = 0; i < 2; ++i)
     {
         VmaAllocationInfo vmaInfo{};
-        vmaCreateBuffer(aAllocator, &bufInfo, &allocInfo,
-                        &_buffers[i]._buffer, &_buffers[i]._allocation, &vmaInfo);
+        vmaCreateBuffer(aAllocator, &bufInfo, &allocInfo, &_buffers[i]._buffer, &_buffers[i]._allocation, &vmaInfo);
         _buffers[i]._info = vmaInfo;
 
         const VkBufferDeviceAddressInfo addrInfo{
@@ -36,8 +35,7 @@ void DebugDraw::Init(VkDevice aDevice, VmaAllocator aAllocator, VkFormat aDrawFo
         };
         _addresses[i] = vkGetBufferDeviceAddress(aDevice, &addrInfo);
 
-        MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_BUFFER, _buffers[i]._buffer,
-                               "_Buffer Debug Lines {}", i);
+        MOMO_VK_SET_DEBUG_NAME(aDevice, VK_OBJECT_TYPE_BUFFER, _buffers[i]._buffer, "_Buffer Debug Lines {}", i);
     }
 
     VkPushConstantRange pushRange{};
@@ -81,8 +79,7 @@ void DebugDraw::Cleanup(const VkDevice aDevice, const VmaAllocator aAllocator) c
     vkDestroyPipelineLayout(aDevice, _layout, nullptr);
 }
 
-void DebugDraw::Draw(const VkCommandBuffer aCmd, const VkImageView aTargetView, const VkExtent2D aDrawExtent,
-                     const glm::mat4& aViewProj, const int aFrameNumber)
+void DebugDraw::Draw(const VkCommandBuffer aCmd, const VkImageView aTargetView, const VkExtent2D aDrawExtent, const glm::mat4& aViewProj, const int aFrameNumber)
 {
     if (_pending.empty())
     {
@@ -94,8 +91,7 @@ void DebugDraw::Draw(const VkCommandBuffer aCmd, const VkImageView aTargetView, 
     std::memcpy(_buffers[slot]._info.pMappedData, _pending.data(), count * sizeof(DebugDrawVertex));
     _pending.clear();
 
-    const VkRenderingAttachmentInfo colorAttachment = Momo_VkInit::attachment_info(
-        aTargetView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+    const VkRenderingAttachmentInfo colorAttachment = Momo_VkInit::attachment_info(aTargetView, nullptr, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
     const VkRenderingInfo renderInfo = Momo_VkInit::rendering_info(aDrawExtent, &colorAttachment, nullptr);
     vkCmdBeginRendering(aCmd, &renderInfo);
 
@@ -112,8 +108,7 @@ void DebugDraw::Draw(const VkCommandBuffer aCmd, const VkImageView aTargetView, 
     scissor.extent = aDrawExtent;
     vkCmdSetScissor(aCmd, 0, 1, &scissor);
 
-    struct PushConstants { glm::mat4 viewProj; VkDeviceAddress vb; };
-    const PushConstants pc{.viewProj = aViewProj, .vb = _addresses[slot] };
+    const PushConstants pc{._viewProj = aViewProj, ._vb = _addresses[slot] };
     vkCmdPushConstants(aCmd, _layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(pc), &pc);
 
     vkCmdDraw(aCmd, count, 1, 0, 0);

@@ -14,7 +14,7 @@ class EngineScene
 {
 public:
     void Init();
-    void Update(double aDt, VkExtent2D aWindowExtent, const Camera& aCamera);
+    void Update(VkExtent2D aWindowExtent, const Camera& aCamera);
 
     const DrawContext&  GetDrawContext()  const { return _mainDrawContext; }
     const GPUSceneData& GetSceneData()    const { return _sceneData; }

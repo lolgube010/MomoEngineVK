@@ -3,7 +3,7 @@
 #include <game/game_state.h>
 #include <game/game_imgui.h>
 #include <input/Input.h>
-
+#include <glm/vec3.hpp>
 // Everything here is internal to the DLL now. Only Game_GetAPI (at the bottom) is
 // exported; the host reaches these functions through the table it fills, never by
 // resolving them individually.

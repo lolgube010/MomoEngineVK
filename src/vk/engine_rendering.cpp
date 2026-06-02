@@ -438,21 +438,17 @@ void EngineRenderer::Draw_Background(const VkCommandBuffer aCmd) const
 {
     const ComputeEffect& effect = _backgroundEffects[_currentBackgroundEffect];
     vkCmdBindPipeline(aCmd, VK_PIPELINE_BIND_POINT_COMPUTE, effect._pipeline);
-    vkCmdBindDescriptorSets(aCmd, VK_PIPELINE_BIND_POINT_COMPUTE, _computePipelineLayout,
-                             0, 1, &_drawImageDescriptors, 0, nullptr);
-    vkCmdPushConstants(aCmd, _computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT,
-                       0, sizeof(ComputePushConstants), &effect._data);
-    vkCmdDispatch(aCmd,
-                  static_cast<uint32_t>(std::ceil(_drawExtent.width  / 16.0)),
-                  static_cast<uint32_t>(std::ceil(_drawExtent.height / 16.0)), 1);
+    vkCmdPushConstants(aCmd, _computePipelineLayout, VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(ComputePushConstants), &effect._data);
+    vkCmdDispatch(aCmd, static_cast<uint32_t>(std::ceil(_drawExtent.width  / 16.0)),
+                  static_cast<uint32_t>(std::ceil(_drawExtent.height / 16.0)), 
+                  1);
 }
 
 // ---------------------------------------------------------------------------
 // Geometry pass
 // ---------------------------------------------------------------------------
 
-void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext& aDrawContext,
-                                    const GPUSceneData& aSceneData, int aFrameNumber)
+void EngineRenderer::Draw_Geometry(const VkCommandBuffer aCmd, const DrawContext& aDrawContext, const GPUSceneData& aSceneData, int aFrameNumber)
 {
     _pStats->_totalDrawCallCount       = 0;
     _pStats->_triCount                 = 0;

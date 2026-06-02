@@ -305,7 +305,7 @@ std::optional<std::shared_ptr<LoadedGLTF>> Momo_VkGLTF::load_gltf(std::string_vi
                 passType = MaterialPass::Transparent; constants._alphaCutOff = mat.alphaCutoff; break;
             }
 
-            GLTFMetallic_Roughness::MaterialResources materialResources;
+            GLTFMetallic_Roughness:: MaterialResources materialResources;
             materialResources._colorImage      = engine.GetWhiteImage();
             materialResources._colorSampler    = engine.GetDefaultSamplerLinear();
             materialResources._metalRoughImage = engine.GetWhiteImage();

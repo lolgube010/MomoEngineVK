@@ -20,13 +20,20 @@ public:
 private:
     static constexpr uint32_t MAX_VERTICES = 1 << 16;
 
-    std::vector<DebugDrawVertex>               _pending;
-    std::array<AllocatedBuffer, 2>    _buffers{};
-    std::array<VkDeviceAddress, 2>    _addresses{};
-    VkPipeline                        _pipeline{};
-    VkPipelineLayout                  _layout{};
+    std::vector<DebugDrawVertex> _pending;
+    std::array<AllocatedBuffer, 2> _buffers{};
+    std::array<VkDeviceAddress, 2> _addresses{};
+    VkPipeline _pipeline{};
+    VkPipelineLayout _layout{};
 
     static uint32_t PackColor(glm::vec4 aColor);
+
+    struct PushConstants
+    {
+        glm::mat4 _viewProj;
+        VkDeviceAddress _vb;
+    };
+
     DebugDraw() = default;
     ~DebugDraw() = default;
 public:

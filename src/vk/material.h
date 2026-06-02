@@ -38,14 +38,10 @@ struct GLTFMetallic_Roughness
 
     DescriptorWriter _writer;
 
-    void Build_Pipelines(VkDevice aDevice, VkDescriptorSetLayout aSceneDataLayout,
-                         VkFormat aDrawFormat, VkFormat aDepthFormat);
+    void Build_Pipelines(VkDevice aDevice, VkDescriptorSetLayout aSceneDataLayout, VkFormat aDrawFormat, VkFormat aDepthFormat);
     void Clear_Resources(VkDevice aDevice) const;
 
-    MaterialInstance Write_Material(VkDevice aDevice, MaterialPass aPass,
-                                    const MaterialResources& aResources,
-                                    DescriptorAllocatorGrowable& aDescriptorAllocator,
-                                    const char* aName);
+    MaterialInstance Write_Material(VkDevice aDevice, MaterialPass aPass, const MaterialResources& aResources, DescriptorAllocatorGrowable& aDescriptorAllocator,const char* aName);
 };
 
 static_assert(sizeof(GLTFMetallic_Roughness::MaterialConstants) == 256);

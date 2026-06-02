@@ -108,24 +108,23 @@ void VulkanEngine::Run()
             input.SetRelativeMouseMode(_gameState._cameraData._wantMouseCaptured);
             accumulator -= fixed_Step;
         }
-        Prepare_Draw(fixed_Step);
-
-        EngineImGui::Begin_Rendering();
-        EngineImGui::Run(_renderer, _scene, _gameModule);
-        _gameModule.DrawImGui(&_gameState);
-        EngineImGui::End_Rendering();
+        Prepare_Draw();
         Draw();
         PROFILE_FRAME;
     }
 }
 
-void VulkanEngine::Prepare_Draw(const double aDT)
+void VulkanEngine::Prepare_Draw()
 {
-    _scene.Update(aDT, _windowExtent, _gameState._cameraData);
+    _scene.Update(_windowExtent, _gameState._cameraData);
 }
 
 void VulkanEngine::Draw()
 {
+    EngineImGui::Begin_Rendering();
+    EngineImGui::Run(_renderer, _scene, _gameModule);
+    _gameModule.DrawImGui(&_gameState);
+    EngineImGui::End_Rendering();
     _renderer.Draw(_scene.GetDrawContext(), _scene.GetSceneData(), _frameNumber, _resizeRequested);
 }
 
@@ -210,10 +209,32 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
         ImGui_ImplSDL3_ProcessEvent(&e);
         Input::Instance().ProcessEvent(e);
 
-        if (e.type == SDL_EVENT_QUIT)                       { aQuit = true; }
-        if (e.type == SDL_EVENT_WINDOW_MINIMIZED)           { _freezeRendering = true; }
-        if (e.type == SDL_EVENT_WINDOW_RESTORED)            { _freezeRendering = false; }
-        if (e.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED)  { _resizeRequested = true; }
+        switch (e.type)
+        {
+        case SDL_EVENT_QUIT:
+            {
+                aQuit = true;
+                break;
+            }
+        case SDL_EVENT_WINDOW_MINIMIZED:
+            {
+                _freezeRendering = true;
+                break;
+            }
+        case SDL_EVENT_WINDOW_RESTORED:
+            {
+                _freezeRendering = false;
+                break;
+            }
+        case SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED:
+        case SDL_EVENT_WINDOW_RESIZED:
+            {
+                _resizeRequested = true;
+                break;
+            }
+        default:
+                break;
+        }
     }
 }
 

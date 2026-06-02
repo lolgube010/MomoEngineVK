@@ -114,8 +114,7 @@ MaterialInstance GLTFMetallic_Roughness::Write_Material(const VkDevice aDevice,
     matData._materialSet = aDescriptorAllocator.Allocate(aDevice, _materialLayout, aName);
 
     _writer.Clear();
-    _writer.Write_Buffer(0, aResources._dataBuffer, sizeof(MaterialConstants),
-                         aResources._dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    _writer.Write_Buffer(0, aResources._dataBuffer, sizeof(MaterialConstants), aResources._dataBufferOffset, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
     _writer.Update_Set(aDevice, matData._materialSet);
 
     return matData;

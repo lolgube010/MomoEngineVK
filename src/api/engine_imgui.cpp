@@ -68,7 +68,7 @@ void EngineImGui::End_Rendering()
 
 void EngineImGui::Run(EngineRenderer& aRenderer, EngineScene& aScene, GameModule& aGameModule)
 {
-    if (ImGui::Begin("settings"))
+    if (ImGui::Begin("settings", nullptr, ImGuiWindowFlags_NoNavInputs))
     {
         aRenderer._validationCapture.DrawImGui();
 

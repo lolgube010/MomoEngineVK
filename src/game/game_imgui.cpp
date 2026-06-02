@@ -6,7 +6,7 @@
 
 void GameImGui::DrawImGui(GameState& aGameState)
 {
-    if (ImGui::Begin("settings"))
+    if (ImGui::Begin("settings"), nullptr, ImGuiWindowFlags_NoNavInputs)
     {
         if (Momo_Imgui::BeginSection("Gameplay", Momo_Imgui::GAMEPLAY_TINT))
         {

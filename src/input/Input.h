@@ -58,6 +58,8 @@ public:
     void ResetMouseDelta();
     void SetRelativeMouseMode(bool aState);
     const InputData& GetInputDataSnapShot() const;
+    void UpdateMouseCenterRect(int& aOutWidth, int& aOutHeight) const;
+
 private:
     InputData _inputData;
 

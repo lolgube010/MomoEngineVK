@@ -34,7 +34,7 @@ public:
 
     void Init();
     void Run();
-    void Prepare_Draw(double aDT);
+    void Prepare_Draw();
     void Draw();
     void Cleanup();
 
