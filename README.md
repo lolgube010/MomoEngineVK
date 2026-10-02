@@ -1,21 +1,7 @@
 # what is this?
-* This is a Vulkan Game Engine built using [vkguide.dev](https://vkguide.dev/) as a base. The primary purpose is for me to continue learning Graphics Programming. I'll be working on this continuously, adding what I find to be interesting, and eventually making a game out of those parts.
+* This is my Vulkan Engine. It's a learning environment for me. 
 
-# features
-* Modern Vulkan: Dynamic Rendering, Synchronization2, Buffer Device Address, descriptor indexing.
-* Bindless textures & vertex pulling.
-* Hot-reloading gameplay code, handmade-hero style.
-* GLTF loading (models & textures); parallel texture decode; mipmap generation.
-* PBR material pipeline (Blinn-Phong lighting for now, Cook-Torrance in progress).
-* Frustum culling, draw sorting & compute shaders.
-* HLSL and GLSL shader support.
-* Tracy CPU/GPU profiling & RenderDoc in-app API. Scoped debug labels and validation capture.
-* ImGui integration.
-
-# planned features
-* lots of project structure stuff first and foremost. after that it'll be pbr, shadows, and gpu driven stuff (draw indirect, compute culling)
-
-# How to Build:
+# how to Build:
 * [Install Vulkan SDK](https://vulkan.lunarg.com/sdk/home)
 * [Install CMake](https://cmake.org/)
 * Open CMake-gui
@@ -23,7 +9,7 @@
 * open the .slnx in /build and compile
 <img width="1148" height="392" alt="image" src="https://github.com/user-attachments/assets/87c68351-2c45-4b2e-862e-c9cc5f492be4" />
 
-# tracy how to set up
+# how to set up Tracy
 you might need to enable long paths on your system: `git config --system core.longpaths true`
 * enable tracy in cmake, tracy gpu if you need gpu perf as well. 
 * build the tracyProfiler target. 
@@ -31,7 +17,7 @@ you might need to enable long paths on your system: `git config --system core.lo
 * make sure TRACY_ON_DEMAND is set to off in cmake, if it's on, rebuild tracy client
 * connect, run game, close game.
 
-# dependency graph / doxygen & graphviz
+# dependency graph / Doxygen & Graphviz
 * install [doxygen](https://doxygen.nl/download.html) & [graphvis](https://graphviz.org/download/)
 * build the doxygen target
 * open index.html in build/doxygen.
@@ -41,7 +27,17 @@ you might need to enable long paths on your system: `git config --system core.lo
 * the hot reload does not reload engine/renderer files, or shaders.
 
 # dependencies
-* based on vkguide.
 * fastgltf, fmt, glm, imgui, sdl, stb_image, tracy, vkbootstrap, vma, volk, renderdoc. 
 
-to see what the engine had at the end of the tutorial, see [this commit](https://github.com/lolgube010/MomoEngineVK/tree/677acaa5fa7ed86fca45ed986798204cc67e067a)
+# features
+* Modern Vulkan: Dynamic Rendering, Synchronization2, Buffer Device Address, descriptor indexing, Bindless textures & vertex pulling.
+* Hot-reloading gameplay code, handmade-hero style.
+* GLTF loading (models & textures); parallel texture decode; mipmap generation.
+* PBR material pipeline (Blinn-Phong lighting for now, Cook-Torrance in progress).
+* Frustum culling, draw sorting & compute shaders.
+* HLSL and GLSL shader support.
+* Tracy CPU/GPU profiling & RenderDoc in-app API. Scoped debug labels and validation capture.
+* ImGui integration.
+
+# sources, to be removed when engine is truly independent.
+* [vkguide](https://vkguide.dev/)
