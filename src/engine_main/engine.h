@@ -69,4 +69,5 @@ private:
     ~VulkanEngine();
 
     void ProcessEvents(bool& aQuit);
+    void InitGameBridges();
 };

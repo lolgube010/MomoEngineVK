@@ -74,7 +74,6 @@ void Input::ProcessEvent(const SDL_Event& aE)
             UpdateMouseCenterRect(w, h);
         }
         break;
-        
     }
     default:
         break;

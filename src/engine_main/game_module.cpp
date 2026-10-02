@@ -206,10 +206,11 @@ bool GameModule::Reload()
     return true;
 }
 
-void GameModule::Init(GameState* aState, const ImGuiBridge* aBridge)
+void GameModule::Init(GameState* aState, const ImGuiBridge* aBridge, const DebugDrawBridge* aDbgBridge)
 {
     _state  = aState;
     _bridge = *aBridge; // POD copy; the host keeps owning the context + allocator it points at
+    _bridgeDbgDraw = *aDbgBridge;
     _api.Init(_state, &_bridge);
 }
 

@@ -17,7 +17,7 @@ public:
 
     // Called once by the host. The state pointer + bridge are cached so Reload() can
     // re-run the Game_Init handshake on its own (both stay valid across reloads).
-    void Init(GameState* aState, const ImGuiBridge* aBridge);
+    void Init(GameState* aState, const ImGuiBridge* aBridge, const DebugDrawBridge* aDbgBridge);
 
     void Update(GameState* aState, const double aDT, const InputData* aInput) const { _api.Update(aState, aDT, aInput); }
     void DrawImGui(GameState* aState) const { _api.DrawImGui(aState); }
@@ -47,6 +47,7 @@ private:
 
     GameState*  _state  = nullptr;   // host-owned; stable across reloads
     ImGuiBridge _bridge{};           // cached; its context + allocator stay valid across reloads
+    DebugDrawBridge _bridgeDbgDraw{}; // cached; its context + allocator stay valid across reloads
 
     uint64_t _lastSourceTime  = 0;   // newest game-source mtime we've already (re)built from
     int      _copyCounter     = 0;   // makes each live-copy filename unique

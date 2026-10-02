@@ -54,8 +54,8 @@ namespace
 
         aCamera._velocity = glm::vec3(0.0f); // Reset velocity every frame
         aCamera._velocity.z += static_cast<float>(aInput.IsKeyHeld(SDL_SCANCODE_S) - aInput.IsKeyHeld(SDL_SCANCODE_W));
-        aCamera._velocity.x += static_cast<float>(aInput.IsKeyHeld(SDL_SCANCODE_D) - aInput.IsKeyHeld(SDL_SCANCODE_A));
-
+        aCamera._velocity.x -= static_cast<float>(aInput.IsKeyHeld(SDL_SCANCODE_D) - aInput.IsKeyHeld(SDL_SCANCODE_A));
+        //aCamera._velocity.x += static_cast<float>(aInput.IsKeyHeld(SDL_SCANCODE_D) - aInput.IsKeyHeld(SDL_SCANCODE_A));
         const glm::mat4 cameraRotation = Momo_CameraUtil::get_rotation_matrix(aCamera);
         aCamera._position += glm::vec3(cameraRotation * glm::vec4(aCamera._velocity * aCamera._moveSpeed * aDt, 0.f));
     }
