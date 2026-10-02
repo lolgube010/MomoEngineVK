@@ -428,8 +428,9 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
+# Official VS Code C# Dev Kit Extension exclusion
+#*.lscache
+
 # custom
 /build
 /shaders/bin
-/.claude
-CLAUDE.md
