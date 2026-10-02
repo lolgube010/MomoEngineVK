@@ -13,20 +13,34 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 # ---------------------------------------------------------------------------
 # Global Linter Configuration (Enforce Includes & Styles)
 # ---------------------------------------------------------------------------
+if(MSVC)
+    # Visual Studio keeps its bundled clang-tidy here
+    file(TO_CMAKE_PATH "$ENV{VCINSTALLDIR}/Tools/Llvm/x64/bin/clang-tidy.exe" VS_CLANG_TIDY)
+endif()
+
 find_program(CLANG_TIDY_EXE 
     NAMES clang-tidy
-    #HINTS "C:/Program Files/LLVM/bin" # Force CMake to check here on Windows
+    HINTS ${VS_CLANG_TIDY} # Checks VS bundle first if on Windows/MSVC
 )
 
 if(CLANG_TIDY_EXE)
     message(STATUS "clang-tidy found: ${CLANG_TIDY_EXE}")
-    # Forces clang-tidy to run on all C++ targets (like MomoVK) during compilation
     set(CMAKE_CXX_CLANG_TIDY 
         ${CLANG_TIDY_EXE}
         "-extra-arg=-Wno-unknown-warning-option"
+        # "--header-filter=.*" # Uncomment if you want to lint headers too
     )
 else()
-    message(WARNING "clang-tidy not found! Header enforcement will not run.")
+    message(WARNING "clang-tidy not found! Analysis will fall back to MSVC only.")
+endif()
+
+if(MSVC)
+    set(CMAKE_VS_GLOBALS
+        "RunCodeAnalysis=true"
+        "CodeAnalysisRuleSet=NativeRecommendedRules.ruleset" # Or Microsoft.AllRules.ruleset
+    )
+    # Alternatively, force the /analyze flag for MSVC compilers
+    add_compile_options(/analyze)
 endif()
 
 # ---------------------------------------------------------------------------

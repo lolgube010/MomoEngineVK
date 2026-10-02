@@ -12,6 +12,8 @@
 
 #include <api/MomoTracy.h>
 
+#include "vk/DebugDraw.h"
+
 constexpr auto APP_NAME = "MomoVK";
 
 VulkanEngine& VulkanEngine::Get()
@@ -35,12 +37,7 @@ void VulkanEngine::Init()
         throw std::runtime_error("failed to load dll");
     }
 
-    // Hand the game module the host's ImGui context + allocator so it shares ours
-    // across the (future) DLL boundary. Re-run this after each hot-reload.
-    ImGuiBridge imguiBridge;
-    imguiBridge.ctx = _imgui._context;
-    ImGui::GetAllocatorFunctions(&imguiBridge.allocFunc, &imguiBridge.freeFunc, &imguiBridge.userData);
-    _gameModule.Init(&_gameState, &imguiBridge);
+    InitGameBridges();
 
     _isInitialized = true;
 }
@@ -236,5 +233,19 @@ void VulkanEngine::ProcessEvents(bool& aQuit)
                 break;
         }
     }
+}
+
+void VulkanEngine::InitGameBridges()
+{
+    // Hand the game module the host's ImGui context + allocator so it shares ours
+    // across the (future) DLL boundary. Re-run this after each hot-reload.
+    ImGuiBridge imguiBridge;
+    imguiBridge.ctx = _imgui._context;
+    ImGui::GetAllocatorFunctions(&imguiBridge.allocFunc, &imguiBridge.freeFunc, &imguiBridge.userData);
+    
+    DebugDrawBridge debugDrawBridge;
+    //debugDrawBridge.DrawBox = *DebugDraw::Get().Box;
+    
+    _gameModule.Init(&_gameState, &imguiBridge, &debugDrawBridge);
 }
 

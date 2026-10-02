@@ -29,6 +29,13 @@ struct ImGuiBridge
     void* userData                                 = nullptr;
 };
 
+struct DebugDrawBridge
+{
+    void (*DrawLine)(glm::vec3, glm::vec3, glm::vec4);
+    void (*DrawBox)(glm::vec3, glm::vec3, glm::vec4);
+    void (*DrawArrow)(glm::vec3, glm::vec3, float, glm::vec4);
+};
+
 #ifdef __cplusplus
 extern "C"
 {
