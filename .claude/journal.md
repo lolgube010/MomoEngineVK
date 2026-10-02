@@ -18,6 +18,9 @@ gets a header. The old specialist agents are deleted, and their useful facts are
 `.claude/notes/pre-rewrite-engine.md`. State is versioned in `.claude/` so it follows Momo between machines.
 Momo: the hot-reload DLL "is so fucking cool but it's so clunky and I have no idea how it actually works". Momo
 wants to be able to build something like it themselves. That's a strong motivation hook, so use it.
+Goal: reset the rules and the setup. The goal held. README trimmed (the features list was cut until the rewrite
+earns it back). Learned (Momo: "i view this as an experiment, i need to get better, that's all"). Parking lot:
+empty. Open: why can't you overwrite a loaded DLL? (Handmade Hero day 21.)
 Feedback: Momo loves being pointed to a specific source ("read this, here"). It makes the whole thing feel
 doable. Keep it the default move: a precise link plus section, not a summary.
 

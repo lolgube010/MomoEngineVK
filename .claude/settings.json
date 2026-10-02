@@ -1,3 +1,4 @@
 {
-  "outputStyle": "Mentor"
+  "outputStyle": "Mentor",
+  "promptSuggestionEnabled": false
 }
