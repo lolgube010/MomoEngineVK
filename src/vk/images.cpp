@@ -41,9 +41,10 @@ std::pair<VkPipelineStageFlags2, VkAccessFlags2> Momo_VkUtil::get_mask_info(cons
     // ambiguous case, we don't know if it's a vertex/pixel/compute shader etc. 
     case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL: 
         return {VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT, VK_ACCESS_2_SHADER_SAMPLED_READ_BIT};
-    // Semaphores handle availability/visibility for present transitions, not the barrier itself.
-    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR: 
     case VK_IMAGE_LAYOUT_UNDEFINED:
+        return {VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_NONE};
+    // Semaphores handle availability/visibility for present transitions, not the barrier itself.
+    case VK_IMAGE_LAYOUT_PRESENT_SRC_KHR:
         return {VK_PIPELINE_STAGE_2_NONE, VK_ACCESS_2_NONE};
     default:
         return {VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT, VK_ACCESS_2_MEMORY_WRITE_BIT | VK_ACCESS_2_MEMORY_READ_BIT};

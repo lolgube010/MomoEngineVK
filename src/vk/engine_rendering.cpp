@@ -413,8 +413,6 @@ void EngineRenderer::Draw_Main(const VkCommandBuffer aCmd, const DrawContext& aD
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "transition draw & depth img 2");
         Momo_VkUtil::transition_image(aCmd, _drawImage._image,
             VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, _drawImage._imageFormat);
-        Momo_VkUtil::transition_image(aCmd, _depthImage._image,
-            VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_ATTACHMENT_OPTIMAL, _depthImage._imageFormat);
     }
     {
         MOMO_VK_SCOPED_CMD_LABEL(aCmd, "Draw Geometry CmdBuff");
